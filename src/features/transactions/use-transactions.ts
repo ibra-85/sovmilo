@@ -3,13 +3,18 @@ import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 
 import { db } from '@/db/client';
 import { transactions, type Transaction } from '@/db/schema';
-import type { TransactionLike } from '@/domain/budget';
+import type { CategorizedTransactionLike } from '@/domain/budget';
 
-/** Les 3 champs nécessaires au calcul des totaux d'un mois (`YYYY-MM`), hors opérations supprimées. */
-export function useMonthTransactions(month: string): TransactionLike[] {
+/** Les champs nécessaires aux totaux et aux plafonds d'un mois (`YYYY-MM`), hors opérations supprimées. */
+export function useMonthTransactions(month: string): CategorizedTransactionLike[] {
   const { data } = useLiveQuery(
     db
-      .select({ type: transactions.type, amountCents: transactions.amountCents, occurredOn: transactions.occurredOn })
+      .select({
+        type: transactions.type,
+        amountCents: transactions.amountCents,
+        categoryId: transactions.categoryId,
+        occurredOn: transactions.occurredOn,
+      })
       .from(transactions)
       .where(and(isNull(transactions.deletedAt), like(transactions.occurredOn, `${month}-%`))),
     [month],
@@ -27,6 +32,18 @@ export function useRecentTransactions(limit: number): Transaction[] {
       .orderBy(desc(transactions.occurredOn), desc(transactions.createdAt))
       .limit(limit),
     [limit],
+  );
+  return data;
+}
+
+/** Toutes les opérations non supprimées, de la plus récente à la plus ancienne. Le tri et les filtres se font ensuite en mémoire. */
+export function useAllTransactions(): Transaction[] {
+  const { data } = useLiveQuery(
+    db
+      .select()
+      .from(transactions)
+      .where(isNull(transactions.deletedAt))
+      .orderBy(desc(transactions.occurredOn), desc(transactions.createdAt)),
   );
   return data;
 }

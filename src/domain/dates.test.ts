@@ -1,4 +1,14 @@
-import { formatShortDate, isMonthKey, monthKey, monthOfISODate, parseISODate, toISODate } from './dates';
+import {
+  formatLongDate,
+  formatMonthLabel,
+  formatShortDate,
+  isMonthKey,
+  monthKey,
+  monthOfISODate,
+  parseISODate,
+  shiftISODate,
+  toISODate,
+} from './dates';
 
 describe('toISODate / monthKey', () => {
   it('utilise la date LOCALE, pas UTC', () => {
@@ -49,5 +59,39 @@ describe('formatShortDate', () => {
 
   it('renvoie la valeur brute si la date est invalide', () => {
     expect(formatShortDate('n’importe quoi', 'fr')).toBe('n’importe quoi');
+  });
+});
+
+describe('shiftISODate', () => {
+  it('recule et avance d’un jour, y compris sur fin de mois et d’année', () => {
+    expect(shiftISODate('2026-03-01', -1)).toBe('2026-02-28');
+    expect(shiftISODate('2026-01-01', -1)).toBe('2025-12-31');
+    expect(shiftISODate('2028-02-28', 1)).toBe('2028-02-29'); // année bissextile
+    expect(shiftISODate('2026-12-31', 1)).toBe('2027-01-01');
+  });
+
+  it('renvoie null pour une date inexistante', () => {
+    expect(shiftISODate('2026-02-30', 1)).toBeNull();
+  });
+});
+
+describe('formatMonthLabel', () => {
+  it('met une majuscule et inclut l’année', () => {
+    expect(formatMonthLabel('2026-03', 'fr')).toBe('Mars 2026');
+    expect(formatMonthLabel('2026-03', 'ru')).toMatch(/^Март 2026/);
+  });
+
+  it('renvoie la valeur brute si le mois est invalide', () => {
+    expect(formatMonthLabel('2026-13', 'fr')).toBe('2026-13');
+  });
+});
+
+describe('formatLongDate', () => {
+  it('affiche le jour de la semaine, la date et l’année', () => {
+    expect(formatLongDate('2026-03-17', 'fr')).toBe('mardi 17 mars 2026');
+  });
+
+  it('renvoie la valeur brute si la date est invalide', () => {
+    expect(formatLongDate('nope', 'fr')).toBe('nope');
   });
 });

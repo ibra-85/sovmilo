@@ -10,10 +10,7 @@ const tabIcon = (emoji: string) =>
     return <Text style={{ fontSize: 24 }}>{emoji}</Text>;
   };
 
-/**
- * Barre d'onglets. Étape 1 : Accueil et Plus. Historique et Budget seront ajoutés à l'étape 2,
- * quand ils auront un vrai contenu (pas d'onglet vide).
- */
+/** Barre d'onglets : Accueil, Historique, Budget, Plus. */
 export default function TabsLayout() {
   const { t } = useTranslation();
   const colors = palette[useThemeName()];
@@ -35,6 +32,8 @@ export default function TabsLayout() {
         },
       }}>
       <Tabs.Screen name="index" options={{ title: t('tabs.home'), tabBarIcon: tabIcon('🏠') }} />
+      <Tabs.Screen name="history" options={{ title: t('tabs.history'), tabBarIcon: tabIcon('🧾') }} />
+      <Tabs.Screen name="budget" options={{ title: t('tabs.budget'), tabBarIcon: tabIcon('🎯') }} />
       <Tabs.Screen name="more" options={{ title: t('tabs.more'), tabBarIcon: tabIcon('⚙️') }} />
     </Tabs>
   );

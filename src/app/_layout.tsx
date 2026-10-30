@@ -12,6 +12,7 @@ import { Text, View } from 'react-native';
 import { db } from '@/db/client';
 import migrations from '@/db/migrations/migrations';
 import { seedDefaultCategories } from '@/db/seed';
+import { UndoProvider } from '@/features/undo/undo-provider';
 import { palette, useThemeName } from '@/theme/colors';
 
 // L'écran de démarrage reste affiché jusqu'à ce que la base soit prête : pas d'écran vide ni de clignotement.
@@ -72,11 +73,16 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={navigationTheme}>
-      <StatusBar style="auto" />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="add" options={{ presentation: 'modal' }} />
-      </Stack>
+      <UndoProvider>
+        <StatusBar style="auto" />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="add" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="transaction/[id]" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="budget-limit/[categoryId]" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="balance" options={{ presentation: 'modal' }} />
+        </Stack>
+      </UndoProvider>
     </ThemeProvider>
   );
 }

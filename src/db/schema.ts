@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { check, index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 import { APP_LOCALES, CATEGORY_KINDS, DEFAULT_CURRENCY, PAYMENT_METHODS, TRANSACTION_TYPES } from '@/domain/types';
 
@@ -86,8 +86,24 @@ export const budgets = sqliteTable(
   },
   (table) => [
     check('budgets_amount_positive', sql`${table.amountCents} > 0`),
-    index('budgets_month_idx').on(table.month, table.categoryId),
+    // Une seule ligne par catégorie et par mois. Une suppression garde la ligne (`deleted_at`) : elle sert de
+    // « pierre tombale » (plus de plafond à partir de ce mois), et la ressaisir ranime la même ligne.
+    uniqueIndex('budgets_user_category_month_idx').on(table.userId, table.categoryId, table.month),
   ],
+);
+
+/** Solde réel saisi par l'utilisatrice d'après sa banque. Distinct du solde calculé à partir des opérations. */
+export const accountSnapshots = sqliteTable(
+  'account_snapshots',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    /** Peut être négatif (compte à découvert) : pas de contrainte « > 0 » ici, contrairement aux autres montants. */
+    realBalanceCents: integer('real_balance_cents').notNull(),
+    recordedAt: text('recorded_at').notNull(), // horodatage UTC ISO de la saisie
+    ...timestamps,
+  },
+  (table) => [index('account_snapshots_recorded_at_idx').on(table.recordedAt)],
 );
 
 export type Profile = typeof profiles.$inferSelect;
@@ -96,3 +112,4 @@ export type NewCategory = typeof categories.$inferInsert;
 export type Transaction = typeof transactions.$inferSelect;
 export type NewTransaction = typeof transactions.$inferInsert;
 export type Budget = typeof budgets.$inferSelect;
+export type AccountSnapshot = typeof accountSnapshots.$inferSelect;

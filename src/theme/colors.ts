@@ -13,6 +13,7 @@ export const palette = {
     muted: '#6B675C',
     sage: '#4A7C59', // vert sauge (positif)
     coral: '#C95542', // corail doux (alertes)
+    amber: '#B07010', // ocre (avertissement)
   },
   dark: {
     bg: '#1C1B17',
@@ -22,6 +23,7 @@ export const palette = {
     muted: '#A8A394',
     sage: '#8FC09B',
     coral: '#F08C7A',
+    amber: '#E0A846',
   },
 } as const;
 

@@ -16,6 +16,7 @@
   --color-sage-soft: 221 235 220;
   --color-coral: 201 85 66; /* corail doux */
   --color-coral-soft: 250 223 216;
+  --color-amber: 176 112 16; /* ocre : avertissement « plus de 80 % du plafond » */
   --color-on-accent: 255 255 255;
 }
 
@@ -30,6 +31,7 @@
     --color-sage-soft: 44 62 48;
     --color-coral: 240 140 122;
     --color-coral-soft: 78 44 38;
+    --color-amber: 224 168 70;
     --color-on-accent: 28 27 23;
   }
 }

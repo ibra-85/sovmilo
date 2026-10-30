@@ -3,10 +3,11 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
 import { APP_LOCALES } from '@/domain/types';
+import { BalanceCard } from '@/features/balance/balance-card';
 import { setAppLocale } from '@/i18n';
 import { useLocale } from '@/i18n/use-locale';
 
-/** Onglet « Plus » : pour l'instant le choix de la langue ; les autres réglages viendront aux étapes suivantes. */
+/** Onglet « Plus » : solde du compte et choix de la langue ; les autres réglages viendront aux étapes suivantes. */
 export function MoreScreen() {
   const { t } = useTranslation();
   const locale = useLocale();
@@ -17,6 +18,8 @@ export function MoreScreen() {
         <Text accessibilityRole="header" className="text-3xl font-bold text-ink">
           {t('settings.title')}
         </Text>
+
+        <BalanceCard />
 
         <View className="gap-2">
           <Text accessibilityRole="header" className="text-xl font-bold text-ink">

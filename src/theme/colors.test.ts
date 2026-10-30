@@ -20,7 +20,7 @@ const light = parseVariables(css.slice(0, darkStart));
 const dark = parseVariables(css.slice(darkStart));
 
 describe('palette TypeScript ↔ global.css', () => {
-  it.each(['bg', 'surface', 'line', 'ink', 'muted', 'sage', 'coral'] as const)('%s est identique en clair et en sombre', (name) => {
+  it.each(['bg', 'surface', 'line', 'ink', 'muted', 'sage', 'coral', 'amber'] as const)('%s est identique en clair et en sombre', (name) => {
     expect(palette.light[name].toUpperCase()).toBe(light[name]);
     expect(palette.dark[name].toUpperCase()).toBe(dark[name]);
   });

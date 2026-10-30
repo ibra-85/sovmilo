@@ -39,6 +39,34 @@ export function monthOfISODate(value: string): string | null {
   return parseISODate(value) ? value.slice(0, 7) : null;
 }
 
+/** Décale une date `YYYY-MM-DD` de `days` jours (négatif = passé). Null si la date de départ est invalide. */
+export function shiftISODate(value: string, days: number): string | null {
+  const date = parseISODate(value);
+  if (!date) return null;
+  date.setDate(date.getDate() + days); // `setDate` gère les fins de mois et d'année
+  return toISODate(date);
+}
+
+/** Mois localisé avec majuscule initiale, ex. « Mars 2026 » / « Март 2026 г. ». Renvoie la valeur brute si le mois est invalide. */
+export function formatMonthLabel(month: string, locale: AppLocale): string {
+  if (!isMonthKey(month)) return month;
+  const date = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 1, 1, 12);
+  const label = new Intl.DateTimeFormat(INTL_LOCALES[locale], { month: 'long', year: 'numeric' }).format(date);
+  return label.charAt(0).toLocaleUpperCase(INTL_LOCALES[locale]) + label.slice(1);
+}
+
+/** Date longue localisée, ex. « mardi 17 mars 2026 ». Renvoie la valeur brute si elle est invalide. */
+export function formatLongDate(value: string, locale: AppLocale): string {
+  const date = parseISODate(value);
+  if (!date) return value;
+  return new Intl.DateTimeFormat(INTL_LOCALES[locale], {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
+
 /** Date courte localisée, ex. « 12 mars » / « 12 мар. ». Renvoie la valeur brute si elle est invalide. */
 export function formatShortDate(value: string, locale: AppLocale): string {
   const date = parseISODate(value);

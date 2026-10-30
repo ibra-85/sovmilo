@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, Text, View } from 'react-native';
 
 import { BigButton } from '@/components/big-button';
+import { OutlineButton } from '@/components/outline-button';
 import { Screen } from '@/components/screen';
 import { computeMonthTotals } from '@/domain/budget';
 import { formatMoney } from '@/domain/money';
@@ -58,6 +59,10 @@ export function HomeScreen() {
           icon={<Text className="text-3xl font-bold text-on-accent">+</Text>}
           onPress={() => router.push('/add')}
         />
+        <OutlineButton
+          label={`🐷  ${t('home.saveButton')}`}
+          onPress={() => router.push({ pathname: '/add', params: { type: 'transfer' } })}
+        />
 
         <View className="gap-2">
           <Text accessibilityRole="header" className="text-xl font-bold text-ink">
@@ -75,6 +80,7 @@ export function HomeScreen() {
                   <TransactionRow
                     transaction={transaction}
                     category={transaction.categoryId ? categoryById.get(transaction.categoryId) : undefined}
+                    onPress={() => router.push({ pathname: '/transaction/[id]', params: { id: transaction.id } })}
                   />
                 </View>
               ))}

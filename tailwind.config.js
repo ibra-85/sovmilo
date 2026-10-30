@@ -19,6 +19,7 @@ module.exports = {
         'sage-soft': token('sage-soft'),
         coral: token('coral'), // alertes
         'coral-soft': token('coral-soft'),
+        amber: token('amber'), // avertissement (budget > 80 %)
         'on-accent': token('on-accent'), // texte sur fond sauge
       },
     },
