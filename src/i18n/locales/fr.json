@@ -1,0 +1,66 @@
+{
+  "common": {
+    "loading": "Chargement…",
+    "retry": "Réessayer"
+  },
+  "tabs": {
+    "home": "Accueil",
+    "more": "Plus"
+  },
+  "home": {
+    "remainingTitle": "Reste à dépenser ce mois-ci",
+    "income": "Revenus",
+    "expenses": "Dépenses",
+    "savings": "Épargne",
+    "monthCount_one": "{{count}} opération ce mois-ci",
+    "monthCount_many": "{{count}} opérations ce mois-ci",
+    "monthCount_other": "{{count}} opérations ce mois-ci",
+    "addButton": "Ajouter",
+    "recentTitle": "Dernières opérations",
+    "emptyTitle": "Rien pour l’instant",
+    "emptyText": "Appuyez sur « Ajouter » pour noter votre première dépense."
+  },
+  "add": {
+    "title": "Nouvelle opération",
+    "close": "Fermer",
+    "typeExpense": "Dépense",
+    "typeIncome": "Revenu",
+    "amount": "Montant",
+    "category": "Catégorie",
+    "confirm": "Valider",
+    "hint": "Tapez un montant et choisissez une catégorie.",
+    "saveError": "Impossible d’enregistrer. Réessayez."
+  },
+  "keypad": {
+    "decimal": "Virgule",
+    "backspace": "Effacer"
+  },
+  "categories": {
+    "groceries": "Courses",
+    "housing": "Logement",
+    "energy": "Énergie",
+    "transport": "Transport",
+    "health": "Santé",
+    "children": "Enfants",
+    "leisure": "Loisirs",
+    "clothing": "Vêtements",
+    "phoneInternet": "Téléphone / Internet",
+    "misc": "Divers",
+    "salary": "Salaire",
+    "benefits": "Aides / CAF",
+    "pension": "Pension",
+    "otherIncome": "Autre"
+  },
+  "settings": {
+    "title": "Plus",
+    "language": "Langue",
+    "languageHelp": "Choisissez la langue de l’application."
+  },
+  "languages": {
+    "fr": "Français",
+    "ru": "Русский"
+  },
+  "startup": {
+    "dbError": "Impossible d’ouvrir les données de l’application."
+  }
+}

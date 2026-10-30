@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Palette Sovmilo. Valeurs en "R G B" pour que Tailwind puisse ajouter la transparence.
+ * À garder synchronisé avec src/theme/colors.ts (utilisé pour la barre d'onglets et la navigation).
+ */
+:root {
+  --color-bg: 250 245 232; /* crème */
+  --color-surface: 255 253 247;
+  --color-line: 229 221 201;
+  --color-ink: 43 42 38;
+  --color-muted: 107 103 92;
+  --color-sage: 74 124 89; /* vert sauge, assez foncé pour être lisible sur le crème */
+  --color-sage-soft: 221 235 220;
+  --color-coral: 201 85 66; /* corail doux */
+  --color-coral-soft: 250 223 216;
+  --color-on-accent: 255 255 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: 28 27 23;
+    --color-surface: 42 40 34;
+    --color-line: 62 59 50;
+    --color-ink: 243 238 223;
+    --color-muted: 168 163 148;
+    --color-sage: 143 192 155;
+    --color-sage-soft: 44 62 48;
+    --color-coral: 240 140 122;
+    --color-coral-soft: 78 44 38;
+    --color-on-accent: 28 27 23;
+  }
+}

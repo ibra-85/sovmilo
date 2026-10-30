@@ -1,0 +1,67 @@
+{
+  "common": {
+    "loading": "Загрузка…",
+    "retry": "Повторить"
+  },
+  "tabs": {
+    "home": "Главная",
+    "more": "Ещё"
+  },
+  "home": {
+    "remainingTitle": "Осталось потратить в этом месяце",
+    "income": "Доходы",
+    "expenses": "Расходы",
+    "savings": "Накопления",
+    "monthCount_one": "{{count}} операция в этом месяце",
+    "monthCount_few": "{{count}} операции в этом месяце",
+    "monthCount_many": "{{count}} операций в этом месяце",
+    "monthCount_other": "{{count}} операции в этом месяце",
+    "addButton": "Добавить",
+    "recentTitle": "Последние операции",
+    "emptyTitle": "Пока пусто",
+    "emptyText": "Нажмите «Добавить», чтобы записать первый расход."
+  },
+  "add": {
+    "title": "Новая операция",
+    "close": "Закрыть",
+    "typeExpense": "Расход",
+    "typeIncome": "Доход",
+    "amount": "Сумма",
+    "category": "Категория",
+    "confirm": "Подтвердить",
+    "hint": "Введите сумму и выберите категорию.",
+    "saveError": "Не удалось сохранить. Попробуйте ещё раз."
+  },
+  "keypad": {
+    "decimal": "Запятая",
+    "backspace": "Стереть"
+  },
+  "categories": {
+    "groceries": "Продукты",
+    "housing": "Жильё",
+    "energy": "Электричество и газ",
+    "transport": "Транспорт",
+    "health": "Здоровье",
+    "children": "Дети",
+    "leisure": "Досуг",
+    "clothing": "Одежда",
+    "phoneInternet": "Телефон и интернет",
+    "misc": "Разное",
+    "salary": "Зарплата",
+    "benefits": "Пособия (CAF)",
+    "pension": "Пенсия",
+    "otherIncome": "Другое"
+  },
+  "settings": {
+    "title": "Ещё",
+    "language": "Язык",
+    "languageHelp": "Выберите язык приложения."
+  },
+  "languages": {
+    "fr": "Français",
+    "ru": "Русский"
+  },
+  "startup": {
+    "dbError": "Не удалось открыть данные приложения."
+  }
+}
