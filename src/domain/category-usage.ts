@@ -5,9 +5,10 @@
  * l'utilisatrice (nom saisi `customName`, sans `nameKey`). La base impose l'un des deux ; aucune colonne en plus n'est
  * nécessaire pour les distinguer.
  *
- * DÉCISION MÉTIER NON PRISE (à confirmer) : que faire d'une catégorie qui a déjà des opérations ou des budgets —
- * les réaffecter à une autre catégorie, l'archiver, ou refuser ? En attendant, la règle SÛRE est de refuser : aucune
- * opération ni aucun budget n'est jamais modifié ou supprimé implicitement.
+ * DÉCISION MÉTIER (31/10/2026, confirmée par le propriétaire) : une catégorie personnalisée qui a des opérations ou des
+ * budgets se supprime en RÉAFFECTANT : ses opérations passent dans une autre catégorie du même type, choisie par
+ * l'utilisatrice ; ses budgets, qui n'ont plus d'objet, sont retirés (le nombre est annoncé avant confirmation). Aucune
+ * opération n'est jamais supprimée, et le budget de la catégorie cible n'est jamais modifié.
  */
 export interface CategoryNaming {
   nameKey: string | null;
@@ -35,4 +36,24 @@ export function evaluateCategoryDeletion(category: CategoryNaming, usage: Catego
   if (!isCustomCategory(category)) return { allowed: false, reason: 'system' };
   if (usage.transactions > 0 || usage.budgets > 0) return { allowed: false, reason: 'in-use', usage };
   return { allowed: true };
+}
+
+export interface ReassignmentCandidate {
+  id: string;
+  kind: string;
+  archived: boolean;
+  deletedAt: string | null;
+}
+
+export type ReassignmentTargetError = 'same' | 'kind' | 'unavailable';
+
+/** Une catégorie peut recevoir les opérations d'une autre : active, du même type, et pas la catégorie supprimée elle-même. */
+export function evaluateReassignmentTarget(
+  source: Pick<ReassignmentCandidate, 'id' | 'kind'>,
+  target: ReassignmentCandidate,
+): ReassignmentTargetError | null {
+  if (target.id === source.id) return 'same';
+  if (target.deletedAt !== null || target.archived) return 'unavailable';
+  if (target.kind !== source.kind) return 'kind';
+  return null;
 }

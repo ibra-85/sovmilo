@@ -4,7 +4,7 @@ import { db } from '@/db/client';
 import { LOCAL_USER_ID, newId, nowISO } from '@/db/ids';
 import { budgets, categories, transactions } from '@/db/schema';
 import { MAX_CATEGORY_NAME_LENGTH, cleanCategoryName } from '@/domain/category-name';
-import { evaluateCategoryDeletion, isCustomCategory, type CategoryDeletion, type CategoryUsage } from '@/domain/category-usage';
+import { evaluateCategoryDeletion, evaluateReassignmentTarget, isCustomCategory, type CategoryDeletion, type CategoryUsage } from '@/domain/category-usage';
 import type { CategoryKind } from '@/domain/types';
 
 /** Teinte neutre : le design n'a aucune couleur par catégorie, mais la colonne `color` de la base est obligatoire. */
@@ -99,13 +99,42 @@ export function checkCategoryDeletion(id: string): CategoryDeletion {
 }
 
 /**
- * Supprime (suppression logique) une catégorie personnalisée SANS dépendance. Les règles sont revérifiées ici : même si
- * l'écran était périmé, rien n'est supprimé quand la catégorie a des opérations ou des budgets. Renvoie le verdict.
+ * Supprime (suppression logique) une catégorie personnalisée. Les règles sont revérifiées ici, même si l'écran était périmé.
+ *
+ * - Sans dépendance : la catégorie est supprimée.
+ * - Avec des opérations ou des budgets : sans `reassignToId`, RIEN n'est modifié et le verdict `in-use` est renvoyé. Avec une
+ *   catégorie cible valable (active, même type, autre que la source), dans UNE transaction SQL : toutes les opérations de la
+ *   catégorie (y compris celles supprimées « annulables ») passent à la cible, ses budgets sont retirés (suppression
+ *   logique), puis la catégorie est supprimée. Tout ou rien. Le budget de la cible n'est jamais touché.
  */
-export function deleteCategory(id: string): CategoryDeletion {
+export function deleteCategory(id: string, reassignToId?: string): CategoryDeletion {
   const verdict = checkCategoryDeletion(id);
-  if (!verdict.allowed) return verdict;
+  if (!verdict.allowed && verdict.reason === 'system') return verdict;
+
+  // Les budgets seuls n'obligent pas à choisir une cible : ils sont retirés. Les opérations, elles, doivent aller quelque part.
+  const usage: CategoryUsage = verdict.allowed ? { transactions: 0, budgets: 0 } : verdict.usage;
+  const needsTarget = usage.transactions > 0;
+  if (needsTarget && reassignToId === undefined) return { allowed: false, reason: 'in-use', usage };
+
+  const source = findCategory(id);
+  if (!source) throw new Error('Catégorie introuvable');
+  if (needsTarget && reassignToId !== undefined) {
+    const target = findCategory(reassignToId);
+    if (!target) throw new Error('Catégorie cible introuvable');
+    const problem = evaluateReassignmentTarget(source, target);
+    if (problem) throw new RangeError(`Catégorie cible refusée : ${problem}`);
+  }
+
   const now = nowISO();
-  db.update(categories).set({ deletedAt: now, updatedAt: now }).where(eq(categories.id, id)).run();
-  return verdict;
+  db.transaction((tx) => {
+    if (needsTarget && reassignToId !== undefined) {
+      tx.update(transactions).set({ categoryId: reassignToId, updatedAt: now }).where(eq(transactions.categoryId, id)).run();
+    }
+    tx.update(budgets)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(and(eq(budgets.categoryId, id), isNull(budgets.deletedAt)))
+      .run();
+    tx.update(categories).set({ deletedAt: now, updatedAt: now }).where(eq(categories.id, id)).run();
+  });
+  return { allowed: true };
 }
