@@ -66,11 +66,29 @@ Le texte suit le réglage de taille d'Android jusqu'à 180 % (montants : 110–1
 - **Épargne** : le bouton « Mettre de côté » est dans Services (il ouvre le formulaire en mode `transfer`), plus sur l'Accueil.
 - **Type d'opération** : plus de sélecteur dans le formulaire ; il vient du point d'entrée (menu +, Services). Le type ne change pas à la modification.
 - **Sélecteur de période** : la maquette montre un bouton sans panneau. On propose une liste des 12 derniers mois ; le mois choisi est partagé par Accueil, Opérations et Budgets.
-- **Semaines du graphique** : tranches 1–7, 8–14, 15–21, 22–fin du mois.
-- **Seuil « presque atteint »** : 80 % conservé (le design propose 75 %).
+- **Semaines du graphique** : tranches 1–7, 8–14, 15–21, 22–fin du mois ; la dernière tranche va du 22 à la fin du mois, soit 7 jours (février non bissextile, 22–28) à 10 jours (mois de 31 jours, 22–31). Calcul inchangé (`domain/weekly.ts`) ; seuls les libellés sont courts (« 22–31 »), la phrase complète (« 22–31 octobre ») va à TalkBack.
+- **Seuil « presque atteint »** : 80 % conservé (le design propose 75 %), PROVISOIRE. Lot 3.1 : un budget à exactement 100 % n'est plus « presque atteint » mais « atteint » (`reached`), distinct de « dépassé » (> 100 %). Statuts : ok / near / reached / over (`domain/budget.ts`).
 - **Clavier et formulaires** : `KeyboardAvoidingView` en mode `padding` sur Android et iOS ; le bouton principal reste visible au-dessus du clavier. **À vérifier sur le téléphone** (HyperOS, edge-to-edge).
 - **Sélecteur de date** : celui du système (calendrier Android, panneau avec calendrier sur iOS) ; le design ne dessine pas ce panneau.
 - **Services et solde réel** : non dessinés ; composés avec les éléments du design system.
+
+## 5 quater. Lot 3.1 : mouvement, thème, catégories
+
+- **Flash blanc au retour** : cause = le fond natif de la fenêtre Android (blanc par défaut) visible entre deux écrans. Corrigé à la racine : `expo-system-ui` (`setBackgroundColorAsync`) et `View` racine à la couleur du thème. Aucun calque artificiel. **À valider sur le téléphone** (voir la liste ci-dessous).
+- **Popover** (`MorphingPopover`, remplace `DropdownMenu`) : la surface part du rectangle exact du bouton et grandit vers sa place ; géométrie pure et testée (`popover-layout.ts`) : sous le bouton, sinon au-dessus, sinon réduit avec défilement ; reste dans l'écran et hors zones système. Fermeture : toucher à côté, retoucher le bouton, Retour d'Android. Pas de flou natif.
+- **Ressorts** : `useMotion().spring(...)` (Reanimated `withSpring`, durée + amortissement 1, sans rebond). Interruptible : la position reste continue. **Limite réelle** : la vitesse en cours est conservée quand la nouvelle cible va dans le même sens ; si le sens s'inverse, Reanimated remet la vitesse à zéro (la position, elle, ne saute jamais). On ne prétend donc pas à une conservation de vitesse dans tous les cas. La durée réelle d'un ressort ≈ 1,5 × la durée « perçue » (`SPRING_REAL_DURATION_RATIO`).
+- **Thème** : source unique = `Appearance.setColorScheme` (« Système » = `'auto'`), préférence mémorisée dans `expo-sqlite/kv-store` (lecture synchrone avant le premier rendu : pas de flash du mauvais thème). « Système » suit Android, y compris en cours d'utilisation. Réglage dans Services → Paramètres, avec la langue.
+- **Services** : Solde manuel, Épargne, Catégories, Paramètres ; Factures, Courses, Statistiques sont des lignes atténuées « Bientôt », non touchables (aucune fausse interaction).
+- **Catégories personnalisées** : se distinguent des catégories par défaut par `nameKey === null` (pas de colonne en plus). Modifier : même panneau que « Nouvelle catégorie », même identifiant donc opérations et budgets suivent. Supprimer : confirmation explicite ; **refusé** si la catégorie a des opérations ou des budgets (aucune suppression ni réaffectation implicite) ; les catégories par défaut ne se modifient ni ne se suppriment. **Décision métier à prendre** : que faire d'une catégorie utilisée (réaffecter, archiver, ou bloquer comme aujourd'hui).
+- **Accueil** : les cellules Revenus et Dépenses ouvrent Opérations avec le filtre correspondant (période conservée, même filtre que le sélecteur Tout / Dépenses / Revenus : `hooks/use-operations-filter.ts`).
+- **Notification et zones système** : la notification se pose au-dessus de la barre flottante, ou au-dessus du clavier quand il est ouvert (`toastBottom`, testé).
+- **Contrastes** : la palette est testée (WCAG AA 4,5:1) pour texte, texte secondaire, bouton principal et alerte, en clair et en sombre (`theme/palette-contrast.test.ts`).
+
+### Liste de contrôle sur le téléphone (Lot 3.1)
+
+Flash blanc (clair ET sombre, avec « Système » aussi) : Accueil → Ajouter → Retour ; Opérations → Détail → Retour ; Détail → Modifier → Retour ; Budgets → Détail → Retour ; retour juste après la fermeture d'un panneau.
+Mouvement : ouvrir / refermer très vite le menu « ⋯ », le menu +, un panneau inférieur, la barre flottante et le sélecteur segmenté (retouche pendant l'animation : pas de saut). Menu « ⋯ » en haut de l'écran et près du bas : il ne couvre jamais l'en-tête, ne sort pas de l'écran.
+Autre : graphique (libellés non coupés, texte agrandi, petit écran), budget à 100 %, notification avec clavier ouvert, confirmation de suppression avec un nom très long (et en russe), Paramètres (thème appliqué tout de suite, conservé après redémarrage, « Système » suit Android), appui long sur une catégorie personnalisée, Services → Catégories, bouton Retour d'Android sur chaque écran et panneau.
 
 ## 5 ter. Règle : ne jamais utiliser `ImageBackground`
 
@@ -89,7 +107,8 @@ Les couleurs d'alerte (`danger*`) ne sont pas fixées par les maquettes : provis
 
 1. **Report des limites de budget d'un mois sur l'autre** : implémenté à l'étape 2a (les limites se reportent), **jamais confirmé**. Non modifié.
 2. **Seuil « presque atteint »** : le domaine utilise 80 % (étape 2a) ; le design propose 75 % (fictif).
-3. **Contenu de l'onglet Services** : provisoirement solde réel, épargne et langue.
+3. **Contenu de l'onglet Services** : Solde manuel, Épargne, Catégories, Paramètres + Factures / Courses / Statistiques « Bientôt » (lot 3.1).
+10. **Catégorie utilisée** : suppression refusée en attendant le choix réaffecter / archiver / bloquer.
 4. **Épargne (virement)** : absente des maquettes, conservée dans le domaine ; son bouton est dans Services.
 5. **Taille du texte et des cibles** : `CLAUDE.md` (≥ 16 sp, ≥ 56 dp) contre design (13–14 sp, 48 dp).
 6. **Modèle des catégories** : le design propose Courses / Santé / Factures / Transport / Maison, sans couleur ; la base contient 10 catégories avec emoji et couleur. Migration à prévoir au lot 3.
