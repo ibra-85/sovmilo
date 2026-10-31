@@ -1,4 +1,11 @@
 import {
+  daysInMonth,
+  formatMonthName,
+  formatMonthShort,
+  formatMonthRange,
+  formatWeekday,
+  recentMonths,
+  shiftMonth,
   formatLongDate,
   formatMonthLabel,
   formatShortDate,
@@ -93,5 +100,62 @@ describe('formatLongDate', () => {
 
   it('renvoie la valeur brute si la date est invalide', () => {
     expect(formatLongDate('nope', 'fr')).toBe('nope');
+  });
+});
+
+describe('shiftMonth / recentMonths', () => {
+  it('passe d’une année à l’autre dans les deux sens', () => {
+    expect(shiftMonth('2026-01', -1)).toBe('2025-12');
+    expect(shiftMonth('2025-12', 1)).toBe('2026-01');
+    expect(shiftMonth('2026-10', 0)).toBe('2026-10');
+    expect(shiftMonth('2026-03', -15)).toBe('2024-12');
+  });
+
+  it('liste les derniers mois du plus récent au plus ancien', () => {
+    expect(recentMonths('2026-02', 4)).toEqual(['2026-02', '2026-01', '2025-12', '2025-11']);
+  });
+
+  it('refuse un mois invalide', () => {
+    expect(() => shiftMonth('2026-13', 1)).toThrow(RangeError);
+  });
+});
+
+describe('daysInMonth', () => {
+  it.each([
+    ['2026-02', 28],
+    ['2028-02', 29],
+    ['2026-04', 30],
+    ['2026-12', 31],
+  ])('%s a %i jours', (month, days) => {
+    expect(daysInMonth(month)).toBe(days);
+  });
+});
+
+describe('formatMonthRange / formatMonthName / formatWeekday', () => {
+  it('écrit la période du mois en français avec « 1er »', () => {
+    expect(formatMonthRange('2026-10', 'fr')).toBe('1er – 31 octobre 2026');
+    expect(formatMonthRange('2026-02', 'fr')).toBe('1er – 28 février 2026');
+  });
+
+  it('écrit la période du mois en russe sans « 1er »', () => {
+    expect(formatMonthRange('2026-10', 'ru')).toMatch(/^1 – 31 октября 2026/);
+  });
+
+  it('donne le nom du mois en minuscules', () => {
+    expect(formatMonthName('2026-10', 'fr')).toBe('octobre');
+    expect(formatMonthName('2026-10', 'ru')).toBe('октябрь');
+  });
+
+  it('donne le jour de la semaine avec une majuscule', () => {
+    expect(formatWeekday('2026-10-31', 'fr')).toBe('Samedi');
+    expect(formatWeekday('2026-10-29', 'fr')).toBe('Jeudi');
+    expect(formatWeekday('pas une date', 'fr')).toBe('pas une date');
+  });
+});
+
+describe('formatMonthShort', () => {
+  it('abrège le nom du mois', () => {
+    expect(formatMonthShort('2026-10', 'fr')).toBe('oct.');
+    expect(formatMonthShort('2026-10', 'ru')).toMatch(/^окт/);
   });
 });

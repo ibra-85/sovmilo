@@ -27,6 +27,11 @@ interface BudgetRowProps {
   percent: number;
   status: BudgetStatus;
   onPress?: () => void;
+  /**
+   * Ligne posée dans une carte de groupe (Accueil, Budgets) : pas de surface propre, sauf en dépassement où le fond
+   * et le liseré d'alerte restent (design : « fond --errsoft, liseré »).
+   */
+  embedded?: boolean;
 }
 
 /**
@@ -46,6 +51,7 @@ export function BudgetRow({
   percent,
   status,
   onPress,
+  embedded = false,
 }: BudgetRowProps) {
   const { t } = useTranslation();
   const { colors, shadows } = useTheme();
@@ -117,8 +123,14 @@ export function BudgetRow({
 
   const surfaceStyle = { minHeight: height, padding, borderRadius: radius.field, justifyContent: 'center' } as const;
 
+  const plain = embedded && !over;
+
   if (!onPress) {
-    return (
+    return plain ? (
+      <View accessible accessibilityLabel={label} style={surfaceStyle}>
+        {content}
+      </View>
+    ) : (
       <Surface variant={over ? 'danger' : 'card'} radiusToken="field" accessible accessibilityLabel={label} style={surfaceStyle}>
         {content}
       </Surface>
@@ -127,14 +139,18 @@ export function BudgetRow({
 
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={label} pressTranslate={0} onPress={onPress}>
-      {({ pressed }) => (
-        <Surface
-          variant={over ? 'danger' : 'card'}
-          radiusToken="field"
-          style={[surfaceStyle, pressed && { backgroundColor: colors.surfaceMuted }, pressed && { boxShadow: shadows.tile }]}>
-          {content}
-        </Surface>
-      )}
+      {({ pressed }) =>
+        plain ? (
+          <View style={[surfaceStyle, pressed && { backgroundColor: colors.surfaceMuted }]}>{content}</View>
+        ) : (
+          <Surface
+            variant={over ? 'danger' : 'card'}
+            radiusToken="field"
+            style={[surfaceStyle, pressed && { backgroundColor: colors.surfaceMuted }, pressed && { boxShadow: shadows.tile }]}>
+            {content}
+          </Surface>
+        )
+      }
     </Pressable>
   );
 }

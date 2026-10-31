@@ -73,3 +73,55 @@ export function formatShortDate(value: string, locale: AppLocale): string {
   if (!date) return value;
   return new Intl.DateTimeFormat(INTL_LOCALES[locale], { day: 'numeric', month: 'short' }).format(date);
 }
+
+/** Mois décalé de `delta` mois (négatif = passé) : `shiftMonth('2026-01', -1)` → `'2025-12'`. Lève une erreur si le mois est invalide. */
+export function shiftMonth(month: string, delta: number): string {
+  if (!isMonthKey(month)) throw new RangeError(`Mois invalide (format YYYY-MM attendu) : ${month}`);
+  const index = Number(month.slice(0, 4)) * 12 + (Number(month.slice(5, 7)) - 1) + delta;
+  return `${pad(Math.floor(index / 12), 4)}-${pad((index % 12) + 1)}`;
+}
+
+/** Les `count` derniers mois jusqu'à `month` inclus, du plus récent au plus ancien. */
+export function recentMonths(month: string, count: number): string[] {
+  return Array.from({ length: count }, (_, i) => shiftMonth(month, -i));
+}
+
+/** Nombre de jours d'un mois (28 à 31, février bissextile compris). */
+export function daysInMonth(month: string): number {
+  if (!isMonthKey(month)) throw new RangeError(`Mois invalide (format YYYY-MM attendu) : ${month}`);
+  return new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).getDate();
+}
+
+/** Nom du mois seul en minuscules, ex. « octobre » / « октябрь ». */
+export function formatMonthName(month: string, locale: AppLocale): string {
+  if (!isMonthKey(month)) return month;
+  const date = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 1, 1, 12);
+  return new Intl.DateTimeFormat(INTL_LOCALES[locale], { month: 'long' }).format(date);
+}
+
+/** Période d'un mois entier, ex. « 1er – 31 octobre 2026 » / « 1 – 31 октября 2026 г. ». */
+export function formatMonthRange(month: string, locale: AppLocale): string {
+  if (!isMonthKey(month)) return month;
+  const year = Number(month.slice(0, 4));
+  const monthIndex = Number(month.slice(5, 7)) - 1;
+  const last = new Intl.DateTimeFormat(INTL_LOCALES[locale], { day: 'numeric', month: 'long', year: 'numeric' }).format(
+    new Date(year, monthIndex, daysInMonth(month), 12),
+  );
+  // Le français écrit « 1er » ; les autres langues gardent le chiffre.
+  return `${locale === 'fr' ? '1er' : '1'} – ${last}`;
+}
+
+/** Jour de la semaine en toutes lettres avec majuscule, ex. « Mercredi » / « Среда ». Valeur brute si la date est invalide. */
+export function formatWeekday(value: string, locale: AppLocale): string {
+  const date = parseISODate(value);
+  if (!date) return value;
+  const label = new Intl.DateTimeFormat(INTL_LOCALES[locale], { weekday: 'long' }).format(date);
+  return label.charAt(0).toLocaleUpperCase(INTL_LOCALES[locale]) + label.slice(1);
+}
+
+/** Nom du mois abrégé, ex. « oct. » / « окт. » (étiquettes de graphique). */
+export function formatMonthShort(month: string, locale: AppLocale): string {
+  if (!isMonthKey(month)) return month;
+  const date = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 1, 1, 12);
+  return new Intl.DateTimeFormat(INTL_LOCALES[locale], { month: 'short' }).format(date);
+}

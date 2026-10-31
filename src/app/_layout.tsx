@@ -8,9 +8,9 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
-import { ToastProvider } from '@/components/ui';
+import { Text, ToastProvider } from '@/components/ui';
 import { db } from '@/db/client';
 import migrations from '@/db/migrations/migrations';
 import { seedDefaultCategories } from '@/db/seed';
@@ -32,10 +32,15 @@ function seedOnce(): Error | null {
 
 function StartupError({ message }: { message: string }) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
   return (
-    <View className="flex-1 items-center justify-center gap-2 bg-bg p-6">
-      <Text className="text-center text-xl font-semibold text-ink">{t('startup.dbError')}</Text>
-      <Text className="text-center text-base text-muted">{message}</Text>
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 24, backgroundColor: colors.bg }}>
+      <Text variant="titleSection" style={{ textAlign: 'center' }}>
+        {t('startup.dbError')}
+      </Text>
+      <Text variant="secondary" tone="muted" style={{ textAlign: 'center' }}>
+        {message}
+      </Text>
     </View>
   );
 }
@@ -93,7 +98,10 @@ function AppShell() {
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="add" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="transaction/[id]" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="transaction/[id]" />
+          <Stack.Screen name="transaction/edit/[id]" />
+          <Stack.Screen name="budget-detail/[categoryId]" />
+          <Stack.Screen name="budget-new" options={{ presentation: 'modal' }} />
           <Stack.Screen name="budget-limit/[categoryId]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="balance" options={{ presentation: 'modal' }} />
         </Stack>

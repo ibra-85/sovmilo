@@ -32,7 +32,7 @@ Toujours installer les dépendances avec `npx expo install` pour avoir des versi
 6. Avancer par petites étapes vérifiables, chacune terminée par : ce qui a été fait, comment le tester, ce qui reste.
 7. Ne pas écraser du code existant sans expliquer la modification.
 8. Aucun texte affiché en dur : tout passe par les fichiers de traduction `fr` et `ru`.
-9. Pas d'API dépréciée.
+9. Pas d'API dépréciée. En particulier, **ne jamais utiliser `ImageBackground`** (déprécié) : `View` + `Image` en position absolue. L'avertissement venait de NativeWind, contourné dans `metro.config.js` ; voir `docs/design-deviations.md` § « 5 ter ».
 
 ## 4. Règles métier
 

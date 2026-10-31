@@ -7,7 +7,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { Divider, Icon, Pressable, Text, type IconName } from '@/components/ui';
+import { Divider, GlassOverlay, Icon, Pressable, Text, useGlassLook, type IconName } from '@/components/ui';
 import { useMotion } from '@/hooks/use-motion';
 import { usePresence } from '@/hooks/use-presence';
 import { radius, sizes } from '@/theme/layout';
@@ -46,6 +46,7 @@ interface ActionMenuProps {
  */
 export function ActionMenu({ open, onClose, items, bottom, right, scrimLabel, menuLabel }: ActionMenuProps) {
   const { colors, shadows } = useTheme();
+  const glass = useGlassLook('menu');
   const scrim = usePresence(open, { enter: ['standard', 'scrimIn'], exit: ['standard', 'scrimOut'], kind: 'fade' });
   const panel = usePresence(open, { enter: ['enter', 'menuIn'], exit: ['exit', 'menuOut'] });
 
@@ -94,14 +95,13 @@ export function ActionMenu({ open, onClose, items, bottom, right, scrimLabel, me
             width: sizes.actionMenuWidth,
             padding: 6,
             borderRadius: radius.menu,
-            borderWidth: 1,
-            borderColor: colors.surfaceBorder,
-            backgroundColor: colors.chrome,
+            ...glass.style,
             boxShadow: shadows.menu,
             transformOrigin: 'right bottom',
           },
           panelStyle,
         ]}>
+        <GlassOverlay variant="menu" radius={radius.menu - 1} />
         {items.map((item, index) => (
           <Fragment key={item.key}>
             {index > 0 && <Divider inset={sizes.fieldIcon + 14 + 8} />}

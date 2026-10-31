@@ -212,3 +212,13 @@ export function sanitizeAmountInput(raw: string): string {
   }
   return value;
 }
+
+/**
+ * Montant lisible d'un seul tenant : « 312 € » pour un montant rond, « 312,40 € » sinon (jamais d'arrondi).
+ * Pour les phrases (« 635 € dépensés sur 930 € ») ; les grands montants utilisent `formatMoneyParts`.
+ */
+export function formatMoneyAuto(cents: number, locale: AppLocale, options: { signed?: boolean } = {}): string {
+  const parts = formatMoneyParts(cents, locale, { signed: options.signed, fraction: 'auto' });
+  const number = `${parts.sign}${parts.integer}${parts.decimal}${parts.fraction}`;
+  return parts.currencyFirst ? `${parts.currency} ${number}` : `${number} ${parts.currency}`;
+}

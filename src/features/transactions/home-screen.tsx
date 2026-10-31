@@ -1,107 +1,199 @@
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 
-import { BigButton } from '@/components/big-button';
-import { OutlineButton } from '@/components/outline-button';
-import { Screen } from '@/components/screen';
+import { tabContentStyle } from '@/components/navigation';
+import {
+  AmountText,
+  AppScreen,
+  EmptyState,
+  Icon,
+  PeriodSelector,
+  ScreenHeader,
+  SectionHeader,
+  Surface,
+  Text,
+  TransactionRow,
+  WeeklyChart,
+} from '@/components/ui';
 import { computeMonthTotals } from '@/domain/budget';
-import { formatMoney } from '@/domain/money';
-import { useCategoryMap } from '@/features/categories/use-categories';
+import { formatMonthLabel, formatMonthName, formatMonthShort } from '@/domain/dates';
+import { computeWeeklyExpenses, currentWeekIndex } from '@/domain/weekly';
+import { BudgetCard } from '@/features/budgets/budget-card';
+import { useBudgetOverview } from '@/features/budgets/use-budget-overview';
+import { useSelectedMonth } from '@/hooks/use-selected-month';
 import { useToday } from '@/hooks/use-today';
 import { useLocale } from '@/i18n/use-locale';
+import { space } from '@/theme/layout';
+import { useTheme } from '@/theme/use-theme';
 
-import { TransactionRow } from './transaction-row';
-import { useMonthTransactions, useRecentTransactions } from './use-transactions';
-import { tabContentStyle } from '@/components/navigation';
+import { useTransactionPresenter } from './use-presenter';
+import { useMonthOperations, useMonthTransactions } from './use-transactions';
 
-const RECENT_COUNT = 5;
+const RECENT_COUNT = 3;
+const WATCHED_COUNT = 3;
 
+/**
+ * Accueil V6.1 (design/screens/02-home) : le résultat du mois en grand, posé directement sur le fond, puis la bande
+ * Revenus / Dépenses, les budgets à surveiller, les opérations récentes et le graphique par semaine. Seules les zones
+ * qui regroupent une information sont des cartes ; les opérations récentes restent sur le fond.
+ */
 export function HomeScreen() {
   const { t } = useTranslation();
   const locale = useLocale();
   const router = useRouter();
+  const { colors } = useTheme();
+  const today = useToday();
+  const { month } = useSelectedMonth();
+  const present = useTransactionPresenter();
 
-  const month = useToday().slice(0, 7);
   const monthRows = useMonthTransactions(month);
-  const recent = useRecentTransactions(RECENT_COUNT);
-  const categoryById = useCategoryMap();
+  const operations = useMonthOperations(month);
+  const overview = useBudgetOverview(month);
 
   const totals = useMemo(() => computeMonthTotals(monthRows, month), [monthRows, month]);
-  const overspent = totals.remainingCents < 0;
+  const weeks = useMemo(() => computeWeeklyExpenses(monthRows, month), [monthRows, month]);
+  const monthName = formatMonthName(month, locale);
+  const watched = useMemo(() => [...overview.watched, ...overview.withinLimits].slice(0, WATCHED_COUNT), [overview]);
+  const recent = operations.slice(0, RECENT_COUNT);
+
+  const monthShort = formatMonthShort(month, locale);
+  const bars = weeks.map((week) => ({ label: `${week.startDay}–${week.endDay} ${monthShort}`, cents: week.expenseCents }));
 
   return (
-    <Screen>
-      <ScrollView contentContainerClassName="gap-5 px-4 pt-4" contentContainerStyle={tabContentStyle}>
-        {/* Reste à dépenser, en très gros : corail s'il est négatif, sauge sinon */}
-        <View className="gap-1">
-          <Text className="text-lg font-medium text-muted">{t('home.remainingTitle')}</Text>
-          <Text
-            accessibilityRole="header"
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            className={`text-6xl font-bold ${overspent ? 'text-coral' : 'text-sage'}`}>
-            {formatMoney(totals.remainingCents, locale)}
+    <AppScreen>
+      <ScreenHeader title="Sovmilo" logotype trailing={<PeriodSelector />} />
+
+      <ScrollView
+        contentContainerStyle={[{ paddingHorizontal: space.screen, paddingTop: 18 }, tabContentStyle]}
+        showsVerticalScrollIndicator={false}>
+        {/* Résultat du mois : posé sur le fond, sans carte */}
+        <View style={{ gap: 2 }}>
+          <Text variant="titleSection" accessibilityRole="header">
+            {t('home.resultTitle')}
           </Text>
-          <Text className="text-base text-muted">{t('home.monthCount', { count: totals.operationCount })}</Text>
+          <Text variant="secondary" tone="muted">
+            {t(totals.savingsCents > 0 ? 'home.resultSubtitleSavings' : 'home.resultSubtitle', { month: monthName })}
+          </Text>
+        </View>
+        <View style={{ marginTop: 16 }}>
+          <AmountText
+            cents={totals.remainingCents}
+            size="home"
+            signed
+            tone={totals.remainingCents < 0 ? 'danger' : 'default'}
+          />
         </View>
 
-        <View className="flex-row gap-3">
-          <SummaryCard label={t('home.income')} value={formatMoney(totals.incomeCents, locale)} />
-          <SummaryCard label={t('home.expenses')} value={formatMoney(totals.expenseCents, locale)} />
-          {totals.savingsCents > 0 && (
-            <SummaryCard label={t('home.savings')} value={formatMoney(totals.savingsCents, locale)} />
+        {/* Bande Revenus / Dépenses */}
+        <Surface style={{ marginTop: 22, flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 14 }}>
+          <SummaryCell icon="arrowIncome" label={t('home.income')} cents={totals.incomeCents} signed />
+          <View style={{ width: 1, alignSelf: 'stretch', marginHorizontal: 12, backgroundColor: colors.hairline }} />
+          <SummaryCell icon="arrowExpense" label={t('home.expenses')} cents={-totals.expenseCents} />
+        </Surface>
+
+        {/* Budgets à surveiller */}
+        <View style={{ marginTop: space.section, gap: space.sectionTitle }}>
+          <SectionHeader
+            title={t('home.budgetsTitle')}
+            actionLabel={t('home.seeAll')}
+            actionAccessibilityLabel={t('home.seeAllBudgets')}
+            onAction={() => router.navigate('/budget')}
+          />
+          {watched.length > 0 ? (
+            <BudgetCard entries={watched} />
+          ) : (
+            <Surface>
+              <EmptyState
+                icon="budgets"
+                title={t('home.noBudgetTitle')}
+                text={t('home.noBudgetText')}
+                actionLabel={t('budget.create')}
+                onAction={() => router.push('/budget-new')}
+              />
+            </Surface>
           )}
         </View>
 
-        <BigButton
-          label={t('home.addButton')}
-          icon={<Text className="text-3xl font-bold text-on-accent">+</Text>}
-          onPress={() => router.push('/add')}
-        />
-        <OutlineButton
-          label={`🐷  ${t('home.saveButton')}`}
-          onPress={() => router.push({ pathname: '/add', params: { type: 'transfer' } })}
-        />
-
-        <View className="gap-2">
-          <Text accessibilityRole="header" className="text-xl font-bold text-ink">
-            {t('home.recentTitle')}
-          </Text>
-          {recent.length === 0 ? (
-            <View className="items-center gap-1 rounded-3xl border border-line bg-surface p-6">
-              <Text className="text-xl font-semibold text-ink">{t('home.emptyTitle')}</Text>
-              <Text className="text-center text-base text-muted">{t('home.emptyText')}</Text>
-            </View>
-          ) : (
-            <View className="overflow-hidden rounded-3xl border border-line bg-surface">
-              {recent.map((transaction, index) => (
-                <View key={transaction.id} className={index > 0 ? 'border-t border-line' : undefined}>
+        {/* Opérations récentes : posées sur le fond */}
+        <View style={{ marginTop: space.section, gap: space.sectionTitle }}>
+          <SectionHeader
+            title={t('home.recentTitle')}
+            actionLabel={t('home.seeAll')}
+            actionAccessibilityLabel={t('home.seeAllOperations')}
+            onAction={() => router.navigate('/history')}
+          />
+          {recent.length > 0 ? (
+            <View>
+              {recent.map((transaction) => {
+                const shown = present(transaction, 'home');
+                return (
                   <TransactionRow
-                    transaction={transaction}
-                    category={transaction.categoryId ? categoryById.get(transaction.categoryId) : undefined}
+                    key={transaction.id}
+                    kind={shown.kind}
+                    categoryIcon={shown.categoryIcon}
+                    title={shown.title}
+                    subtitle={shown.subtitle}
+                    cents={shown.cents}
+                    accessibilityLabel={shown.accessibilityLabel}
+                    accessibilityHint={t('history.rowHint')}
                     onPress={() => router.push({ pathname: '/transaction/[id]', params: { id: transaction.id } })}
                   />
-                </View>
-              ))}
+                );
+              })}
             </View>
+          ) : (
+            <EmptyState icon="transactions" title={t('home.emptyTitle')} text={t('home.emptyText')} />
           )}
         </View>
+
+        {/* Dépenses par semaine */}
+        <View style={{ marginTop: space.section, gap: space.sectionTitle }}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
+            <Text variant="titleSection" accessibilityRole="header" style={{ flexShrink: 1 }}>
+              {t('home.weeklyTitle')}
+            </Text>
+            <Text variant="secondary" tone="muted" numberOfLines={1}>
+              {formatMonthLabel(month, locale)}
+            </Text>
+          </View>
+          <WeeklyChart bars={bars} currentIndex={currentWeekIndex(today, month)} totalCents={totals.expenseCents} />
+        </View>
       </ScrollView>
-    </Screen>
+    </AppScreen>
   );
 }
 
-function SummaryCard({ label, value }: { label: string; value: string }) {
+interface SummaryCellProps {
+  icon: 'arrowIncome' | 'arrowExpense';
+  label: string;
+  cents: number;
+  signed?: boolean;
+}
+
+/** Une moitié de la bande Revenus / Dépenses : pastille d'icône de 40 dp, légende, montant. */
+function SummaryCell({ icon, label, cents, signed = false }: SummaryCellProps) {
+  const { colors } = useTheme();
   return (
-    <View className="flex-1 gap-1 rounded-2xl border border-line bg-surface p-3">
-      <Text className="text-base text-muted" numberOfLines={1}>
-        {label}
-      </Text>
-      <Text className="text-lg font-bold text-ink" numberOfLines={1} adjustsFontSizeToFit>
-        {value}
-      </Text>
+    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+      <View
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.surfaceMuted,
+        }}>
+        <Icon name={icon} size={18} />
+      </View>
+      <View style={{ flexShrink: 1 }}>
+        <Text variant="caption" tone="muted" numberOfLines={1}>
+          {label}
+        </Text>
+        <AmountText cents={cents} size="row" signed={signed} />
+      </View>
     </View>
   );
 }

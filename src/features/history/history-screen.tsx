@@ -1,212 +1,161 @@
 import { useRouter } from 'expo-router';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, SectionList, Text, TextInput, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 
-import { Chip } from '@/components/chip';
-import { OutlineButton } from '@/components/outline-button';
-import { Screen } from '@/components/screen';
-import { formatMonthLabel } from '@/domain/dates';
-import {
-  EMPTY_FILTERS,
-  countActiveFilters,
-  filterHistory,
-  groupByMonth,
-  type HistoryFilters,
-} from '@/domain/history';
-import { PAYMENT_METHODS, type PaymentMethod, type TransactionType } from '@/domain/types';
-import { categoryLabel } from '@/features/categories/category-label';
-import { useCategoryMap } from '@/features/categories/use-categories';
-import { TransactionRow } from '@/features/transactions/transaction-row';
-import { useAllTransactions } from '@/features/transactions/use-transactions';
-import { useLocale } from '@/i18n/use-locale';
-import { useThemeColors } from '@/theme/colors';
 import { tabContentStyle } from '@/components/navigation';
+import {
+  AppScreen,
+  EmptyState,
+  PeriodSelector,
+  ScreenHeader,
+  SearchField,
+  SegmentedControl,
+  Text,
+  TransactionGroupHeader,
+  TransactionRow,
+} from '@/components/ui';
+import type { Transaction } from '@/db/schema';
+import { computeMonthTotals } from '@/domain/budget';
+import { formatMonthLabel, formatShortDate, formatWeekday, shiftISODate } from '@/domain/dates';
+import { EMPTY_FILTERS, filterHistory, groupByDay, type HistoryFilters } from '@/domain/history';
+import { formatMoney } from '@/domain/money';
+import { useCategoryMap } from '@/features/categories/use-categories';
+import { categoryLabel } from '@/features/categories/category-label';
+import { useTransactionPresenter } from '@/features/transactions/use-presenter';
+import { useMonthOperations } from '@/features/transactions/use-transactions';
+import { useSelectedMonth } from '@/hooks/use-selected-month';
+import { useToday } from '@/hooks/use-today';
+import { useLocale } from '@/i18n/use-locale';
+import { space } from '@/theme/layout';
 
-const TYPE_OPTIONS: TransactionType[] = ['expense', 'income', 'transfer'];
+type TypeFilter = 'all' | 'expense' | 'income';
 
-/** Onglet Historique : toutes les opérations par mois, avec recherche texte et filtres type / paiement / catégorie. */
+type ListRow =
+  | { kind: 'header'; key: string; day: string; netCents: number; first: boolean }
+  | { kind: 'item'; key: string; transaction: Transaction };
+
+/**
+ * Opérations (design/screens/04-transactions) : titre + période, résumé du mois, recherche, filtre Tout / Dépenses /
+ * Revenus, puis les opérations regroupées par jour, sans séparateur (le regroupement se fait par l'espace).
+ *
+ * Écart avec l'étape 2a : les filtres par moyen de paiement et par catégorie ne sont plus proposés (le design n'en dessine
+ * pas) ; la recherche texte porte toujours sur la note, la catégorie et le montant. Voir docs/design-deviations.md.
+ */
 export function HistoryScreen() {
   const { t } = useTranslation();
   const locale = useLocale();
   const router = useRouter();
-  const colors = useThemeColors();
-
-  const transactions = useAllTransactions();
+  const today = useToday();
+  const { month } = useSelectedMonth();
+  const present = useTransactionPresenter();
   const categoryById = useCategoryMap();
+  const operations = useMonthOperations(month);
 
-  const [filters, setFilters] = useState<HistoryFilters>(EMPTY_FILTERS);
-  const [panelOpen, setPanelOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
 
-  const activeCount = countActiveFilters(filters);
-  const hasCriteria = activeCount > 0 || filters.query.trim() !== '';
+  const totals = useMemo(() => computeMonthTotals(operations, month), [operations, month]);
 
-  // Le nom traduit de la catégorie est ajouté ici : la recherche porte sur ce que l'utilisatrice lit à l'écran.
-  const items = useMemo(
-    () =>
-      transactions.map((transaction) => {
-        const category = transaction.categoryId ? categoryById.get(transaction.categoryId) : undefined;
-        return { ...transaction, categoryName: category ? categoryLabel(category, t) : '' };
-      }),
-    [transactions, categoryById, t], // `t` change avec la langue : les noms de catégories suivent
-  );
+  const rows = useMemo<ListRow[]>(() => {
+    const items = operations.map((transaction) => {
+      const category = transaction.categoryId ? categoryById.get(transaction.categoryId) : undefined;
+      return { ...transaction, categoryName: category ? categoryLabel(category, t) : '' };
+    });
+    const filters: HistoryFilters = {
+      ...EMPTY_FILTERS,
+      query,
+      type: typeFilter === 'all' ? null : typeFilter,
+    };
+    const result: ListRow[] = [];
+    groupByDay(filterHistory(items, filters)).forEach((group, index) => {
+      result.push({ kind: 'header', key: `h-${group.day}`, day: group.day, netCents: group.netCents, first: index === 0 });
+      for (const item of group.items) result.push({ kind: 'item', key: item.id, transaction: item });
+    });
+    return result;
+  }, [operations, categoryById, query, typeFilter, t]);
 
-  const sections = useMemo(
-    () => groupByMonth(filterHistory(items, filters)).map((group) => ({ month: group.month, data: group.items })),
-    [items, filters],
-  );
+  const monthLabel = formatMonthLabel(month, locale);
+  const yesterday = shiftISODate(today, -1);
+  const dayLabel = (day: string) =>
+    day === today ? t('common.today') : day === yesterday ? t('common.yesterday') : formatWeekday(day, locale);
 
-  const categoryOptions = useMemo(
-    // Dépenses d'abord (« expense » < « income »), puis l'ordre d'affichage habituel.
-    () => [...categoryById.values()].sort((a, b) => a.kind.localeCompare(b.kind) || a.sortOrder - b.sortOrder),
-    [categoryById],
-  );
-
-  const typeLabel = (type: TransactionType) =>
-    type === 'expense' ? t('add.typeExpense') : type === 'income' ? t('add.typeIncome') : t('add.typeSavings');
-
-  const setFilter = <K extends keyof HistoryFilters>(key: K, value: HistoryFilters[K]) =>
-    setFilters((current) => ({ ...current, [key]: value }));
-
-  const panel = panelOpen ? (
-    <View className="gap-4 pb-3">
-      <FilterGroup title={t('history.filterType')}>
-        <Chip label={t('common.all')} selected={filters.type === null} onPress={() => setFilter('type', null)} />
-        {TYPE_OPTIONS.map((type) => (
-          <Chip key={type} label={typeLabel(type)} selected={filters.type === type} onPress={() => setFilter('type', type)} />
-        ))}
-      </FilterGroup>
-
-      <FilterGroup title={t('history.filterPayment')}>
-        <Chip label={t('common.all')} selected={filters.paymentMethod === null} onPress={() => setFilter('paymentMethod', null)} />
-        {PAYMENT_METHODS.map((method: PaymentMethod) => (
-          <Chip
-            key={method}
-            label={t(`paymentMethods.${method}`)}
-            selected={filters.paymentMethod === method}
-            onPress={() => setFilter('paymentMethod', method)}
-          />
-        ))}
-      </FilterGroup>
-
-      <FilterGroup title={t('history.filterCategory')}>
-        <Chip label={t('common.all')} selected={filters.categoryId === null} onPress={() => setFilter('categoryId', null)} />
-        {categoryOptions.map((category) => (
-          <Chip
-            key={category.id}
-            label={`${category.icon} ${categoryLabel(category, t)}`}
-            selected={filters.categoryId === category.id}
-            onPress={() => setFilter('categoryId', category.id)}
-          />
-        ))}
-      </FilterGroup>
-    </View>
-  ) : null;
+  const hasCriteria = query.trim() !== '' || typeFilter !== 'all';
 
   return (
-    <Screen>
-      <View className="gap-3 px-4 pb-2 pt-4">
-        <Text accessibilityRole="header" className="text-3xl font-bold text-ink">
-          {t('history.title')}
-        </Text>
+    <AppScreen>
+      <ScreenHeader title={t('history.title')} trailing={<PeriodSelector />} />
 
-        <View className="flex-row items-center gap-2">
-          <View className="h-14 flex-1 flex-row items-center rounded-2xl border-2 border-line bg-surface pl-4">
-            <TextInput
-              value={filters.query}
-              onChangeText={(query) => setFilter('query', query)}
-              placeholder={t('history.searchPlaceholder')}
-              placeholderTextColor={colors.muted}
-              accessibilityLabel={t('history.searchPlaceholder')}
-              returnKeyType="search"
-              autoCorrect={false}
-              className="h-full flex-1 text-lg text-ink"
-            />
-            {filters.query !== '' && (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('history.searchClear')}
-                onPress={() => setFilter('query', '')}
-                className="h-14 w-14 items-center justify-center active:opacity-60">
-                <Text className="text-xl text-muted">✕</Text>
-              </Pressable>
-            )}
-          </View>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ expanded: panelOpen }}
-            onPress={() => setPanelOpen((open) => !open)}
-            className={`h-14 items-center justify-center rounded-2xl border-2 px-4 active:opacity-70 ${
-              activeCount > 0 ? 'border-sage bg-sage-soft' : 'border-line bg-surface'
-            }`}>
-            <Text className={`text-base font-semibold ${activeCount > 0 ? 'text-sage' : 'text-ink'}`}>
-              {activeCount > 0 ? t('history.filtersActive', { count: activeCount }) : t('history.filters')}
-            </Text>
-          </Pressable>
-        </View>
-      </View>
-
-      <SectionList
-        sections={sections}
-        keyExtractor={(item) => item.id}
-        stickySectionHeadersEnabled
+      <FlatList
+        data={rows}
+        keyExtractor={(row) => row.key}
         keyboardShouldPersistTaps="handled"
-        contentContainerClassName="px-4"
-        contentContainerStyle={tabContentStyle}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[{ paddingHorizontal: space.screen }, tabContentStyle]}
         ListHeaderComponent={
-          <View className="gap-3">
-            {panel}
-            {hasCriteria && (
-              <OutlineButton label={t('history.clearFilters')} onPress={() => setFilters(EMPTY_FILTERS)} />
-            )}
+          <View style={{ gap: 14, paddingTop: 2, paddingBottom: 4 }}>
+            <Text variant="secondary" tone="muted" accessibilityLabel={`${t('history.summary', {
+              expenses: formatMoney(-totals.expenseCents, locale),
+              income: formatMoney(totals.incomeCents, locale, { signed: true }),
+            })}`}>
+              {t('home.expenses')}{' '}
+              <Text variant="secondaryStrong">{formatMoney(-totals.expenseCents, locale)}</Text>
+              {' · '}
+              {t('home.income')}{' '}
+              <Text variant="secondaryStrong">{formatMoney(totals.incomeCents, locale, { signed: true })}</Text>
+            </Text>
+            <SearchField
+              value={query}
+              onChangeText={setQuery}
+              placeholder={t('history.searchPlaceholder')}
+              clearLabel={t('history.searchClear')}
+            />
+            <SegmentedControl<TypeFilter>
+              accessibilityLabel={t('history.filterLabel')}
+              value={typeFilter}
+              onChange={setTypeFilter}
+              options={[
+                { value: 'all', label: t('history.filterAll') },
+                { value: 'expense', label: t('history.filterExpenses') },
+                { value: 'income', label: t('history.filterIncome') },
+              ]}
+            />
           </View>
         }
-        renderSectionHeader={({ section }) => (
-          <View className="flex-row items-baseline justify-between bg-bg pb-1 pt-4">
-            <Text accessibilityRole="header" className="text-xl font-bold text-ink">
-              {formatMonthLabel(section.month, locale)}
-            </Text>
-            <Text className="text-base text-muted">{t('history.monthCount', { count: section.data.length })}</Text>
-          </View>
-        )}
-        renderItem={({ item, index, section }) => (
-          <View
-            className={`overflow-hidden border-x border-line bg-surface ${
-              index === 0 ? 'rounded-t-3xl border-t' : 'border-t'
-            } ${index === section.data.length - 1 ? 'rounded-b-3xl border-b' : ''}`}>
+        renderItem={({ item: row }) => {
+          if (row.kind === 'header') {
+            return (
+              <View style={{ marginTop: row.first ? 20 : space.dayGroup, marginBottom: space.dayGroupTitle }}>
+                <TransactionGroupHeader
+                  day={dayLabel(row.day)}
+                  date={formatShortDate(row.day, locale)}
+                  totalCents={row.netCents}
+                />
+              </View>
+            );
+          }
+          const shown = present(row.transaction, 'list');
+          return (
             <TransactionRow
-              transaction={item}
-              category={item.categoryId ? categoryById.get(item.categoryId) : undefined}
-              onPress={() => router.push({ pathname: '/transaction/[id]', params: { id: item.id } })}
+              kind={shown.kind}
+              categoryIcon={shown.categoryIcon}
+              title={shown.title}
+              subtitle={shown.subtitle}
+              cents={shown.cents}
+              accessibilityLabel={shown.accessibilityLabel}
+              accessibilityHint={t('history.rowHint')}
+              onPress={() => router.push({ pathname: '/transaction/[id]', params: { id: row.transaction.id } })}
             />
-          </View>
-        )}
+          );
+        }}
         ListEmptyComponent={
-          <View className="mt-4 items-center gap-1 rounded-3xl border border-line bg-surface p-6">
-            <Text className="text-center text-xl font-semibold text-ink">
-              {transactions.length === 0 ? t('history.emptyTitle') : t('history.noResultTitle')}
-            </Text>
-            <Text className="text-center text-base text-muted">
-              {transactions.length === 0 ? t('history.emptyText') : t('history.noResultText')}
-            </Text>
-          </View>
+          hasCriteria ? (
+            <EmptyState icon="search" title={t('history.noResultTitle')} text={t('history.noResultText')} />
+          ) : (
+            <EmptyState icon="transactions" title={t('history.emptyTitle')} text={t('history.emptyText', { month: monthLabel })} />
+          )
         }
       />
-    </Screen>
-  );
-}
-
-function FilterGroup({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <View className="gap-2">
-      <Text accessibilityRole="header" className="text-lg font-bold text-ink">
-        {title}
-      </Text>
-      {/* Une seule ligne qui défile : le panneau reste court et les résultats restent visibles juste en dessous */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2 pr-4">
-        {children}
-      </ScrollView>
-    </View>
+    </AppScreen>
   );
 }

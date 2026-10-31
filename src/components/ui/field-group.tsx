@@ -26,7 +26,10 @@ export function FieldGroup({ children }: { children: ReactNode }) {
 }
 
 interface FormRowProps {
-  icon: IconName;
+  /** Icône du catalogue. Ignorée si `iconNode` est fourni. */
+  icon?: IconName;
+  /** Contenu libre dans la pastille (icône ou emoji d'une catégorie). */
+  iconNode?: ReactNode;
   /** Légende (« Date », « Note »). */
   label: string;
   /** Valeur affichée (« Aujourd'hui, 31 oct. »). Absente : `placeholder` en gris (« Facultative »). */
@@ -38,7 +41,7 @@ interface FormRowProps {
 }
 
 /** Ligne de formulaire (FormField) ou ligne fixe à icône (InfoRow avec icône) : 58 dp minimum, icône dans une pastille de 36 dp. */
-export function FormRow({ icon, label, value, placeholder, onPress, disabled = false }: FormRowProps) {
+export function FormRow({ icon, iconNode, label, value, placeholder, onPress, disabled = false }: FormRowProps) {
   const { colors } = useTheme();
   const text = value ?? placeholder ?? '';
 
@@ -61,7 +64,7 @@ export function FormRow({ icon, label, value, placeholder, onPress, disabled = f
           justifyContent: 'center',
           backgroundColor: colors.surfaceMuted,
         }}>
-        <Icon name={icon} size={18} />
+        {iconNode ?? (icon ? <Icon name={icon} size={18} /> : null)}
       </View>
       <View style={{ flex: 1 }}>
         <Text variant="caption" tone="muted">
@@ -100,10 +103,12 @@ export function FormRow({ icon, label, value, placeholder, onPress, disabled = f
 interface InfoRowProps {
   label: string;
   value: string;
+  /** Pastille d'icône devant la valeur (ligne « Catégorie » du détail d'une opération). */
+  leading?: ReactNode;
 }
 
 /** Information non modifiable en clé / valeur (détail d'une opération ou d'un budget) : clé à gauche, valeur à droite. */
-export function InfoRow({ label, value }: InfoRowProps) {
+export function InfoRow({ label, value, leading }: InfoRowProps) {
   return (
     <View
       accessible
@@ -120,9 +125,12 @@ export function InfoRow({ label, value }: InfoRowProps) {
       <Text variant="secondary" tone="muted">
         {label}
       </Text>
-      <Text variant="body" style={{ flexShrink: 1, textAlign: 'right' }}>
-        {value}
-      </Text>
+      <View style={{ flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        {leading}
+        <Text variant="body" style={{ flexShrink: 1, textAlign: 'right' }}>
+          {value}
+        </Text>
+      </View>
     </View>
   );
 }

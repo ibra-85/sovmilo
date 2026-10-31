@@ -63,6 +63,8 @@ export const radius = {
   group: 18,
   /** Tuile de catégorie (58 dp). */
   tile: 17,
+  /** Grande tuile d'icône des écrans de détail (70 dp). */
+  tileHero: 22,
   /** Bouton principal (54 dp). */
   button: 15,
   /** Champ de saisie, recherche, segmenté, notification, bouton secondaire / de dialogue, ligne de budget. */

@@ -8,7 +8,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { Icon, Pressable, Text, type IconName } from '@/components/ui';
+import { GlassOverlay, Icon, Pressable, Text, useGlassLook, type IconName } from '@/components/ui';
 import { useMotion } from '@/hooks/use-motion';
 import { radius, sizes } from '@/theme/layout';
 import { useTheme } from '@/theme/use-theme';
@@ -53,6 +53,7 @@ const INNER_HEIGHT = sizes.navHeight - 2 - sizes.navPadding * 2;
  */
 export function FloatingTabBar({ items, activeIndex, onSelect, fontScale, accessibilityLabel }: FloatingTabBarProps) {
   const { colors, shadows } = useTheme();
+  const glass = useGlassLook('bar');
   const { timing } = useMotion();
   const [innerWidth, setInnerWidth] = useState(0);
   const [labelWidths, setLabelWidths] = useState<number[]>(() => items.map(() => 0));
@@ -82,11 +83,10 @@ export function FloatingTabBar({ items, activeIndex, onSelect, fontScale, access
         height: sizes.navHeight,
         padding: sizes.navPadding,
         borderRadius: radius.nav,
-        borderWidth: 1,
-        borderColor: colors.surfaceBorder,
-        backgroundColor: colors.chrome,
+        ...glass.style,
         boxShadow: shadows.nav,
       }}>
+      <GlassOverlay variant="bar" radius={radius.nav - 1} />
       <View style={{ flex: 1 }} onLayout={(event) => setInnerWidth(event.nativeEvent.layout.width)}>
         {ready && (
           <Animated.View

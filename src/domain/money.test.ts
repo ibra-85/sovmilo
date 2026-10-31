@@ -3,6 +3,7 @@ import {
   applyKeypadKey,
   centsToInputString,
   formatKeypadValue,
+  formatMoneyAuto,
   formatMoney,
   getCurrencySymbol,
   getDecimalSeparator,
@@ -178,5 +179,18 @@ describe('pavé numérique', () => {
     expect(keypadValueToCents('')).toBe(0);
     expect(keypadValueToCents('0')).toBe(0);
     expect(keypadValueToCents('3.')).toBe(300);
+  });
+});
+
+describe('formatMoneyAuto', () => {
+  it('masque « ,00 » des montants ronds sans arrondir les autres', () => {
+    expect(formatMoneyAuto(31_200, 'fr')).toBe('312 €');
+    expect(formatMoneyAuto(31_240, 'fr')).toBe('312,40 €');
+    expect(formatMoneyAuto(0, 'fr')).toBe('0 €');
+  });
+
+  it('écrit le signe moins et le signe plus demandé', () => {
+    expect(formatMoneyAuto(-5_000, 'fr')).toBe('−50 €');
+    expect(formatMoneyAuto(5_000, 'fr', { signed: true })).toBe('+50 €');
   });
 });

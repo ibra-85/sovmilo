@@ -1,5 +1,5 @@
-import { Fragment, useCallback, useRef, useState, type ComponentRef } from 'react';
-import { Modal, View, useWindowDimensions } from 'react-native';
+import { Fragment, useCallback, useState, type ComponentRef } from 'react';
+import { Modal, ScrollView, View, useWindowDimensions } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 import { usePresence } from '@/hooks/use-presence';
@@ -8,6 +8,7 @@ import { motionDistances } from '@/theme/motion';
 import { useTheme } from '@/theme/use-theme';
 
 import { Divider } from './divider';
+import { GlassOverlay, useGlassLook } from './glass-surface';
 import { Icon, type IconName } from './icon';
 import { Pressable } from './pressable';
 import { Text } from './text';
@@ -21,25 +22,29 @@ export interface DropdownAnchor {
 
 export interface DropdownItem {
   key: string;
-  icon: IconName;
+  /** Absente : ligne de texte seul (choix d'un mois). */
+  icon?: IconName;
   label: string;
+  /** Choix actuel : une coche à droite, annoncé « sélectionné » par TalkBack. */
+  selected?: boolean;
   /** Action destructive : texte et icône d'alerte, sans fond. */
   destructive?: boolean;
   onPress: () => void;
 }
 
 /**
- * Ouverture d'un menu déroulant : `ref` se place sur le déclencheur, `open()` le mesure dans la fenêtre puis affiche
+ * Ouverture d'un menu déroulant : `bindTrigger` se place en `ref` sur le déclencheur, `open()` le mesure dans la fenêtre puis affiche
  * le menu juste dessous. Le menu est dans une fenêtre `Modal` : il se superpose à tout, sans rien déplacer.
  */
 export function useDropdown() {
-  const ref = useRef<ComponentRef<typeof View>>(null);
+  // Référence par fonction conservée dans l'état (et non `useRef`) : le déclencheur est lu à l'ouverture, jamais pendant le rendu.
+  const [trigger, bindTrigger] = useState<ComponentRef<typeof View> | null>(null);
   const [anchor, setAnchor] = useState<DropdownAnchor | null>(null);
   const open = useCallback(() => {
-    ref.current?.measureInWindow((x, y, width, height) => setAnchor({ x, y, width, height }));
-  }, []);
+    trigger?.measureInWindow((x, y, width, height) => setAnchor({ x, y, width, height }));
+  }, [trigger]);
   const close = useCallback(() => setAnchor(null), []);
-  return { ref, anchor, open, close, isOpen: anchor !== null };
+  return { bindTrigger, anchor, open, close, isOpen: anchor !== null };
 }
 
 interface DropdownMenuProps {
@@ -58,6 +63,7 @@ interface DropdownMenuProps {
  */
 export function DropdownMenu({ anchor, onClose, items, accessibilityLabel, width = sizes.contextMenuWidth }: DropdownMenuProps) {
   const { colors, shadows } = useTheme();
+  const glass = useGlassLook('menu');
   const screen = useWindowDimensions();
 
   // On garde le dernier emplacement pendant l'animation de fermeture (l'ancre est déjà remise à zéro).
@@ -102,20 +108,21 @@ export function DropdownMenu({ anchor, onClose, items, accessibilityLabel, width
             width,
             padding: 6,
             borderRadius: radius.contextMenu,
-            borderWidth: 1,
-            borderColor: colors.surfaceBorder,
-            backgroundColor: colors.chrome,
+            ...glass.style,
             boxShadow: shadows.menu,
             transformOrigin: 'right top',
           },
           animatedStyle,
         ]}>
+        <GlassOverlay variant="menu" radius={radius.contextMenu - 1} />
+        <ScrollView style={{ maxHeight: screen.height * 0.6 }} bounces={false} showsVerticalScrollIndicator={false}>
         {items.map((item, index) => (
           <Fragment key={item.key}>
-            {index > 0 && <Divider inset={14 + 20 + 12} />}
+            {index > 0 && <Divider inset={item.icon ? 14 + 20 + 12 : 14} />}
             <Pressable
               accessibilityRole="menuitem"
               accessibilityLabel={item.label}
+              accessibilityState={{ selected: item.selected }}
               pressTranslate={0}
               onPress={() => {
                 onClose();
@@ -131,13 +138,18 @@ export function DropdownMenu({ anchor, onClose, items, accessibilityLabel, width
                 borderRadius: radius.menuItem - 2,
                 backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
               })}>
-              <Icon name={item.icon} size={20} color={item.destructive ? colors.danger : colors.ink} />
-              <Text variant="body" tone={item.destructive ? 'danger' : 'default'} style={{ flex: 1 }}>
+              {item.icon && <Icon name={item.icon} size={20} color={item.destructive ? colors.danger : colors.ink} />}
+              <Text
+                variant={item.selected ? 'bodyStrong' : 'body'}
+                tone={item.destructive ? 'danger' : 'default'}
+                style={{ flex: 1 }}>
                 {item.label}
               </Text>
+              {item.selected && <Icon name="check" size={18} weight="strong" />}
             </Pressable>
           </Fragment>
         ))}
+        </ScrollView>
       </Animated.View>
     </Modal>
   );

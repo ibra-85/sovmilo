@@ -6,7 +6,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { Icon, Pressable } from '@/components/ui';
+import { GlassOverlay, Icon, Pressable } from '@/components/ui';
+import { withAlpha } from '@/theme/color-utils';
 import { useMotion } from '@/hooks/use-motion';
 import { radius, sizes } from '@/theme/layout';
 import { motionDistances } from '@/theme/motion';
@@ -51,9 +52,10 @@ export function ExpandableActionButton({ open, onPress, label }: ExpandableActio
         borderRadius: radius.full,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: pressed ? colors.fabPressed : colors.fab,
+        backgroundColor: pressed ? colors.fabPressed : withAlpha(colors.fab, 0.96),
         boxShadow: pressed ? shadows.fabPressed : shadows.fab,
       })}>
+      <GlassOverlay variant="fab" radius={sizes.fabSize / 2} />
       <Animated.View
         pointerEvents="none"
         style={[

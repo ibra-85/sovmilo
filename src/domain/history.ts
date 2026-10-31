@@ -81,3 +81,28 @@ export function groupByMonth<T extends { occurredOn: string }>(items: readonly T
   }
   return [...groups].map(([month, groupItems]) => ({ month, items: groupItems }));
 }
+
+export interface DayGroup<T> {
+  /** `YYYY-MM-DD`. */
+  day: string;
+  items: T[];
+  /** Total net du jour : revenus − dépenses − virements vers l'épargne (PROPOSITION du design : net). */
+  netCents: number;
+}
+
+/** Regroupe par jour (`occurredOn`) en gardant l'ordre d'entrée (du plus récent au plus ancien en amont). */
+export function groupByDay<T extends { occurredOn: string; type: TransactionType; amountCents: number }>(
+  items: readonly T[],
+): DayGroup<T>[] {
+  const groups = new Map<string, DayGroup<T>>();
+  for (const item of items) {
+    let group = groups.get(item.occurredOn);
+    if (!group) {
+      group = { day: item.occurredOn, items: [], netCents: 0 };
+      groups.set(item.occurredOn, group);
+    }
+    group.items.push(item);
+    group.netCents += item.type === 'income' ? item.amountCents : -item.amountCents;
+  }
+  return [...groups.values()];
+}

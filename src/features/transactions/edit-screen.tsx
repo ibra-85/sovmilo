@@ -1,20 +1,19 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Text, View } from 'react-native';
+import { View } from 'react-native';
 
-import { BigButton } from '@/components/big-button';
-import { Screen } from '@/components/screen';
-import { useUndo } from '@/features/undo/undo-provider';
+import { AppScreen, Button, EmptyState, ScreenHeader, useToast } from '@/components/ui';
+import { space } from '@/theme/layout';
 
-import { getTransaction, restoreTransaction, softDeleteTransaction, updateTransaction } from './repository';
+import { getTransaction, updateTransaction } from './repository';
 import { TransactionForm } from './transaction-form';
 
-/** Modification d'une opération, et suppression avec confirmation puis bouton « Annuler » pendant quelques secondes. */
+/** Modification d'une opération (design/screens/06-transaction-actions, « transaction-edit ») : le même formulaire, prérempli. */
 export function EditScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const showUndo = useUndo();
+  const toast = useToast();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   // Lue une seule fois : le formulaire garde ses propres valeurs pendant la saisie.
@@ -27,37 +26,18 @@ export function EditScreen() {
 
   if (!transaction) {
     return (
-      <Screen bottomInset>
-        <View className="flex-1 items-center justify-center gap-6 p-6">
-          <Text className="text-center text-xl font-semibold text-ink">{t('edit.notFound')}</Text>
-          <BigButton label={t('add.close')} onPress={close} />
+      <AppScreen bottomInset>
+        <ScreenHeader title={t('edit.title')} onBack={close} backLabel={t('edit.back')} />
+        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: space.screen }}>
+          <EmptyState icon="transactions" title={t('detail.notFound')} />
+          <Button label={t('add.close')} variant="secondary" onPress={close} />
         </View>
-      </Screen>
+      </AppScreen>
     );
-  }
-
-  function confirmDelete() {
-    Alert.alert(t('edit.deleteTitle'), t('edit.deleteMessage'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('common.delete'),
-        style: 'destructive',
-        onPress: () => {
-          softDeleteTransaction(transaction!.id);
-          close();
-          showUndo({
-            message: t('edit.deleted'),
-            actionLabel: t('edit.undo'),
-            onAction: () => restoreTransaction(transaction!.id),
-          });
-        },
-      },
-    ]);
   }
 
   return (
     <TransactionForm
-      title={t('edit.title')}
       initial={{
         type: transaction.type,
         amountCents: transaction.amountCents,
@@ -67,10 +47,10 @@ export function EditScreen() {
         note: transaction.note ?? '',
       }}
       onClose={close}
-      onDelete={confirmDelete}
       onSubmit={(values) => {
         if (!updateTransaction(transaction.id, values)) throw new Error('Opération introuvable');
         close();
+        toast.show({ message: t('add.savedChanges') });
       }}
     />
   );

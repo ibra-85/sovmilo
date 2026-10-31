@@ -8,6 +8,7 @@ import { radius, sizes, space, touchSlop } from '@/theme/layout';
 import { durations, motionDistances } from '@/theme/motion';
 import { useTheme } from '@/theme/use-theme';
 
+import { GlassOverlay, useGlassLook } from './glass-surface';
 import { Icon } from './icon';
 import { Pressable } from './pressable';
 import { Text } from './text';
@@ -37,6 +38,7 @@ export const useToast = () => useContext(ToastContext);
  */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const { colors, shadows } = useTheme();
+  const glass = useGlassLook('toast');
   const insets = useSafeAreaInsets();
   const [request, setRequest] = useState<ToastRequest | null>(null);
   // Dernier contenu affiché, conservé pendant la sortie (la requête est déjà remise à zéro).
@@ -96,13 +98,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 paddingRight: shown.actionLabel ? 4 : 16,
                 paddingVertical: 8,
                 borderRadius: radius.field,
-                borderWidth: 1,
-                borderColor: colors.surfaceBorder,
-                backgroundColor: colors.toast,
+                ...glass.style,
                 boxShadow: shadows.toast,
               },
               animatedStyle,
             ]}>
+            <GlassOverlay variant="toast" radius={radius.field - 1} />
             <View
               style={{
                 width: 28,

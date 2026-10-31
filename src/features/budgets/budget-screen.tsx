@@ -1,138 +1,129 @@
 import { useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 
-import { Screen } from '@/components/screen';
-import type { Category } from '@/db/schema';
-import {
-  buildBudgetProgress,
-  computeCategorySpending,
-  resolveBudgetLimits,
-  type BudgetStatus,
-  type CategoryBudgetProgress,
-} from '@/domain/budget';
-import { formatMonthLabel } from '@/domain/dates';
-import { formatMoney } from '@/domain/money';
-import { categoryLabel } from '@/features/categories/category-label';
-import { useCategories } from '@/features/categories/use-categories';
-import { useMonthTransactions } from '@/features/transactions/use-transactions';
-import { useToday } from '@/hooks/use-today';
-import { useLocale } from '@/i18n/use-locale';
-
-import { useBudgetRows } from './use-budgets';
 import { tabContentStyle } from '@/components/navigation';
+import {
+  AmountText,
+  AppScreen,
+  Button,
+  EmptyState,
+  PeriodSelector,
+  ProgressBar,
+  ScreenHeader,
+  Surface,
+  Text,
+} from '@/components/ui';
+import { formatMonthRange } from '@/domain/dates';
+import { formatMoneyAuto } from '@/domain/money';
+import { useSelectedMonth } from '@/hooks/use-selected-month';
+import { useLocale } from '@/i18n/use-locale';
+import { space } from '@/theme/layout';
 
-/** Couleur de la barre et du contour selon l'état : sauge (ok), ocre (> 80 %), corail (dépassé). */
-const BAR_CLASS: Record<BudgetStatus, string> = { ok: 'bg-sage', warning: 'bg-amber', over: 'bg-coral' };
-const BORDER_CLASS: Record<BudgetStatus, string> = { ok: 'border-line', warning: 'border-amber', over: 'border-coral' };
+import { BudgetCard } from './budget-card';
+import { useBudgetOverview } from './use-budget-overview';
 
-/** Onglet Budget : un plafond mensuel par catégorie de dépenses, avec barre de progression et alertes à 80 % et 100 %. */
+/**
+ * Budgets (design/screens/07-budgets) : titre + période, « Reste sur vos budgets » avec le bouton « Créer un budget »,
+ * le résumé du mois, puis les budgets « À surveiller » (dépassés ou presque atteints) et « Dans les limites ».
+ * Une ligne ouvre le détail du budget. Les catégories sans plafond n'apparaissent pas : on leur donne un budget avec « Créer ».
+ */
 export function BudgetScreen() {
   const { t } = useTranslation();
   const locale = useLocale();
   const router = useRouter();
+  const { month } = useSelectedMonth();
+  const { entries, watched, withinLimits, summary } = useBudgetOverview(month);
 
-  const month = useToday().slice(0, 7);
-  const categories = useCategories('expense');
-  const budgetRows = useBudgetRows();
-  const monthTransactions = useMonthTransactions(month);
-
-  const progress = useMemo(
-    () =>
-      buildBudgetProgress(
-        categories.map((category) => category.id),
-        resolveBudgetLimits(budgetRows, month),
-        computeCategorySpending(monthTransactions, month),
-      ),
-    [categories, budgetRows, monthTransactions, month],
+  const createButton = (
+    <Button label={t('budget.create')} icon="createPlus" variant="secondary" size="compact" onPress={() => router.push('/budget-new')} />
   );
 
   return (
-    <Screen>
-      <ScrollView contentContainerClassName="gap-4 px-4 pt-4" contentContainerStyle={tabContentStyle}>
-        <View className="gap-1">
-          <Text accessibilityRole="header" className="text-3xl font-bold text-ink">
-            {t('budget.title')}
-          </Text>
-          <Text className="text-lg font-medium text-muted">
-            {t('budget.subtitle')} · {formatMonthLabel(month, locale)}
-          </Text>
-          <Text className="text-base text-muted">{t('budget.help')}</Text>
-        </View>
+    <AppScreen>
+      <ScreenHeader title={t('budget.title')} trailing={<PeriodSelector />} />
 
-        {progress.map((entry, index) => (
-          <BudgetRow
-            key={entry.categoryId}
-            category={categories[index]}
-            progress={entry}
-            onPress={() => router.push({ pathname: '/budget-limit/[categoryId]', params: { categoryId: entry.categoryId } })}
-          />
-        ))}
+      <ScrollView
+        contentContainerStyle={[{ paddingHorizontal: space.screen, paddingTop: 14 }, tabContentStyle]}
+        showsVerticalScrollIndicator={false}>
+        {entries.length === 0 ? (
+          <Surface>
+            <EmptyState
+              icon="budgets"
+              title={t('budget.emptyTitle')}
+              text={t('budget.emptyText')}
+              actionLabel={t('budget.create')}
+              onAction={() => router.push('/budget-new')}
+            />
+          </Surface>
+        ) : (
+          <>
+            {/* Résumé : posé sur le fond */}
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+              <View style={{ flexShrink: 1, gap: 2 }}>
+                <Text variant="titleSection" accessibilityRole="header">
+                  {t('budget.summaryTitle')}
+                </Text>
+                <Text variant="secondary" tone="muted">
+                  {t('budget.summarySubtitle', { count: summary.count, range: formatMonthRange(month, locale) })}
+                </Text>
+              </View>
+              {createButton}
+            </View>
+
+            <View style={{ marginTop: 14 }}>
+              <AmountText
+                cents={summary.remainingCents}
+                size="summary"
+                fraction="auto"
+                tone={summary.remainingCents < 0 ? 'danger' : 'default'}
+              />
+            </View>
+
+            <View style={{ marginTop: 16, gap: 10 }}>
+              <ProgressBar percent={summary.percent} over={summary.remainingCents < 0} />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+                <Text variant="caption" tone="muted" style={{ flexShrink: 1 }}>
+                  <Text variant="captionMedium">{formatMoneyAuto(summary.spentCents, locale)}</Text>{' '}
+                  {t('budget.spentOn', { limit: formatMoneyAuto(summary.limitCents, locale) })}
+                </Text>
+                <Text variant="caption" tone="muted">
+                  {summary.percent} %
+                </Text>
+              </View>
+            </View>
+
+            {watched.length > 0 && (
+              <BudgetSection title={t('budget.watchTitle')} count={watched.length}>
+                <BudgetCard entries={watched} />
+              </BudgetSection>
+            )}
+            {withinLimits.length > 0 && (
+              <BudgetSection title={t('budget.okTitle')} count={withinLimits.length}>
+                <BudgetCard entries={withinLimits} />
+              </BudgetSection>
+            )}
+          </>
+        )}
       </ScrollView>
-    </Screen>
+    </AppScreen>
   );
 }
 
-function BudgetRow({
-  category,
-  progress,
-  onPress,
-}: {
-  category: Category;
-  progress: CategoryBudgetProgress;
-  onPress: () => void;
-}) {
+function BudgetSection({ title, count, children }: { title: string; count: number; children: ReactNode }) {
   const { t } = useTranslation();
-  const locale = useLocale();
-  const name = categoryLabel(category, t);
-  const { limitCents, spentCents, remainingCents, percent, status } = progress;
-
-  const spent = formatMoney(spentCents, locale);
-  const summary = limitCents === null ? t('budget.noLimit') : t('budget.spentOf', { spent, limit: formatMoney(limitCents, locale) });
-
-  let statusText: string | null = null;
-  if (status === 'over' && remainingCents !== null) {
-    statusText = `⚠️ ${t('budget.statusOver')} · ${t('budget.overBy', { amount: formatMoney(-remainingCents, locale) })}`;
-  } else if (status === 'warning' && remainingCents !== null) {
-    statusText = `⚠️ ${t('budget.statusWarning')} · ${t('budget.remaining', { amount: formatMoney(remainingCents, locale) })}`;
-  } else if (status === 'ok' && remainingCents !== null) {
-    statusText = t('budget.remaining', { amount: formatMoney(remainingCents, locale) });
-  } else if (spentCents > 0) {
-    statusText = t('budget.spentOnly', { spent });
-  }
-
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={[name, summary, statusText].filter(Boolean).join(', ')}
-      onPress={onPress}
-      className={`gap-3 rounded-3xl border-2 bg-surface p-4 active:opacity-70 ${status ? BORDER_CLASS[status] : 'border-line'}`}>
-      <View className="flex-row items-center gap-3">
-        <View className="h-11 w-11 items-center justify-center rounded-full" style={{ backgroundColor: `${category.color}33` }}>
-          <Text className="text-2xl">{category.icon}</Text>
-        </View>
-        <View className="flex-1">
-          <Text className="text-lg font-semibold text-ink" numberOfLines={1}>
-            {name}
-          </Text>
-          <Text className="text-base text-muted">{summary}</Text>
-        </View>
-        <Text className="text-xl text-muted">›</Text>
+    <View style={{ marginTop: space.section, gap: space.sectionTitle }}>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
+        <Text variant="titleSection" accessibilityRole="header" style={{ flexShrink: 1 }}>
+          {title}
+        </Text>
+        <Text variant="secondary" tone="muted">
+          {t('budget.count', { count })}
+        </Text>
       </View>
-
-      {status !== null && percent !== null && (
-        <View
-          accessible
-          accessibilityRole="progressbar"
-          accessibilityLabel={t('budget.progress', { percent })}
-          accessibilityValue={{ min: 0, max: 100, now: Math.min(percent, 100) }}
-          className="h-3 overflow-hidden rounded-full bg-line">
-          <View className={`h-full rounded-full ${BAR_CLASS[status]}`} style={{ width: `${Math.min(percent, 100)}%` }} />
-        </View>
-      )}
-
-      {statusText !== null && <Text className="text-base font-semibold text-ink">{statusText}</Text>}
-    </Pressable>
+      {children}
+    </View>
   );
 }

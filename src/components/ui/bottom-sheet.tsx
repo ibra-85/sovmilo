@@ -18,6 +18,7 @@ import { radius, space } from '@/theme/layout';
 import { motionDistances } from '@/theme/motion';
 import { useTheme } from '@/theme/use-theme';
 
+import { GlassOverlay, useGlassLook } from './glass-surface';
 import { Pressable } from './pressable';
 
 /** Marge du panneau détaché quand le clavier est ouvert (design : 10 dp, quatre coins arrondis). */
@@ -58,6 +59,7 @@ interface BottomSheetProps {
  */
 export function BottomSheet({ visible, onClose, children, accessibilityLabel, dismissible = true }: BottomSheetProps) {
   const { colors, shadows } = useTheme();
+  const glass = useGlassLook('sheet');
   const { timing } = useMotion();
   const insets = useSafeAreaInsets();
   const screen = useWindowDimensions();
@@ -149,12 +151,13 @@ export function BottomSheet({ visible, onClose, children, accessibilityLabel, di
               right: 0,
               borderTopLeftRadius: radius.sheet,
               borderTopRightRadius: radius.sheet,
-              backgroundColor: colors.sheet,
+              ...glass.style,
               boxShadow: shadows.sheet,
               paddingBottom: Math.max(insets.bottom, space.screen),
             },
             sheetStyle,
           ]}>
+          <GlassOverlay variant="sheet" radius={radius.sheet - 1} squareBottom />
           <GestureDetector gesture={pan}>
             <View accessible={false} style={{ height: HANDLE_ZONE, alignItems: 'center', justifyContent: 'center' }}>
               <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: withAlpha(colors.textMuted, 0.45) }} />
