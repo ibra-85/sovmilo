@@ -1,9 +1,15 @@
+import { HugeiconsIcon } from '@hugeicons/react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
-import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { useTheme } from '@/theme/use-theme';
 
-import { iconData, type IconName } from './icon-data';
+import { icons, type IconName } from './icons';
+
+/**
+ * Épaisseur du trait. Les icônes Hugeicons sont dessinées pour 1,5 ; on prend 1,8 (épaisseur des maquettes) pour
+ * la lisibilité à 18–24 dp. `strong` : onglet actif, coche, + et × (2,1).
+ */
+const STROKE = { regular: 1.8, strong: 2.1 } as const;
 
 interface IconProps {
   name: IconName;
@@ -11,54 +17,29 @@ interface IconProps {
   size?: number;
   /** Couleur du trait ; par défaut l'encre du thème. */
   color?: string;
-  /** Épaisseur de trait ; par défaut celle du design (1,8 en général, 2,2 pour l'onglet actif). */
-  strokeWidth?: number;
+  weight?: keyof typeof STROKE;
   /** Texte lu par TalkBack. Sans lui l'icône est décorative et ignorée des lecteurs d'écran. */
   label?: string;
   style?: StyleProp<ViewStyle>;
 }
 
-/** Icône du design system : tracés exportés des maquettes validées, dessinés avec react-native-svg. */
-export function Icon({ name, size = 24, color, strokeWidth, label, style }: IconProps) {
+/** Icône du design system : seul point d'entrée vers Hugeicons (catalogue dans `icons.ts`). */
+export function Icon({ name, size = 24, color, weight = 'regular', label, style }: IconProps) {
   const theme = useTheme();
-  const definition = iconData[name];
-  const stroke = color ?? theme.colors.ink;
+  const labelled = label !== undefined;
 
   return (
-    <Svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={stroke}
-      strokeWidth={strokeWidth ?? definition.strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
+    <HugeiconsIcon
+      icon={icons[name]}
+      size={size}
+      color={color ?? theme.colors.ink}
+      strokeWidth={STROKE[weight]}
       style={style}
-      accessible={label !== undefined}
-      accessibilityRole={label !== undefined ? 'image' : undefined}
+      accessible={labelled}
+      accessibilityRole={labelled ? 'image' : undefined}
       accessibilityLabel={label}
-      importantForAccessibility={label !== undefined ? 'yes' : 'no-hide-descendants'}>
-      {definition.elements.map((element, index) => {
-        switch (element.type) {
-          case 'path':
-            return <Path key={index} d={element.d} />;
-          case 'circle':
-            return <Circle key={index} cx={element.cx} cy={element.cy} r={element.r} />;
-          case 'rect':
-            return (
-              <Rect
-                key={index}
-                x={element.x}
-                y={element.y}
-                width={element.width}
-                height={element.height}
-                rx={element.rx}
-              />
-            );
-        }
-      })}
-    </Svg>
+      importantForAccessibility={labelled ? 'yes' : 'no-hide-descendants'}
+    />
   );
 }
 

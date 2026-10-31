@@ -1,28 +1,43 @@
-import { radius, sizes, spacing } from './layout';
-import { durations, curves } from './motion';
+import { radius, sizes, space, spacing, touchSlop } from './layout';
+import { curves, durations } from './motion';
 import { shadowTokens } from './shadows';
 import { colorTokens } from './tokens';
-import { fontFamilies, maxFontScale, typography } from './typography';
+import {
+  DEFAULT_MAX_FONT_SCALE,
+  fontFamilies,
+  maxFontScale,
+  typography,
+  type TypographyVariant,
+} from './typography';
 
-describe('échelle d\'espacement', () => {
-  it('est strictement croissante et contient le repère 24 entre sections', () => {
+describe('espacements', () => {
+  it("l'échelle brute est strictement croissante", () => {
     const values = Object.values(spacing);
     expect(values).toEqual([...values].sort((a, b) => a - b));
     expect(new Set(values).size).toBe(values.length);
-    expect(sizes.sectionGap).toBe(24);
-    expect(sizes.screenMargin).toBe(20);
+  });
+
+  it("les espacements par rôle sont ceux mesurés sur les maquettes (pas les repères d'inspiration)", () => {
+    expect(space.screen).toBe(20);
+    expect(space.section).toBe(30);
+    expect(space.sectionTitle).toBe(10);
+    expect(space.dayGroup).toBe(26);
+    expect(space.fieldMinHeight).toBe(58);
   });
 });
 
 describe('rayons', () => {
-  it('le rayon principal des surfaces est 23 et la barre de navigation le suit', () => {
-    expect(radius.surface).toBe(23);
-    expect(radius.nav).toBe(23);
+  it('reprend les rayons mesurés : surface 20, navigation 20, panneau 26, bouton 15', () => {
+    expect(radius.surface).toBe(20);
+    expect(radius.nav).toBe(20);
+    expect(radius.sheet).toBe(26);
+    expect(radius.button).toBe(15);
   });
 
-  it('respecte « rayon intérieur ≈ rayon extérieur − marge interne » pour la barre et le menu +', () => {
+  it('respecte « rayon intérieur ≈ rayon extérieur − marge interne »', () => {
     expect(radius.nav - sizes.navPadding).toBe(radius.navTab);
     expect(radius.menu - 6).toBe(radius.menuItem);
+    expect(radius.field - 4).toBeLessThanOrEqual(radius.option);
   });
 
   it('un rayon intérieur est toujours plus petit que son conteneur', () => {
@@ -33,10 +48,15 @@ describe('rayons', () => {
 });
 
 describe('zones tactiles et barre flottante', () => {
-  it('garde la barre et le bouton + à la même hauteur et au moins 48 dp de zone tactile', () => {
+  it('garde la barre et le bouton + à la même hauteur ; zone tactile minimale de 48 dp', () => {
     expect(sizes.navHeight).toBe(sizes.fabSize);
     expect(sizes.minTouch).toBeGreaterThanOrEqual(48);
-    expect(sizes.iconButton).toBeLessThanOrEqual(sizes.minTouch);
+  });
+
+  it('porte une cible de 44 dp à 48 dp avec touchSlop, sans rien ajouter à une cible déjà assez grande', () => {
+    expect(touchSlop(sizes.iconButton)).toEqual({ top: 2, bottom: 2, left: 2, right: 2 });
+    expect(touchSlop(60)).toEqual({ top: 0, bottom: 0, left: 0, right: 0 });
+    expect(touchSlop(40, 36)).toEqual({ top: 6, bottom: 6, left: 4, right: 4 });
   });
 
   it('réserve sous les listes au moins la barre, son décalage et le bouton', () => {
@@ -45,7 +65,7 @@ describe('zones tactiles et barre flottante', () => {
 });
 
 describe('typographie', () => {
-  it('n\'utilise que les trois graisses d\'Inter prévues (pas de 700)', () => {
+  it("n'utilise que les trois graisses d'Inter prévues (pas de 700)", () => {
     const families = new Set(Object.values(typography).map((style) => style.fontFamily));
     for (const family of families) expect(Object.values(fontFamilies)).toContain(family);
   });
@@ -57,20 +77,31 @@ describe('typographie', () => {
     }
   });
 
-  it('applique l\'interlettrage en pixels (em × taille) : 60 sp à −0,045 em = −2,7', () => {
+  it("applique l'interlettrage en pixels (em × taille) : 60 sp à −0,045 em = −2,7", () => {
     expect(typography.amountInput.letterSpacing).toBe(-2.7);
     expect(typography.body.letterSpacing).toBeUndefined();
   });
 
-  it('garde le corps de texte à 16 sp ou plus, et plafonne la mise à l\'échelle des grands montants', () => {
+  it('garde le corps de texte à 16 sp ou plus et aucune information sous 14 sp', () => {
     expect(typography.body.fontSize).toBeGreaterThanOrEqual(16);
+    const chartOnly: TypographyVariant[] = ['micro'];
+    for (const [name, style] of Object.entries(typography)) {
+      if (chartOnly.includes(name as TypographyVariant)) continue;
+      expect({ name, ok: (style.fontSize ?? 0) >= 14 }).toEqual({ name, ok: true });
+    }
+    expect(typography.micro.fontSize).toBeGreaterThanOrEqual(13);
+  });
+
+  it("suit le texte agrandi d'Android sans limite serrée, sauf pour les grands montants et la navigation", () => {
+    expect(maxFontScale.body).toBe(DEFAULT_MAX_FONT_SCALE);
+    expect(DEFAULT_MAX_FONT_SCALE).toBeGreaterThanOrEqual(1.5);
     expect(maxFontScale.amountInput).toBeLessThanOrEqual(1.15);
-    expect(maxFontScale.body).toBeUndefined();
+    expect(maxFontScale.navLabel).toBeLessThanOrEqual(1.3);
   });
 });
 
 describe('mouvement', () => {
-  it('ferme plus vite qu\'il n\'ouvre (principe DÉCIDÉ)', () => {
+  it("ferme plus vite qu'il n'ouvre (principe DÉCIDÉ)", () => {
     expect(durations.menuOut).toBeLessThanOrEqual(durations.menuIn);
     expect(durations.dropdownOut).toBeLessThanOrEqual(durations.dropdownIn);
     expect(durations.sheetOut).toBeLessThanOrEqual(durations.sheetIn);
@@ -78,7 +109,7 @@ describe('mouvement', () => {
     expect(durations.scrimOut).toBeLessThanOrEqual(durations.scrimIn);
   });
 
-  it('garde les durées courtes (< 500 ms) hors temps d\'affichage de la notification', () => {
+  it("garde les durées courtes (< 500 ms) hors temps d'affichage de la notification", () => {
     for (const [name, value] of Object.entries(durations)) {
       if (name === 'toastVisible') continue;
       expect({ name, ok: value <= 500 }).toEqual({ name, ok: true });
@@ -86,7 +117,7 @@ describe('mouvement', () => {
     expect(durations.toastVisible).toBe(3000);
   });
 
-  it('le fondu conservé en animations réduites ne dépasse pas 100 ms', () => {
+  it("le fondu conservé en animations réduites ne dépasse pas 100 ms", () => {
     expect(durations.reducedFade).toBeLessThanOrEqual(100);
   });
 
@@ -101,7 +132,7 @@ describe('mouvement', () => {
 });
 
 describe('matières', () => {
-  it('clair et sombre définissent les mêmes recettes d\'ombres', () => {
+  it("clair et sombre définissent les mêmes recettes d'ombres", () => {
     expect(Object.keys(shadowTokens.dark).sort()).toEqual(Object.keys(shadowTokens.light).sort());
   });
 
@@ -111,7 +142,7 @@ describe('matières', () => {
     }
   });
 
-  it('le bouton principal sombre n\'a pas de halo citron (ombres noires uniquement, VALIDÉ)', () => {
+  it("le bouton principal sombre n'a pas de halo citron (ombres noires uniquement, VALIDÉ)", () => {
     const drops = shadowTokens.dark.primary.filter((layer) => !layer.inset);
     for (const layer of drops) expect(String(layer.color)).toMatch(/^rgba\(0,0,0,/);
     expect(colorTokens.dark.primary).toBe('#E8FF70');

@@ -11,9 +11,24 @@
   },
   "tabs": {
     "home": "Accueil",
-    "history": "Historique",
-    "budget": "Budget",
-    "more": "Plus"
+    "history": "Opérations",
+    "budget": "Budgets",
+    "more": "Services"
+  },
+  "nav": {
+    "main": "Navigation principale",
+    "quickActions": "Actions rapides",
+    "closeQuickActions": "Fermer les actions rapides",
+    "addExpense": "Ajouter une dépense",
+    "addIncome": "Ajouter un revenu",
+    "scanReceipt": "Scanner un ticket",
+    "soon": "Bientôt"
+  },
+  "budgetRow": {
+    "remaining": "Reste {{amount}} · {{percent}} %",
+    "nearLimit": "Presque atteint · reste {{amount}}",
+    "over": "Dépassé de {{amount}} · {{percent}} %",
+    "a11y": "{{name}} : {{spent}} sur {{limit}}. {{status}}"
   },
   "paymentMethods": {
     "card": "Carte",

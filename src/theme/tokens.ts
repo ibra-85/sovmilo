@@ -90,6 +90,9 @@ export interface ColorTokens {
   dangerLine: string;
   /** PROVISOIRE : bordure d'un bouton destructif (--errbd). */
   dangerBorder: string;
+  /** PROPOSITION (état non dessiné) : fond et texte d'un bouton désactivé, contraste du libellé ≥ 3:1 conservé. */
+  disabled: string;
+  onDisabled: string;
   /** Citron : accent discret. En sombre il porte l'action principale. */
   accent: string;
 }
@@ -137,6 +140,8 @@ const light: ColorTokens = {
   dangerSoft: '#FDF4F3',
   dangerLine: 'rgba(180,38,30,0.10)',
   dangerBorder: 'rgba(180,38,30,0.18)',
+  disabled: '#E3E4E8',
+  onDisabled: '#5F636B',
   accent: '#DDF35D',
 };
 
@@ -183,6 +188,8 @@ const dark: ColorTokens = {
   dangerSoft: 'rgba(255,138,122,0.06)',
   dangerLine: 'rgba(255,138,122,0.12)',
   dangerBorder: 'rgba(255,138,122,0.22)',
+  disabled: '#22252A',
+  onDisabled: '#8F949C',
   accent: '#E8FF70',
 };
 

@@ -21,6 +21,7 @@ import { TransactionRow } from '@/features/transactions/transaction-row';
 import { useAllTransactions } from '@/features/transactions/use-transactions';
 import { useLocale } from '@/i18n/use-locale';
 import { useThemeColors } from '@/theme/colors';
+import { tabContentStyle } from '@/components/navigation';
 
 const TYPE_OPTIONS: TransactionType[] = ['expense', 'income', 'transfer'];
 
@@ -151,7 +152,8 @@ export function HistoryScreen() {
         keyExtractor={(item) => item.id}
         stickySectionHeadersEnabled
         keyboardShouldPersistTaps="handled"
-        contentContainerClassName="px-4 pb-6"
+        contentContainerClassName="px-4"
+        contentContainerStyle={tabContentStyle}
         ListHeaderComponent={
           <View className="gap-3">
             {panel}

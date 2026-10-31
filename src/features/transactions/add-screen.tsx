@@ -6,7 +6,8 @@ import { TransactionForm } from './transaction-form';
 
 /**
  * Nouvelle opération. Le paramètre `?type=transfer` ouvre directement le virement vers l'épargne
- * (bouton « Mettre de côté » de l'accueil) ; sinon on commence par une dépense.
+ * (bouton « Mettre de côté » de l'accueil), `?type=income` un revenu (menu + de la navigation) ;
+ * sinon on commence par une dépense.
  */
 export function AddScreen() {
   const { t } = useTranslation();
@@ -21,7 +22,7 @@ export function AddScreen() {
   return (
     <TransactionForm
       title={t('add.title')}
-      initialType={type === 'transfer' ? 'transfer' : 'expense'}
+      initialType={type === 'transfer' || type === 'income' ? type : 'expense'}
       onClose={close}
       onSubmit={(values) => {
         addTransaction(values);

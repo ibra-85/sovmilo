@@ -2,8 +2,10 @@ import type { TextStyle } from 'react-native';
 
 /**
  * Typographie : une seule famille, Inter, en trois graisses (400, 500, 600 : pas de 700), cyrillique inclus.
- * Échelle OBSERVÉE dans les maquettes (design/DESIGN.md §3.2). Les interlignes des textes courants sont une
- * PROPOSITION (×1,3 environ) : la maquette ne fixe que celui des montants (1,0).
+ * Échelle des maquettes (design/DESIGN.md §3.2), avec un ajustement de LISIBILITÉ voulu par le propriétaire (l'application
+ * est utilisée par une personne peu habituée aux applis) : aucun texte d'information sous 14 sp, texte secondaire à 15 sp.
+ * Écarts avec les maquettes : légende 13 → 14, texte secondaire 14 → 15, micro 12 → 13 (voir docs/design-deviations.md).
+ * Les interlignes des textes courants sont une PROPOSITION (×1,35 environ) : la maquette ne fixe que celui des montants (1,0).
  */
 
 export const fontFamilies = {
@@ -69,15 +71,16 @@ const specs = {
   bodyStrong: { size: 16, weight: 'semibold', leading: 1.35 },
   /** Libellé de groupe (« Catégorie ») : 15 sp. */
   label: { size: 15, weight: 'semibold', leading: 1.3 },
-  /** Texte secondaire, période : 14 sp. */
-  secondary: { size: 14, weight: 'medium', leading: 1.35 },
-  /** Onglet actif, option sélectionnée : 14 sp en 600. */
-  secondaryStrong: { size: 14, weight: 'semibold', tracking: -0.005, leading: 1.35 },
-  /** Légende : 13 sp. */
-  caption: { size: 13, weight: 'regular', leading: 1.35 },
-  captionMedium: { size: 13, weight: 'medium', leading: 1.35 },
-  /** Micro (heure, étiquettes de graphique) : 12 sp. */
-  micro: { size: 12, weight: 'medium', leading: 1.35 },
+  /** Texte secondaire, période (14 dans la maquette) : 15 sp. */
+  secondary: { size: 15, weight: 'medium', leading: 1.35 },
+  secondaryStrong: { size: 15, weight: 'semibold', tracking: -0.005, leading: 1.35 },
+  /** Libellé de l'onglet actif de la barre flottante : 14 sp en 600 (la place est comptée, voir MOTION / COMPONENTS). */
+  navLabel: { size: 14, weight: 'semibold', tracking: -0.005, leading: 1.3, maxScale: 1.3 },
+  /** Légende (13 dans la maquette) : 14 sp. */
+  caption: { size: 14, weight: 'regular', leading: 1.35 },
+  captionMedium: { size: 14, weight: 'medium', leading: 1.35 },
+  /** Étiquettes de graphique uniquement (12 dans la maquette) : 13 sp. Jamais pour une information essentielle. */
+  micro: { size: 13, weight: 'medium', leading: 1.35 },
 } as const satisfies Record<string, VariantSpec>;
 
 export type TypographyVariant = keyof typeof specs;
@@ -98,9 +101,13 @@ export const typography: Record<TypographyVariant, TextStyle> = Object.fromEntri
   Object.entries(specs).map(([name, spec]) => [name, toStyle(spec)]),
 ) as Record<TypographyVariant, TextStyle>;
 
-/** Plafond de mise à l'échelle par rôle (undefined = réglage système sans limite). */
-export const maxFontScale: Partial<Record<TypographyVariant, number>> = Object.fromEntries(
-  Object.entries(specs)
-    .filter(([, spec]) => 'maxScale' in spec)
-    .map(([name, spec]) => [name, (spec as VariantSpec).maxScale]),
-);
+/**
+ * Plafond de mise à l'échelle quand le rôle n'en fixe pas : le texte suit le réglage « taille de police » d'Android
+ * jusqu'à 180 %, au-delà les mises en page cassent plus qu'elles n'aident.
+ */
+export const DEFAULT_MAX_FONT_SCALE = 1.8;
+
+/** Plafond de mise à l'échelle par rôle (grands montants, libellé de navigation). */
+export const maxFontScale: Record<TypographyVariant, number> = Object.fromEntries(
+  Object.entries(specs).map(([name, spec]) => [name, (spec as VariantSpec).maxScale ?? DEFAULT_MAX_FONT_SCALE]),
+) as Record<TypographyVariant, number>;

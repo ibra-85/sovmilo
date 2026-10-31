@@ -6,6 +6,7 @@ import { APP_LOCALES } from '@/domain/types';
 import { BalanceCard } from '@/features/balance/balance-card';
 import { setAppLocale } from '@/i18n';
 import { useLocale } from '@/i18n/use-locale';
+import { tabContentStyle } from '@/components/navigation';
 
 /** Onglet « Plus » : solde du compte et choix de la langue ; les autres réglages viendront aux étapes suivantes. */
 export function MoreScreen() {
@@ -14,7 +15,7 @@ export function MoreScreen() {
 
   return (
     <Screen>
-      <ScrollView contentContainerClassName="gap-5 px-4 pb-6 pt-4">
+      <ScrollView contentContainerClassName="gap-5 px-4 pt-4" contentContainerStyle={tabContentStyle}>
         <Text accessibilityRole="header" className="text-3xl font-bold text-ink">
           {t('settings.title')}
         </Text>

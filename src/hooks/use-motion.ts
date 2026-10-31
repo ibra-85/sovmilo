@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { Easing, useReducedMotion, type WithTimingConfig } from 'react-native-reanimated';
 
 import { curves, durations, type CurveName, type DurationName } from '@/theme/motion';
@@ -13,19 +14,26 @@ export type MotionKind = 'move' | 'fade';
  *  - un fondu est conservé mais ramené à 100 ms au plus.
  *
  * Usage : `opacity.value = withTiming(1, timing('enter', 'toastIn', 'fade'))`.
+ * `timing` garde la même identité tant que le réglage ne change pas : on peut l'utiliser dans un tableau de dépendances.
  */
 export function useMotion() {
   const reduced = useReducedMotion();
 
-  const timing = (curve: CurveName, duration: DurationName, kind: MotionKind = 'move'): WithTimingConfig => {
-    const base = durations[duration];
-    const effective = !reduced ? base : kind === 'fade' ? Math.min(base, durations.reducedFade) : 0;
-    const [x1, y1, x2, y2] = curves[curve];
-    return { duration: effective, easing: Easing.bezier(x1, y1, x2, y2) };
-  };
+  const timing = useCallback(
+    (curve: CurveName, duration: DurationName, kind: MotionKind = 'move'): WithTimingConfig => {
+      const base = durations[duration];
+      const effective = !reduced ? base : kind === 'fade' ? Math.min(base, durations.reducedFade) : 0;
+      const [x1, y1, x2, y2] = curves[curve];
+      return { duration: effective, easing: Easing.bezier(x1, y1, x2, y2) };
+    },
+    [reduced],
+  );
 
   /** Durée en ms d'un décalage (stagger) : nulle quand les animations sont réduites. */
-  const delay = (duration: DurationName, count = 1): number => (reduced ? 0 : durations[duration] * count);
+  const delay = useCallback(
+    (duration: DurationName, count = 1): number => (reduced ? 0 : durations[duration] * count),
+    [reduced],
+  );
 
   return { reduced, timing, delay };
 }

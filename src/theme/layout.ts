@@ -1,14 +1,13 @@
 /**
- * Espacements, rayons et dimensions fixes (design/DESIGN.md §4).
+ * Espacements, rayons et dimensions fixes (design/DESIGN.md §4), organisés PAR RÔLE.
  *
- * Valeurs OBSERVÉES sur le gabarit 393 × 852 dp, sauf les deux ajustements demandés par le propriétaire après
- * le handoff (repères visuels complémentaires), marqués « AJUSTÉ » :
- *  - rythme entre sections : 24 dp (la maquette mesurait 30 dp au-dessus d'un titre de section) ;
- *  - rayon principal des surfaces : 23 dp (la maquette mesurait 20 dp), ce qui entraîne la barre de navigation
- *    (23) et son onglet actif (16) pour garder la règle « rayon intérieur ≈ rayon extérieur − marge interne ».
+ * Toutes les valeurs sont celles MESURÉES sur les maquettes validées (gabarit 393 × 852 dp). Les repères « espacement 24 »
+ * et « rayon 23 » d'une image d'inspiration sont des recommandations visuelles, pas des règles : ils ne remplacent aucune
+ * mesure des maquettes (voir docs/design-deviations.md). Les rayons imbriqués suivent « rayon intérieur ≈ rayon
+ * extérieur − marge interne » (barre 20 − 7 = onglet 13 ; menu 18 − 6 = ligne 12 ; segmenté 14 − 4 = option 10–11).
  */
 
-/** Échelle d'espacement (dp). */
+/** Échelle brute d'espacement (dp), pour les cas sans rôle propre. */
 export const spacing = {
   xxs: 4,
   xs: 8,
@@ -21,33 +20,56 @@ export const spacing = {
 
 export type SpacingToken = keyof typeof spacing;
 
-/** Rayons par rôle (dp). Les valeurs entre parenthèses sont celles de la maquette quand elles ont été ajustées. */
+/** Espacements par rôle (dp). */
+export const space = {
+  /** Marge latérale d'écran (contenu, en-têtes, barre, boutons). */
+  screen: 20,
+  /** Au-dessus d'un titre de section (Accueil, Budgets). */
+  section: 30,
+  /** Entre un titre de section et son contenu. */
+  sectionTitle: 10,
+  /** Au-dessus d'un groupe de jour (Opérations) : le regroupement se fait par l'espace, sans séparateur. */
+  dayGroup: 26,
+  dayGroupTitle: 4,
+  /** Padding vertical d'une ligne de liste. */
+  listRow: 10,
+  /** Gouttière entre l'icône et le texte d'une ligne. */
+  gutter: 14,
+  /** Ligne de champ de formulaire : hauteur minimale. Le filet entre deux champs est indenté de `fieldDividerInset`. */
+  fieldMinHeight: 58,
+  fieldDividerInset: 64,
+  /** Carrousel de catégories : les tuiles touchent visuellement le bord et s'effacent. */
+  carouselEdge: 14,
+  carouselGap: 6,
+} as const;
+
+/** Rayons par rôle (dp). */
 export const radius = {
   /** Panneau inférieur (haut) et panneau flottant au-dessus du clavier. */
   sheet: 26,
-  /** AJUSTÉ (20) : surfaces de contenu (cartes d'Accueil, de Budgets, résumé). */
-  surface: 23,
-  /** AJUSTÉ (20) : barre de navigation flottante. */
-  nav: 23,
-  /** AJUSTÉ (13) : pastille de l'onglet actif = nav 23 − padding 7. */
-  navTab: 16,
+  /** Surface de contenu : cartes d'Accueil, de Budgets, résumé. */
+  surface: 20,
+  /** Barre de navigation flottante. */
+  nav: 20,
+  /** Pastille de l'onglet actif : nav 20 − padding 7. */
+  navTab: 13,
   /** Menu + (panneau d'actions). */
   menu: 18,
   /** Ligne d'action du menu + : menu 18 − padding 6. */
   menuItem: 12,
+  /** Menu contextuel « ⋯ ». */
+  contextMenu: 16,
   /** Groupe de champs. */
   group: 18,
   /** Tuile de catégorie (58 dp). */
   tile: 17,
-  /** Menu contextuel « ⋯ ». */
-  contextMenu: 16,
   /** Bouton principal (54 dp). */
   button: 15,
-  /** Champ de saisie, recherche, segmenté, notification, boutons de dialogue, ligne de budget, bouton secondaire. */
+  /** Champ de saisie, recherche, segmenté, notification, bouton secondaire / de dialogue, ligne de budget. */
   field: 14,
   /** Bouton retour 44 dp, pastille d'icône 48 dp du sélecteur. */
   iconButton: 13,
-  /** Option de segmenté : 14 − padding 4 = 10 (11 observé pour le segmenté 14). */
+  /** Option de segmenté : 14 − padding 4. */
   option: 11,
   /** Pastille d'icône 40 dp, sélecteur de période, bouton « Créer un budget ». */
   pill: 12,
@@ -65,11 +87,10 @@ export type RadiusToken = keyof typeof radius;
 
 /** Dimensions fixes (dp). */
 export const sizes = {
-  /** Marge latérale d'écran. */
-  screenMargin: 20,
-  /** Rythme entre sections majeures (AJUSTÉ, voir l'en-tête). */
-  sectionGap: spacing.xl,
-  /** Zone tactile minimale. */
+  /**
+   * Zone tactile minimale d'une cible (recommandation Android : 48 dp). Un élément visuellement plus petit
+   * (bouton retour 44 dp, onglet inactif) garde cette zone grâce à `touchSlop`.
+   */
   minTouch: 48,
   /** En-tête d'écran (56–60). */
   header: 56,
@@ -78,6 +99,10 @@ export const sizes = {
   fabSize: 60,
   navFabGap: 10,
   navPadding: 7,
+  /** Onglet actif : pastille de 44 dp de haut dans une barre de 60 dp (60 − 2 × 7 = 46, 1 dp de bordure de chaque côté). */
+  navTabHeight: 44,
+  /** Largeur visible d'un onglet inactif (zone tactile : 48 dp). */
+  navTabInactiveWidth: 44,
   /** Distance entre la barre de navigation et le bord bas. */
   navBottom: 32,
   /** Espace réservé en bas des listes pour ne pas passer sous la barre. */
@@ -86,14 +111,31 @@ export const sizes = {
   navFade: 150,
   buttonHeight: 54,
   buttonSecondaryHeight: 52,
+  buttonCompactHeight: 36,
   iconButton: 44,
   /** Icône d'opération (rond). */
   rowIcon: 44,
   /** Icône d'une ligne de budget. */
   budgetIcon: 40,
-  fieldRowMinHeight: 58,
+  fieldIcon: 36,
   categoryTile: 58,
   categoryTileWidth: 74,
   progressThin: 4,
   progressThick: 8,
+  segmentedOption: 38,
+  /** Menu + : largeur, ligne d'action, distance au-dessus du bas. */
+  actionMenuWidth: 256,
+  actionMenuRow: 52,
+  actionMenuBottom: 104,
+  contextMenuWidth: 232,
+  contextMenuRow: 50,
+  /** Notification : distance au-dessus du bas (au-dessus du bouton principal). */
+  toastBottom: 110,
 } as const;
+
+/** `hitSlop` qui porte une cible visuelle de `visible` dp à la zone tactile minimale. */
+export function touchSlop(visibleWidth: number, visibleHeight: number = visibleWidth) {
+  const horizontal = Math.max(0, Math.ceil((sizes.minTouch - visibleWidth) / 2));
+  const vertical = Math.max(0, Math.ceil((sizes.minTouch - visibleHeight) / 2));
+  return { top: vertical, bottom: vertical, left: horizontal, right: horizontal };
+}

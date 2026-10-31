@@ -14,6 +14,7 @@ import { useLocale } from '@/i18n/use-locale';
 
 import { TransactionRow } from './transaction-row';
 import { useMonthTransactions, useRecentTransactions } from './use-transactions';
+import { tabContentStyle } from '@/components/navigation';
 
 const RECENT_COUNT = 5;
 
@@ -32,7 +33,7 @@ export function HomeScreen() {
 
   return (
     <Screen>
-      <ScrollView contentContainerClassName="gap-5 px-4 pb-6 pt-4">
+      <ScrollView contentContainerClassName="gap-5 px-4 pt-4" contentContainerStyle={tabContentStyle}>
         {/* Reste à dépenser, en très gros : corail s'il est négatif, sauge sinon */}
         <View className="gap-1">
           <Text className="text-lg font-medium text-muted">{t('home.remainingTitle')}</Text>

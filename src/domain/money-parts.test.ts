@@ -1,4 +1,4 @@
-import { MAX_AMOUNT_CENTS, formatMoney, formatMoneyParts } from './money';
+import { MAX_AMOUNT_CENTS, formatMoney, formatMoneyParts, sanitizeAmountInput } from './money';
 
 /** Intl sépare les milliers avec une espace fine (fr) ou insécable (ru) : on les compare à une espace normale. */
 const plain = (value: string) => value.replace(/[  ]/g, ' ');
@@ -76,5 +76,31 @@ describe('formatMoneyParts', () => {
 
   it('refuse un montant qui n\'est pas un entier de centimes', () => {
     expect(() => formatMoneyParts(12.5, 'fr')).toThrow(RangeError);
+  });
+});
+
+describe('sanitizeAmountInput', () => {
+  it('convertit la virgule du clavier français en point canonique', () => {
+    expect(sanitizeAmountInput('12,5')).toBe('12.5');
+    expect(sanitizeAmountInput('12.50')).toBe('12.50');
+  });
+
+  it('ignore les caractères qui ne sont ni chiffres ni séparateur', () => {
+    expect(sanitizeAmountInput('1 2,5 €')).toBe('12.5');
+    expect(sanitizeAmountInput('abc')).toBe('');
+    expect(sanitizeAmountInput('-5')).toBe('5');
+  });
+
+  it('applique les mêmes limites que le pavé : une seule virgule, 2 décimales, pas de zéro initial', () => {
+    expect(sanitizeAmountInput('1,2,3')).toBe('1.23');
+    expect(sanitizeAmountInput('1,234')).toBe('1.23');
+    expect(sanitizeAmountInput('007')).toBe('7');
+    expect(sanitizeAmountInput(',5')).toBe('0.5');
+    expect(sanitizeAmountInput('1234567890')).toBe('123456789');
+  });
+
+  it('gère la suppression : le texte raccourci redonne la saisie précédente', () => {
+    expect(sanitizeAmountInput('12.5'.slice(0, -1))).toBe('12.');
+    expect(sanitizeAmountInput('')).toBe('');
   });
 });

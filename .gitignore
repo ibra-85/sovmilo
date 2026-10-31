@@ -43,3 +43,7 @@ example
 # generated native folders
 /ios
 /android
+
+# design : références visuelles de tiers, jamais dans le dépôt public
+design/references/
+design/inspiration/

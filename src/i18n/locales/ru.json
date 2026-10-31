@@ -11,9 +11,24 @@
   },
   "tabs": {
     "home": "Главная",
-    "history": "История",
-    "budget": "Бюджет",
-    "more": "Ещё"
+    "history": "Операции",
+    "budget": "Бюджеты",
+    "more": "Сервисы"
+  },
+  "nav": {
+    "main": "Основная навигация",
+    "quickActions": "Быстрые действия",
+    "closeQuickActions": "Закрыть быстрые действия",
+    "addExpense": "Добавить расход",
+    "addIncome": "Добавить доход",
+    "scanReceipt": "Сканировать чек",
+    "soon": "Скоро"
+  },
+  "budgetRow": {
+    "remaining": "Осталось {{amount}} · {{percent}} %",
+    "nearLimit": "Почти исчерпан · осталось {{amount}}",
+    "over": "Превышен на {{amount}} · {{percent}} %",
+    "a11y": "{{name}}: {{spent}} из {{limit}}. {{status}}"
   },
   "paymentMethods": {
     "card": "Карта",

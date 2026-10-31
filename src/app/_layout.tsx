@@ -10,10 +10,10 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 
+import { ToastProvider } from '@/components/ui';
 import { db } from '@/db/client';
 import migrations from '@/db/migrations/migrations';
 import { seedDefaultCategories } from '@/db/seed';
-import { UndoProvider } from '@/features/undo/undo-provider';
 import { fontAssets } from '@/theme/fonts';
 import { useTheme } from '@/theme/use-theme';
 
@@ -88,7 +88,7 @@ function AppShell() {
 
   return (
     <ThemeProvider value={navigationTheme}>
-      <UndoProvider>
+      <ToastProvider>
         <StatusBar style="auto" />
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
           <Stack.Screen name="(tabs)" />
@@ -97,7 +97,7 @@ function AppShell() {
           <Stack.Screen name="budget-limit/[categoryId]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="balance" options={{ presentation: 'modal' }} />
         </Stack>
-      </UndoProvider>
+      </ToastProvider>
     </ThemeProvider>
   );
 }

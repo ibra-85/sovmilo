@@ -21,6 +21,7 @@ import { useToday } from '@/hooks/use-today';
 import { useLocale } from '@/i18n/use-locale';
 
 import { useBudgetRows } from './use-budgets';
+import { tabContentStyle } from '@/components/navigation';
 
 /** Couleur de la barre et du contour selon l'état : sauge (ok), ocre (> 80 %), corail (dépassé). */
 const BAR_CLASS: Record<BudgetStatus, string> = { ok: 'bg-sage', warning: 'bg-amber', over: 'bg-coral' };
@@ -49,7 +50,7 @@ export function BudgetScreen() {
 
   return (
     <Screen>
-      <ScrollView contentContainerClassName="gap-4 px-4 pb-6 pt-4">
+      <ScrollView contentContainerClassName="gap-4 px-4 pt-4" contentContainerStyle={tabContentStyle}>
         <View className="gap-1">
           <Text accessibilityRole="header" className="text-3xl font-bold text-ink">
             {t('budget.title')}

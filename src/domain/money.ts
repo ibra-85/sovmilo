@@ -197,3 +197,18 @@ export function formatKeypadValue(value: string, locale: AppLocale): string {
 export function keypadValueToCents(value: string): number {
   return parseAmountToCents(value) ?? 0;
 }
+
+/**
+ * Texte renvoyé par le clavier système (« 12,5 », « 12.50 », « 1 2,5€ »…) → saisie canonique du pavé (« 12.5 »).
+ * Rejoue chaque caractère comme une touche du pavé : mêmes limites (9 chiffres, 2 décimales, pas de zéro initial)
+ * que le pavé numérique de l'application, sans règle dupliquée. Les caractères qui ne sont pas des chiffres ni une
+ * virgule / un point sont ignorés.
+ */
+export function sanitizeAmountInput(raw: string): string {
+  let value = '';
+  for (const char of raw) {
+    if (char >= '0' && char <= '9') value = applyKeypadKey(value, char as KeypadKey);
+    else if (char === ',' || char === '.') value = applyKeypadKey(value, 'decimal');
+  }
+  return value;
+}
