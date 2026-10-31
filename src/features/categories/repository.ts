@@ -1,9 +1,10 @@
-import { and, eq, isNull, min } from 'drizzle-orm';
+import { and, count, eq, isNull, min } from 'drizzle-orm';
 
 import { db } from '@/db/client';
 import { LOCAL_USER_ID, newId, nowISO } from '@/db/ids';
-import { categories } from '@/db/schema';
+import { budgets, categories, transactions } from '@/db/schema';
 import { MAX_CATEGORY_NAME_LENGTH, cleanCategoryName } from '@/domain/category-name';
+import { evaluateCategoryDeletion, isCustomCategory, type CategoryDeletion, type CategoryUsage } from '@/domain/category-usage';
 import type { CategoryKind } from '@/domain/types';
 
 /** Teinte neutre : le design n'a aucune couleur par catégorie, mais la colonne `color` de la base est obligatoire. */
@@ -49,4 +50,62 @@ export function createCategory(input: NewCategoryInput): string {
       .run();
   });
   return id;
+}
+
+function findCategory(id: string) {
+  return db
+    .select()
+    .from(categories)
+    .where(and(eq(categories.id, id), isNull(categories.deletedAt)))
+    .get();
+}
+
+/**
+ * Modifie le nom et l'icône d'une catégorie PERSONNALISÉE. L'identifiant ne change pas : les opérations et les budgets qui
+ * y sont rattachés suivent automatiquement. Une catégorie système ne se modifie pas (son nom vient des traductions).
+ */
+export function updateCategory(id: string, input: { name: string; icon: string }): void {
+  const name = cleanCategoryName(input.name);
+  if (name === '' || name.length > MAX_CATEGORY_NAME_LENGTH) throw new RangeError(`Nom de catégorie invalide : « ${name} »`);
+  if (input.icon.trim() === '') throw new RangeError('Icône de catégorie manquante');
+
+  const existing = findCategory(id);
+  if (!existing) throw new Error('Catégorie introuvable');
+  if (!isCustomCategory(existing)) throw new Error('Une catégorie par défaut ne se modifie pas');
+
+  db.update(categories).set({ customName: name, icon: input.icon, updatedAt: nowISO() }).where(eq(categories.id, id)).run();
+}
+
+/** Opérations et budgets (non supprimés) rattachés à une catégorie. */
+export function getCategoryUsage(id: string): CategoryUsage {
+  const tx = db
+    .select({ value: count() })
+    .from(transactions)
+    .where(and(eq(transactions.categoryId, id), isNull(transactions.deletedAt)))
+    .get();
+  const bg = db
+    .select({ value: count() })
+    .from(budgets)
+    .where(and(eq(budgets.categoryId, id), isNull(budgets.deletedAt)))
+    .get();
+  return { transactions: tx?.value ?? 0, budgets: bg?.value ?? 0 };
+}
+
+/** Ce que la suppression de cette catégorie donnerait, sans rien modifier (pour expliquer à l'écran). */
+export function checkCategoryDeletion(id: string): CategoryDeletion {
+  const existing = findCategory(id);
+  if (!existing) return { allowed: false, reason: 'system' };
+  return evaluateCategoryDeletion(existing, getCategoryUsage(id));
+}
+
+/**
+ * Supprime (suppression logique) une catégorie personnalisée SANS dépendance. Les règles sont revérifiées ici : même si
+ * l'écran était périmé, rien n'est supprimé quand la catégorie a des opérations ou des budgets. Renvoie le verdict.
+ */
+export function deleteCategory(id: string): CategoryDeletion {
+  const verdict = checkCategoryDeletion(id);
+  if (!verdict.allowed) return verdict;
+  const now = nowISO();
+  db.update(categories).set({ deletedAt: now, updatedAt: now }).where(eq(categories.id, id)).run();
+  return verdict;
 }

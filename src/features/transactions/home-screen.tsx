@@ -10,6 +10,7 @@ import {
   EmptyState,
   Icon,
   PeriodSelector,
+  Pressable,
   ScreenHeader,
   SectionHeader,
   Surface,
@@ -22,10 +23,12 @@ import { formatMonthLabel, formatMonthName, formatMonthShort } from '@/domain/da
 import { computeWeeklyExpenses, currentWeekIndex, weekRangeLabel } from '@/domain/weekly';
 import { BudgetCard } from '@/features/budgets/budget-card';
 import { useBudgetOverview } from '@/features/budgets/use-budget-overview';
+import { setOperationsTypeFilter } from '@/hooks/use-operations-filter';
 import { useSelectedMonth } from '@/hooks/use-selected-month';
 import { useToday } from '@/hooks/use-today';
 import { useLocale } from '@/i18n/use-locale';
-import { space } from '@/theme/layout';
+import { formatMoney } from '@/domain/money';
+import { sizes, space } from '@/theme/layout';
 import { useTheme } from '@/theme/use-theme';
 
 import { useTransactionPresenter } from './use-presenter';
@@ -59,6 +62,12 @@ export function HomeScreen() {
   const watched = useMemo(() => [...overview.watched, ...overview.withinLimits].slice(0, WATCHED_COUNT), [overview]);
   const recent = operations.slice(0, RECENT_COUNT);
 
+  // Ouvre l'onglet Opérations déjà filtré. Le mois consulté est partagé (use-selected-month) : il est conservé tel quel.
+  function openOperations(filter: 'income' | 'expense') {
+    setOperationsTypeFilter(filter);
+    router.navigate('/history');
+  }
+
   const monthShort = formatMonthShort(month, locale);
   const bars = weeks.map((week) => ({
     label: weekRangeLabel(week),
@@ -91,11 +100,24 @@ export function HomeScreen() {
           />
         </View>
 
-        {/* Bande Revenus / Dépenses */}
-        <Surface style={{ marginTop: 22, flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 14 }}>
-          <SummaryCell icon="arrowIncome" label={t('home.income')} cents={totals.incomeCents} signed />
-          <View style={{ width: 1, alignSelf: 'stretch', marginHorizontal: 12, backgroundColor: colors.hairline }} />
-          <SummaryCell icon="arrowExpense" label={t('home.expenses')} cents={-totals.expenseCents} />
+        {/* Bande Revenus / Dépenses : deux actions indépendantes (filtre d'Opérations) sur une même surface */}
+        <Surface style={{ marginTop: 22, flexDirection: 'row', alignItems: 'stretch', overflow: 'hidden' }}>
+          <SummaryCell
+            icon="arrowIncome"
+            label={t('home.income')}
+            cents={totals.incomeCents}
+            signed
+            hint={t('home.openIncome')}
+            onPress={() => openOperations('income')}
+          />
+          <View style={{ width: 1, marginVertical: 14, backgroundColor: colors.hairline }} />
+          <SummaryCell
+            icon="arrowExpense"
+            label={t('home.expenses')}
+            cents={-totals.expenseCents}
+            hint={t('home.openExpenses')}
+            onPress={() => openOperations('expense')}
+          />
         </Surface>
 
         {/* Budgets à surveiller */}
@@ -175,13 +197,35 @@ interface SummaryCellProps {
   label: string;
   cents: number;
   signed?: boolean;
+  /** Ce que fait le toucher, pour TalkBack (« Voir les revenus du mois »). */
+  hint: string;
+  onPress: () => void;
 }
 
-/** Une moitié de la bande Revenus / Dépenses : pastille d'icône de 40 dp, légende, montant. */
-function SummaryCell({ icon, label, cents, signed = false }: SummaryCellProps) {
+/**
+ * Une moitié de la bande Revenus / Dépenses : pastille d'icône de 40 dp, légende, montant. Zone tactile pleine hauteur
+ * de la carte (plus de 48 dp), retour visuel discret au toucher (fond « surfaceMuted »).
+ */
+function SummaryCell({ icon, label, cents, signed = false, hint, onPress }: SummaryCellProps) {
   const { colors } = useTheme();
+  const locale = useLocale();
   return (
-    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${label}, ${formatMoney(cents, locale, { signed })}`}
+      accessibilityHint={hint}
+      pressTranslate={0}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingVertical: 14,
+        paddingHorizontal: 14,
+        minHeight: sizes.minTouch,
+        backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
+      })}>
       <View
         style={{
           width: 40,
@@ -199,6 +243,6 @@ function SummaryCell({ icon, label, cents, signed = false }: SummaryCellProps) {
         </Text>
         <AmountText cents={cents} size="row" signed={signed} />
       </View>
-    </View>
+    </Pressable>
   );
 }

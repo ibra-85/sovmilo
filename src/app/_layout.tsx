@@ -142,6 +142,8 @@ function AppShell() {
               options={{ presentation: "modal" }}
             />
             <Stack.Screen name="balance" options={{ presentation: "modal" }} />
+            <Stack.Screen name="settings" />
+            <Stack.Screen name="categories" />
           </Stack>
         </ToastProvider>
       </ThemeProvider>

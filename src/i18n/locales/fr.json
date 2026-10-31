@@ -53,6 +53,8 @@
     "seeAllBudgets": "Voir tous les budgets",
     "recentTitle": "Opérations récentes",
     "seeAllOperations": "Voir toutes les opérations",
+    "openIncome": "Voir les revenus du mois",
+    "openExpenses": "Voir les dépenses du mois",
     "weeklyTitle": "Dépenses par semaine",
     "emptyTitle": "Rien pour l’instant",
     "emptyText": "Utilisez le bouton + pour noter votre première dépense.",
@@ -124,7 +126,10 @@
       "tag": "Étiquette",
       "transport": "Transport",
       "house": "Maison"
-    }
+    },
+    "editTitle": "Modifier la catégorie",
+    "saveChanges": "Enregistrer les modifications",
+    "updated": "Catégorie « {{name}} » modifiée"
   },
   "history": {
     "title": "Opérations",
@@ -242,7 +247,20 @@
     "savingsAction": "Mettre de côté",
     "savingsHelp": "Un virement vers votre épargne ne compte pas comme une dépense.",
     "languageTitle": "Langue",
-    "languageHelp": "Choisissez la langue de l’application."
+    "languageHelp": "Choisissez la langue de l’application.",
+    "toolsTitle": "Vos outils",
+    "categoriesTitle": "Catégories",
+    "categoriesText": "Créer, modifier ou supprimer vos catégories",
+    "soonTitle": "Bientôt disponible",
+    "soon": "Bientôt",
+    "bills": "Factures",
+    "billsText": "Suivre les factures à payer",
+    "groceries": "Courses",
+    "groceriesText": "Listes de courses et prix",
+    "stats": "Statistiques",
+    "statsText": "Évolution et répartition des dépenses",
+    "settingsTitle": "Paramètres",
+    "settingsText": "Apparence et langue"
   },
   "categories": {
     "groceries": "Courses",
@@ -266,5 +284,44 @@
   },
   "startup": {
     "dbError": "Impossible d’ouvrir les données de l’application."
+  },
+  "categoryManager": {
+    "title": "Catégories",
+    "back": "Retour aux services",
+    "kindLabel": "Type de catégories",
+    "custom": "Personnalisée",
+    "default": "Par défaut",
+    "help": "Les catégories par défaut ne se modifient pas. Un appui long sur une catégorie personnalisée, ou le bouton ⋯, permet de la modifier ou de la supprimer.",
+    "empty": "Aucune catégorie.",
+    "menu": "Actions sur la catégorie",
+    "moreActions": "Actions : {{name}}",
+    "longPressHint": "Appui long : modifier ou supprimer",
+    "edit": "Modifier la catégorie",
+    "delete": "Supprimer la catégorie",
+    "deleteTitle": "Supprimer cette catégorie ?",
+    "deleteText": "Elle n’a aucune opération ni aucun budget. Elle disparaîtra de vos listes.",
+    "deleteConfirm": "Supprimer",
+    "deleted": "Catégorie « {{name}} » supprimée",
+    "blockedTitle": "Suppression impossible pour l’instant",
+    "blockedIntro": "La catégorie « {{name}} » est encore utilisée :",
+    "usageTransactions_one": "{{count}} opération",
+    "usageTransactions_other": "{{count}} opérations",
+    "usageBudgets_one": "{{count}} budget",
+    "usageBudgets_other": "{{count}} budgets",
+    "blockedNote": "Vos opérations et vos budgets ne sont jamais modifiés ni supprimés automatiquement. Ce que l’on fera de ces éléments (les passer dans une autre catégorie, archiver la catégorie…) reste à décider.",
+    "understood": "Compris",
+    "systemTitle": "Catégorie par défaut",
+    "systemText": "Les catégories par défaut de l’application ne peuvent ni être modifiées ni être supprimées.",
+    "deleteFailed": "Impossible de supprimer. Réessayez."
+  },
+  "settings": {
+    "title": "Paramètres",
+    "back": "Retour aux services",
+    "appearanceTitle": "Apparence",
+    "appearanceHelp": "Le thème s’applique tout de suite à toute l’application.",
+    "themeSystem": "Système",
+    "themeSystemText": "Suit le réglage d’Android",
+    "themeLight": "Clair",
+    "themeDark": "Sombre"
   }
 }

@@ -100,6 +100,93 @@ export function FormRow({ icon, iconNode, label, value, placeholder, onPress, di
   );
 }
 
+interface ServiceRowProps {
+  icon: IconName;
+  title: string;
+  text: string;
+  /** Absent : service pas encore disponible — ligne NON touchable, avec la pastille `soonLabel` (aucune fausse interaction). */
+  onPress?: () => void;
+  soonLabel?: string;
+}
+
+/**
+ * Ligne de l'écran Services : icône en pastille, titre, phrase d'explication sur deux lignes au plus. Disponible : touchable,
+ * chevron. Pas encore disponible : atténuée, sans chevron, avec une pastille « Bientôt » ; TalkBack l'annonce comme désactivée.
+ */
+export function ServiceRow({ icon, title, text, onPress, soonLabel }: ServiceRowProps) {
+  const { colors } = useTheme();
+  const available = onPress !== undefined;
+
+  const content = (
+    <View
+      style={{
+        minHeight: space.fieldMinHeight,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: space.gutter,
+        paddingHorizontal: space.gutter,
+        paddingVertical: 10,
+        opacity: available ? 1 : 0.6,
+      }}>
+      <View
+        style={{
+          width: sizes.fieldIcon,
+          height: sizes.fieldIcon,
+          borderRadius: radius.iconPad,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.surfaceMuted,
+        }}>
+        <Icon name={icon} size={18} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text variant="bodyStrong" numberOfLines={2}>
+          {title}
+        </Text>
+        <Text variant="caption" tone="muted" numberOfLines={2}>
+          {text}
+        </Text>
+      </View>
+      {available ? (
+        <Icon name="chevronRight" size={18} color={colors.textMuted} />
+      ) : (
+        <View
+          style={{
+            paddingHorizontal: 10,
+            paddingVertical: 4,
+            borderRadius: radius.full,
+            backgroundColor: colors.surfaceMuted,
+            borderWidth: 1,
+            borderColor: colors.surfaceBorder,
+          }}>
+          <Text variant="micro" tone="muted" numberOfLines={1}>
+            {soonLabel}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+
+  if (!available) {
+    return (
+      <View accessible accessibilityState={{ disabled: true }} accessibilityLabel={`${title}, ${text}, ${soonLabel ?? ''}`}>
+        {content}
+      </View>
+    );
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${title}, ${text}`}
+      pressTranslate={0}
+      onPress={onPress}
+      style={({ pressed }) => ({ backgroundColor: pressed ? colors.surfaceMuted : 'transparent' })}>
+      {content}
+    </Pressable>
+  );
+}
+
 interface InfoRowProps {
   label: string;
   value: string;

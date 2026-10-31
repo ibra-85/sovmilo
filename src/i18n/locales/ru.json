@@ -52,6 +52,8 @@
     "seeAll": "Все",
     "seeAllBudgets": "Показать все бюджеты",
     "recentTitle": "Последние операции",
+    "openIncome": "Показать доходы за месяц",
+    "openExpenses": "Показать расходы за месяц",
     "seeAllOperations": "Показать все операции",
     "weeklyTitle": "Расходы по неделям",
     "emptyTitle": "Пока пусто",
@@ -124,7 +126,10 @@
       "tag": "Ярлык",
       "transport": "Транспорт",
       "house": "Дом"
-    }
+    },
+    "editTitle": "Изменить категорию",
+    "saveChanges": "Сохранить изменения",
+    "updated": "Категория «{{name}}» изменена"
   },
   "history": {
     "title": "Операции",
@@ -246,7 +251,20 @@
     "savingsAction": "Отложить",
     "savingsHelp": "Перевод на накопления не считается расходом.",
     "languageTitle": "Язык",
-    "languageHelp": "Выберите язык приложения."
+    "languageHelp": "Выберите язык приложения.",
+    "toolsTitle": "Ваши инструменты",
+    "categoriesTitle": "Категории",
+    "categoriesText": "Создавайте, изменяйте и удаляйте свои категории",
+    "soonTitle": "Скоро",
+    "soon": "Скоро",
+    "bills": "Счета",
+    "billsText": "Следите за счетами к оплате",
+    "groceries": "Покупки",
+    "groceriesText": "Списки покупок и цены",
+    "stats": "Статистика",
+    "statsText": "Динамика и структура расходов",
+    "settingsTitle": "Настройки",
+    "settingsText": "Внешний вид и язык"
   },
   "categories": {
     "groceries": "Продукты",
@@ -270,5 +288,48 @@
   },
   "startup": {
     "dbError": "Не удалось открыть данные приложения."
+  },
+  "categoryManager": {
+    "title": "Категории",
+    "back": "Назад к сервисам",
+    "kindLabel": "Тип категорий",
+    "custom": "Своя",
+    "default": "Стандартная",
+    "help": "Стандартные категории не изменяются. Долгое нажатие на своей категории или кнопка ⋯ открывают изменение и удаление.",
+    "empty": "Категорий нет.",
+    "menu": "Действия с категорией",
+    "moreActions": "Действия: {{name}}",
+    "longPressHint": "Долгое нажатие: изменить или удалить",
+    "edit": "Изменить категорию",
+    "delete": "Удалить категорию",
+    "deleteTitle": "Удалить эту категорию?",
+    "deleteText": "В ней нет ни операций, ни бюджетов. Она исчезнет из ваших списков.",
+    "deleteConfirm": "Удалить",
+    "deleted": "Категория «{{name}}» удалена",
+    "blockedTitle": "Пока удалить нельзя",
+    "blockedIntro": "Категория «{{name}}» ещё используется:",
+    "usageTransactions_one": "{{count}} операция",
+    "usageTransactions_few": "{{count}} операции",
+    "usageTransactions_many": "{{count}} операций",
+    "usageTransactions_other": "{{count}} операции",
+    "usageBudgets_one": "{{count}} бюджет",
+    "usageBudgets_few": "{{count}} бюджета",
+    "usageBudgets_many": "{{count}} бюджетов",
+    "usageBudgets_other": "{{count}} бюджета",
+    "blockedNote": "Ваши операции и бюджеты никогда не изменяются и не удаляются автоматически. Что с ними делать (перенести в другую категорию, архивировать категорию…), ещё предстоит решить.",
+    "understood": "Понятно",
+    "systemTitle": "Стандартная категория",
+    "systemText": "Стандартные категории приложения нельзя ни изменить, ни удалить.",
+    "deleteFailed": "Не удалось удалить. Повторите попытку."
+  },
+  "settings": {
+    "title": "Настройки",
+    "back": "Назад к сервисам",
+    "appearanceTitle": "Внешний вид",
+    "appearanceHelp": "Тема применяется сразу ко всему приложению.",
+    "themeSystem": "Системная",
+    "themeSystemText": "Как в настройках Android",
+    "themeLight": "Светлая",
+    "themeDark": "Тёмная"
   }
 }

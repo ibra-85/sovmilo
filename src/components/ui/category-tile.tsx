@@ -16,6 +16,9 @@ interface CategoryTileProps {
   /** Tuile « Créer » : contour pointillé, sans surface, signe + à la place de l'icône. */
   create?: boolean;
   onPress: () => void;
+  /** Appui long : menu de gestion d'une catégorie personnalisée. */
+  onLongPress?: () => void;
+  accessibilityHint?: string;
 }
 
 /**
@@ -23,7 +26,15 @@ interface CategoryTileProps {
  * Sélectionnée : contour de 1,5 dp, halo de 4 dp, pastille avec coche et libellé en gras — la sélection n'est jamais
  * portée par la couleur seule. Libellé sur deux lignes au maximum (mots russes longs).
  */
-export function CategoryTile({ icon, label, selected = false, create = false, onPress }: CategoryTileProps) {
+export function CategoryTile({
+  icon,
+  label,
+  selected = false,
+  create = false,
+  onPress,
+  onLongPress,
+  accessibilityHint,
+}: CategoryTileProps) {
   const { colors, shadows } = useTheme();
 
   const shadow = create
@@ -39,6 +50,8 @@ export function CategoryTile({ icon, label, selected = false, create = false, on
       accessibilityState={{ selected }}
       pressTranslate={0}
       onPress={onPress}
+      onLongPress={onLongPress}
+      accessibilityHint={accessibilityHint}
       style={{ width: sizes.categoryTileWidth, alignItems: 'center', gap: 6, paddingVertical: 4 }}>
       <View
         style={{

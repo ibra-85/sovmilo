@@ -17,6 +17,7 @@ import {
 import { centsToInputString, keypadValueToCents } from '@/domain/money';
 import type { CategoryKind, PaymentMethod, TransactionType } from '@/domain/types';
 import { CategoryCarousel } from '@/features/categories/category-carousel';
+import { useCategoryActions } from '@/features/categories/category-actions';
 import { NewCategorySheet } from '@/features/categories/new-category-sheet';
 import { useCategories } from '@/features/categories/use-categories';
 import { useToday } from '@/hooks/use-today';
@@ -75,6 +76,8 @@ export function TransactionForm({ initial, type: newType = 'expense', onSubmit, 
 
   const categoryKind: CategoryKind = type === 'income' ? 'income' : 'expense';
   const categories = useCategories(categoryKind);
+  // Une catégorie supprimée depuis le carrousel ne reste pas sélectionnée.
+  const categoryActions = useCategoryActions(categoryKind, (id) => setCategoryId((current) => (current === id ? null : current)));
   const cents = keypadValueToCents(value);
   const canSave = cents > 0 && (isSavings || categoryId !== null);
 
@@ -148,6 +151,7 @@ export function TransactionForm({ initial, type: newType = 'expense', onSubmit, 
                 selectedId={categoryId}
                 onSelect={setCategoryId}
                 onCreate={() => setCategorySheetOpen(true)}
+                onManage={categoryActions.open}
               />
             </View>
           )}
@@ -205,6 +209,7 @@ export function TransactionForm({ initial, type: newType = 'expense', onSubmit, 
           toast.show({ message: t('category.created', { name }) });
         }}
       />
+      {categoryActions.element}
     </AppScreen>
   );
 }

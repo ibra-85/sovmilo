@@ -24,12 +24,11 @@ import { useCategoryMap } from '@/features/categories/use-categories';
 import { categoryLabel } from '@/features/categories/category-label';
 import { useTransactionPresenter } from '@/features/transactions/use-presenter';
 import { useMonthOperations } from '@/features/transactions/use-transactions';
+import { useOperationsTypeFilter, type OperationsTypeFilter } from '@/hooks/use-operations-filter';
 import { useSelectedMonth } from '@/hooks/use-selected-month';
 import { useToday } from '@/hooks/use-today';
 import { useLocale } from '@/i18n/use-locale';
-import { space } from '@/theme/layout';
-
-type TypeFilter = 'all' | 'expense' | 'income';
+import { space, spacing } from '@/theme/layout';
 
 type ListRow =
   | { kind: 'header'; key: string; day: string; netCents: number; first: boolean }
@@ -54,7 +53,7 @@ export function HistoryScreen() {
   const operations = useMonthOperations(month);
 
   const [query, setQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [typeFilter, setTypeFilter] = useOperationsTypeFilter();
 
   const totals = useMemo(() => computeMonthTotals(operations, month), [operations, month]);
 
@@ -94,24 +93,30 @@ export function HistoryScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[{ paddingHorizontal: space.screen }, tabContentStyle]}
         ListHeaderComponent={
-          <View style={{ gap: 14, paddingTop: 2, paddingBottom: 4 }}>
-            <Text variant="secondary" tone="muted" accessibilityLabel={`${t('history.summary', {
-              expenses: formatMoney(-totals.expenseCents, locale),
-              income: formatMoney(totals.incomeCents, locale, { signed: true }),
-            })}`}>
-              {t('home.expenses')}{' '}
-              <Text variant="secondaryStrong">{formatMoney(-totals.expenseCents, locale)}</Text>
-              {' · '}
-              {t('home.income')}{' '}
-              <Text variant="secondaryStrong">{formatMoney(totals.incomeCents, locale, { signed: true })}</Text>
-            </Text>
+          <View style={{ gap: spacing.sm }}>
+            {/* Synthèse : deux blocs qui passent à la ligne ENTIERS (jamais un montant coupé en deux), en russe aussi. */}
+            <View
+              accessible
+              accessibilityLabel={t('history.summary', {
+                expenses: formatMoney(-totals.expenseCents, locale),
+                income: formatMoney(totals.incomeCents, locale, { signed: true }),
+              })}
+              style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: spacing.sm, rowGap: 2 }}>
+              <Text variant="secondary" tone="muted">
+                {t('home.expenses')} <Text variant="secondaryStrong">{formatMoney(-totals.expenseCents, locale)}</Text>
+                {' ·'}
+              </Text>
+              <Text variant="secondary" tone="muted">
+                {t('home.income')} <Text variant="secondaryStrong">{formatMoney(totals.incomeCents, locale, { signed: true })}</Text>
+              </Text>
+            </View>
             <SearchField
               value={query}
               onChangeText={setQuery}
               placeholder={t('history.searchPlaceholder')}
               clearLabel={t('history.searchClear')}
             />
-            <SegmentedControl<TypeFilter>
+            <SegmentedControl<OperationsTypeFilter>
               accessibilityLabel={t('history.filterLabel')}
               value={typeFilter}
               onChange={setTypeFilter}
@@ -126,7 +131,7 @@ export function HistoryScreen() {
         renderItem={({ item: row }) => {
           if (row.kind === 'header') {
             return (
-              <View style={{ marginTop: row.first ? 20 : space.dayGroup, marginBottom: space.dayGroupTitle }}>
+              <View style={{ marginTop: space.dayGroup, marginBottom: space.dayGroupTitle }}>
                 <TransactionGroupHeader
                   day={dayLabel(row.day)}
                   date={formatShortDate(row.day, locale)}

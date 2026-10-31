@@ -3,15 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { Keyboard, ScrollView, TextInput, View } from 'react-native';
 
 import { BottomSheet, Button, CategoryIcon, Icon, Pressable, SegmentedControl, Text, TextField } from '@/components/ui';
-import { CATEGORY_ICON_IDS, serializeCategoryIcon, type CategoryIcon as CategoryIconValue } from '@/domain/category-icon';
+import { CATEGORY_ICON_IDS, parseCategoryIcon, serializeCategoryIcon, type CategoryIcon as CategoryIconValue } from '@/domain/category-icon';
 import { MAX_CATEGORY_NAME_LENGTH, cleanCategoryName, validateCategoryName } from '@/domain/category-name';
 import { EMOJI_CHOICES } from '@/domain/emoji-choices';
 import type { CategoryKind } from '@/domain/types';
+import type { Category } from '@/db/schema';
 import { radius } from '@/theme/layout';
 import { useTheme } from '@/theme/use-theme';
 
 import { categoryLabel } from './category-label';
-import { createCategory } from './repository';
+import { createCategory, updateCategory } from './repository';
 import { useCategories } from './use-categories';
 
 interface NewCategorySheetProps {
@@ -19,7 +20,13 @@ interface NewCategorySheetProps {
   kind: CategoryKind;
   onClose: () => void;
   /** Appelé avec l'identifiant et le nom de la catégorie créée (pour la sélectionner et afficher la notification). */
-  onCreated: (id: string, name: string) => void;
+  onCreated?: (id: string, name: string) => void;
+  /**
+   * Catégorie PERSONNALISÉE à modifier : le panneau est alors prérempli, le bouton devient « Enregistrer les modifications »
+   * et `onSaved` remplace `onCreated`. Les opérations et budgets de la catégorie sont conservés (même identifiant).
+   */
+  category?: Category;
+  onSaved?: (id: string, name: string) => void;
 }
 
 type PickerTab = 'icons' | 'emojis';
@@ -33,7 +40,7 @@ const DEFAULT_ICON: CategoryIconValue = { kind: 'icon', id: 'tag' };
  * le nom est vide ; « Ce nom existe déjà » en cas de doublon (texte décidé par le design, état d'erreur proposé).
  * Le panneau change de hauteur sans transition (voir `BottomSheet`).
  */
-export function NewCategorySheet({ visible, kind, onClose, onCreated }: NewCategorySheetProps) {
+export function NewCategorySheet({ visible, kind, onClose, onCreated, category, onSaved }: NewCategorySheetProps) {
   const { t } = useTranslation();
   const { colors, shadows } = useTheme();
   const existing = useCategories(kind);
@@ -51,8 +58,8 @@ export function NewCategorySheet({ visible, kind, onClose, onCreated }: NewCateg
   if (visible !== wasVisible) {
     setWasVisible(visible);
     if (visible) {
-      setName('');
-      setIcon(DEFAULT_ICON);
+      setName(category ? categoryLabel(category, t) : '');
+      setIcon(category ? parseCategoryIcon(category.icon) : DEFAULT_ICON);
       setPickerOpen(false);
       setTab('icons');
       setTouched(false);
@@ -60,7 +67,11 @@ export function NewCategorySheet({ visible, kind, onClose, onCreated }: NewCateg
     }
   }
 
-  const existingNames = useMemo(() => existing.map((category) => categoryLabel(category, t)), [existing, t]);
+  // Les noms déjà pris : ceux des AUTRES catégories (garder son propre nom n'est pas un doublon).
+  const existingNames = useMemo(
+    () => existing.filter((other) => other.id !== category?.id).map((other) => categoryLabel(other, t)),
+    [existing, category?.id, t],
+  );
   const problem = validateCategoryName(name, existingNames);
   const canCreate = problem === null;
   const error = touched && problem === 'duplicate' ? t('category.duplicate') : failed ? t('category.createError') : undefined;
@@ -69,8 +80,13 @@ export function NewCategorySheet({ visible, kind, onClose, onCreated }: NewCateg
     if (!canCreate) return;
     const cleaned = cleanCategoryName(name);
     try {
-      const id = createCategory({ kind, name: cleaned, icon: serializeCategoryIcon(icon) });
-      onCreated(id, cleaned);
+      if (category) {
+        updateCategory(category.id, { name: cleaned, icon: serializeCategoryIcon(icon) });
+        onSaved?.(category.id, cleaned);
+      } else {
+        const id = createCategory({ kind, name: cleaned, icon: serializeCategoryIcon(icon) });
+        onCreated?.(id, cleaned);
+      }
     } catch {
       setFailed(true);
     }
@@ -144,9 +160,9 @@ export function NewCategorySheet({ visible, kind, onClose, onCreated }: NewCateg
   );
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} accessibilityLabel={t('category.newTitle')}>
+    <BottomSheet visible={visible} onClose={onClose} accessibilityLabel={t(category ? 'category.editTitle' : 'category.newTitle')}>
       <Text variant="titleSheet" accessibilityRole="header">
-        {t('category.newTitle')}
+        {t(category ? 'category.editTitle' : 'category.newTitle')}
       </Text>
 
       <View style={{ marginTop: 16 }}>
@@ -209,7 +225,7 @@ export function NewCategorySheet({ visible, kind, onClose, onCreated }: NewCateg
       {pickerOpen && chooser}
 
       <View style={{ marginTop: 20 }}>
-        <Button label={t('category.createAction')} icon="check" disabled={!canCreate} onPress={create} />
+        <Button label={t(category ? 'category.saveChanges' : 'category.createAction')} icon="check" disabled={!canCreate} onPress={create} />
       </View>
     </BottomSheet>
   );

@@ -34,13 +34,26 @@ export interface PopoverItem {
  * l'ouverture, jamais pendant le rendu.
  */
 export function usePopoverTrigger() {
-  const [trigger, bindTrigger] = useState<ComponentRef<typeof View> | null>(null);
+  const { bind: bindTrigger, measure } = useAnchorMeasure();
   const [anchor, setAnchor] = useState<PopoverAnchor | null>(null);
-  const open = useCallback(() => {
-    trigger?.measureInWindow((x, y, width, height) => setAnchor({ x, y, width, height }));
-  }, [trigger]);
+  const open = useCallback(() => measure(setAnchor), [measure]);
   const close = useCallback(() => setAnchor(null), []);
   return { bindTrigger, anchor, open, close, isOpen: anchor !== null };
+}
+
+/**
+ * Mesure un élément dans la fenêtre à la demande (appui long sur une tuile, bouton « ⋯ » d'une ligne de liste) : pour
+ * plusieurs déclencheurs qui partagent UN seul popover. `bind` se place en `ref` sur l'élément (vue avec `collapsable={false}`).
+ */
+export function useAnchorMeasure() {
+  const [node, bind] = useState<ComponentRef<typeof View> | null>(null);
+  const measure = useCallback(
+    (onMeasured: (anchor: PopoverAnchor) => void) => {
+      node?.measureInWindow((x, y, width, height) => onMeasured({ x, y, width, height }));
+    },
+    [node],
+  );
+  return { bind, measure };
 }
 
 interface MorphingPopoverProps {

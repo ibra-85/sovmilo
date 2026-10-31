@@ -3,24 +3,20 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, View } from 'react-native';
 
 import { useTabContentStyle } from '@/components/navigation';
-import { AppScreen, Button, Divider, Icon, Pressable, ScreenHeader, Surface, Text } from '@/components/ui';
-import { APP_LOCALES } from '@/domain/types';
+import { AppScreen, FieldGroup, ScreenHeader, ServiceRow, Text } from '@/components/ui';
 import { BalanceCard } from '@/features/balance/balance-card';
-import { setAppLocale } from '@/i18n';
-import { useLocale } from '@/i18n/use-locale';
-import { sizes, space } from '@/theme/layout';
-import { useTheme } from '@/theme/use-theme';
+import { space } from '@/theme/layout';
 
 /**
- * Services : solde du compte, épargne et langue. Le design ne dessine pas cet écran (À CONCEVOIR) : il est composé avec
- * les éléments du design system (en-tête sans sélecteur de période, cartes, boutons, lignes à choix unique).
+ * Services : solde manuel, épargne, catégories, paramètres, et les services à venir. Le design ne dessine pas cet écran
+ * (À CONCEVOIR) : il est composé avec les éléments du design system. Un service qui n'existe pas encore (Factures, Courses,
+ * Statistiques) est une ligne atténuée avec la pastille « Bientôt », NON touchable : aucune fausse interaction.
+ * La langue et l'apparence sont dans Paramètres.
  */
 export function MoreScreen() {
   const { t } = useTranslation();
-  const locale = useLocale();
   const tabContentStyle = useTabContentStyle();
   const router = useRouter();
-  const { colors } = useTheme();
 
   return (
     <AppScreen>
@@ -32,60 +28,40 @@ export function MoreScreen() {
         <BalanceCard />
 
         <View style={{ gap: 12 }}>
-          <View style={{ gap: 2 }}>
-            <Text variant="titleSection" accessibilityRole="header">
-              {t('services.savingsTitle')}
-            </Text>
-            <Text variant="secondary" tone="muted">
-              {t('services.savingsHelp')}
-            </Text>
-          </View>
-          <Button
-            label={t('services.savingsAction')}
-            variant="secondary"
-            icon="savings"
-            onPress={() => router.push({ pathname: '/add', params: { type: 'transfer' } })}
-          />
+          <Text variant="titleSection" accessibilityRole="header">
+            {t('services.toolsTitle')}
+          </Text>
+          <FieldGroup>
+            <ServiceRow
+              icon="savings"
+              title={t('services.savingsTitle')}
+              text={t('services.savingsHelp')}
+              onPress={() => router.push({ pathname: '/add', params: { type: 'transfer' } })}
+            />
+            <ServiceRow
+              icon="tag"
+              title={t('services.categoriesTitle')}
+              text={t('services.categoriesText')}
+              onPress={() => router.push('/categories')}
+            />
+            <ServiceRow
+              icon="settings"
+              title={t('services.settingsTitle')}
+              text={t('services.settingsText')}
+              onPress={() => router.push('/settings')}
+            />
+          </FieldGroup>
         </View>
 
         <View style={{ gap: 12 }}>
-          <View style={{ gap: 2 }}>
-            <Text variant="titleSection" accessibilityRole="header">
-              {t('services.languageTitle')}
-            </Text>
-            <Text variant="secondary" tone="muted">
-              {t('services.languageHelp')}
-            </Text>
-          </View>
-
-          <Surface radiusToken="group" style={{ overflow: 'hidden' }}>
-            <View accessibilityRole="radiogroup">
-              {APP_LOCALES.map((option, index) => {
-                const selected = option === locale;
-                return (
-                  <View key={option}>
-                    {index > 0 && <Divider inset={space.gutter} />}
-                    <Pressable
-                      accessibilityRole="radio"
-                      accessibilityState={{ checked: selected }}
-                      pressTranslate={0}
-                      onPress={() => void setAppLocale(option)}
-                      style={({ pressed }) => ({
-                        minHeight: sizes.minTouch + 8,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        paddingHorizontal: space.gutter,
-                        backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
-                      })}>
-                      <Text variant={selected ? 'bodyStrong' : 'body'}>{t(`languages.${option}`)}</Text>
-                      {selected && <Icon name="check" size={20} />}
-                    </Pressable>
-                  </View>
-                );
-              })}
-            </View>
-          </Surface>
+          <Text variant="titleSection" accessibilityRole="header">
+            {t('services.soonTitle')}
+          </Text>
+          <FieldGroup>
+            <ServiceRow icon="bills" title={t('services.bills')} text={t('services.billsText')} soonLabel={t('services.soon')} />
+            <ServiceRow icon="cart" title={t('services.groceries')} text={t('services.groceriesText')} soonLabel={t('services.soon')} />
+            <ServiceRow icon="budgets" title={t('services.stats')} text={t('services.statsText')} soonLabel={t('services.soon')} />
+          </FieldGroup>
         </View>
       </ScrollView>
     </AppScreen>

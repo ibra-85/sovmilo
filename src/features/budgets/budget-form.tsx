@@ -18,6 +18,7 @@ import { formatMonthName } from '@/domain/dates';
 import { centsToInputString, keypadValueToCents } from '@/domain/money';
 import { CategoryCarousel } from '@/features/categories/category-carousel';
 import { categoryLabel } from '@/features/categories/category-label';
+import { useCategoryActions } from '@/features/categories/category-actions';
 import { NewCategorySheet } from '@/features/categories/new-category-sheet';
 import { useLocale } from '@/i18n/use-locale';
 import { space } from '@/theme/layout';
@@ -52,6 +53,9 @@ export function BudgetForm({ mode, month, availableCategories = [], category, in
   const [sheetOpen, setSheetOpen] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const saving = useRef(false);
+
+  // Une catégorie supprimée depuis le carrousel ne reste pas sélectionnée.
+  const categoryActions = useCategoryActions('expense', (id) => setCategoryId((current) => (current === id ? null : current)));
 
   const cents = keypadValueToCents(value);
   const canSave = cents > 0 && categoryId !== null;
@@ -109,6 +113,7 @@ export function BudgetForm({ mode, month, availableCategories = [], category, in
                 selectedId={categoryId}
                 onSelect={setCategoryId}
                 onCreate={() => setSheetOpen(true)}
+                onManage={categoryActions.open}
               />
               {availableCategories.length === 0 && (
                 <Text variant="secondary" tone="muted" style={{ paddingHorizontal: space.screen }}>
@@ -152,6 +157,7 @@ export function BudgetForm({ mode, month, availableCategories = [], category, in
           toast.show({ message: t('category.created', { name }) });
         }}
       />
+      {categoryActions.element}
     </AppScreen>
   );
 }
