@@ -4,7 +4,7 @@ import Animated, {
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
-  withTiming,
+  withSpring,
   type SharedValue,
 } from 'react-native-reanimated';
 
@@ -54,7 +54,7 @@ const INNER_HEIGHT = sizes.navHeight - 2 - sizes.navPadding * 2;
 export function FloatingTabBar({ items, activeIndex, onSelect, fontScale, accessibilityLabel }: FloatingTabBarProps) {
   const { colors, shadows } = useTheme();
   const glass = useGlassLook('bar');
-  const { timing } = useMotion();
+  const { spring } = useMotion();
   const [innerWidth, setInnerWidth] = useState(0);
   const [labelWidths, setLabelWidths] = useState<number[]>(() => items.map(() => 0));
 
@@ -64,8 +64,8 @@ export function FloatingTabBar({ items, activeIndex, onSelect, fontScale, access
 
   const position = useSharedValue(activeIndex);
   useEffect(() => {
-    position.value = withTiming(activeIndex, timing('standard', 'tabSlide'));
-  }, [activeIndex, position, timing]);
+    position.value = withSpring(activeIndex, spring('tabSlide'));
+  }, [activeIndex, position, spring]);
 
   const geometry = useDerivedValue(() => computeTabLayout(position.value, innerWidth, activeWidths, iconsOnly));
 

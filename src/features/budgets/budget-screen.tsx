@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, View } from 'react-native';
 
-import { tabContentStyle } from '@/components/navigation';
+import { useTabContentStyle } from '@/components/navigation';
 import {
   AmountText,
   AppScreen,
@@ -32,6 +32,7 @@ import { useBudgetOverview } from './use-budget-overview';
 export function BudgetScreen() {
   const { t } = useTranslation();
   const locale = useLocale();
+  const tabContentStyle = useTabContentStyle();
   const router = useRouter();
   const { month } = useSelectedMonth();
   const { entries, watched, withinLimits, summary } = useBudgetOverview(month);

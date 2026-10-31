@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, type LayoutChangeEvent } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { useMotion } from '@/hooks/use-motion';
 import { radius, sizes, touchSlop } from '@/theme/layout';
@@ -31,7 +31,7 @@ export function SegmentedControl<T extends string>({
   accessibilityLabel,
 }: SegmentedControlProps<T>) {
   const { colors, shadows } = useTheme();
-  const { timing } = useMotion();
+  const { spring } = useMotion();
   const [width, setWidth] = useState(0);
   const selectedIndex = Math.max(
     0,
@@ -41,8 +41,8 @@ export function SegmentedControl<T extends string>({
 
   const position = useSharedValue(selectedIndex);
   useEffect(() => {
-    position.value = withTiming(selectedIndex, timing('standard', 'tabSlide'));
-  }, [selectedIndex, position, timing]);
+    position.value = withSpring(selectedIndex, spring('tabSlide'));
+  }, [selectedIndex, position, spring]);
 
   const indicatorStyle = useAnimatedStyle(() => ({
     width: optionWidth,

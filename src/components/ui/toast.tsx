@@ -3,8 +3,9 @@ import { View } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useKeyboardHeight } from '@/hooks/use-keyboard-height';
 import { usePresence } from '@/hooks/use-presence';
-import { radius, sizes, space, touchSlop } from '@/theme/layout';
+import { radius, sizes, space, toastBottom, touchSlop } from '@/theme/layout';
 import { durations, motionDistances } from '@/theme/motion';
 import { useTheme } from '@/theme/use-theme';
 
@@ -40,6 +41,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const { colors, shadows } = useTheme();
   const glass = useGlassLook('toast');
   const insets = useSafeAreaInsets();
+  const keyboardHeight = useKeyboardHeight();
   const [request, setRequest] = useState<ToastRequest | null>(null);
   // Dernier contenu affiché, conservé pendant la sortie (la requête est déjà remise à zéro).
   const [shown, setShown] = useState<ToastRequest | null>(null);
@@ -82,7 +84,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             position: 'absolute',
             left: space.screen,
             right: space.screen,
-            bottom: Math.max(sizes.toastBottom, insets.bottom + 98),
+            bottom: toastBottom(insets.bottom, keyboardHeight),
             alignItems: 'center',
           }}>
           <Animated.View

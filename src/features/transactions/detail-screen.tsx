@@ -9,7 +9,7 @@ import {
   Button,
   CategoryIcon,
   ConfirmDialog,
-  DropdownMenu,
+  MorphingPopover,
   EmptyState,
   FieldGroup,
   Icon,
@@ -17,11 +17,10 @@ import {
   InfoRow,
   ScreenHeader,
   Text,
-  TransactionRow,
-  useDropdown,
+  usePopoverTrigger,
   useToast,
 } from '@/components/ui';
-import { formatLongDate } from '@/domain/dates';
+import { formatLongDate, formatShortDate } from '@/domain/dates';
 import { categoryLabel } from '@/features/categories/category-label';
 import { useCategoryMap } from '@/features/categories/use-categories';
 import { useLocale } from '@/i18n/use-locale';
@@ -50,7 +49,7 @@ export function TransactionDetailScreen() {
   const { transaction, loaded } = useTransaction(id);
   const present = useTransactionPresenter();
   const categoryById = useCategoryMap();
-  const { bindTrigger, anchor: menuAnchor, open: openMenu, close: closeMenu, isOpen: menuOpen } = useDropdown();
+  const { bindTrigger, anchor: menuAnchor, open: openMenu, close: closeMenu, isOpen: menuOpen } = usePopoverTrigger();
   const [confirming, setConfirming] = useState(false);
   const [leaving, setLeaving] = useState(false);
 
@@ -171,9 +170,10 @@ export function TransactionDetailScreen() {
         </View>
       </ScrollView>
 
-      <DropdownMenu
+      <MorphingPopover
         anchor={menuAnchor}
         onClose={closeMenu}
+        anchorRadius={radius.iconButton}
         accessibilityLabel={t('detail.menu')}
         items={[
           {
@@ -205,15 +205,46 @@ export function TransactionDetailScreen() {
         confirmLabel={t('edit.deleteConfirm')}
         onCancel={() => setConfirming(false)}
         onConfirm={confirmDelete}>
-        <View style={{ borderRadius: radius.group, backgroundColor: colors.surfaceMuted, paddingHorizontal: 8 }}>
-          <TransactionRow
-            kind={shown.kind}
-            categoryIcon={shown.categoryIcon}
-            title={shown.title}
-            subtitle={`${shown.categoryName || typeName} · ${formatLongDate(transaction.occurredOn, locale)}`}
-            cents={shown.cents}
-            accessibilityLabel={shown.accessibilityLabel}
-          />
+        {/* Rappel de l'opération : le montant garde sa place (il ne rétrécit jamais), le nom et la date passent sur deux lignes. */}
+        <View
+          accessible
+          accessibilityLabel={shown.accessibilityLabel}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            padding: 12,
+            borderRadius: radius.group,
+            backgroundColor: colors.surfaceMuted,
+          }}>
+          <View
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: radius.pill,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: colors.surface,
+            }}>
+            {transaction.type === 'transfer' ? (
+              <Icon name="savings" size={20} />
+            ) : transaction.type === 'income' ? (
+              <Icon name="arrowIncome" size={20} color={colors.incomeIcon} />
+            ) : (
+              <CategoryIcon value={shown.categoryIcon} size={20} />
+            )}
+          </View>
+          <View style={{ flex: 1, flexShrink: 1 }}>
+            <Text variant="body" numberOfLines={2}>
+              {shown.title}
+            </Text>
+            <Text variant="caption" tone="muted" numberOfLines={2}>
+              {`${shown.categoryName || typeName} · ${formatShortDate(transaction.occurredOn, locale)} ${transaction.occurredOn.slice(0, 4)}`}
+            </Text>
+          </View>
+          <View style={{ flexShrink: 0 }}>
+            <AmountText cents={shown.cents} size="row" signed />
+          </View>
         </View>
       </ConfirmDialog>
     </AppScreen>

@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import type { IconName } from '@/components/ui';
-import { sizes, space } from '@/theme/layout';
+import { navigationBottom, sizes, space } from '@/theme/layout';
 import { useTheme } from '@/theme/use-theme';
 
 import { ActionMenu, type ActionMenuItem } from './action-menu';
@@ -54,7 +54,7 @@ export function FloatingNavigation() {
     0,
     TABS.findIndex((tab) => tab.path === pathname),
   );
-  const bottom = Math.max(sizes.navBottom, insets.bottom + 12);
+  const bottom = navigationBottom(insets.bottom);
   const menuBottom = bottom + sizes.fabSize + (sizes.actionMenuBottom - sizes.navBottom - sizes.fabSize);
 
   const items: ActionMenuItem[] = [

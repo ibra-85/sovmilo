@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, View } from 'react-native';
 
-import { tabContentStyle } from '@/components/navigation';
+import { useTabContentStyle } from '@/components/navigation';
 import { AppScreen, Button, Divider, Icon, Pressable, ScreenHeader, Surface, Text } from '@/components/ui';
 import { APP_LOCALES } from '@/domain/types';
 import { BalanceCard } from '@/features/balance/balance-card';
@@ -18,6 +18,7 @@ import { useTheme } from '@/theme/use-theme';
 export function MoreScreen() {
   const { t } = useTranslation();
   const locale = useLocale();
+  const tabContentStyle = useTabContentStyle();
   const router = useRouter();
   const { colors } = useTheme();
 

@@ -8,7 +8,7 @@ import { useLocale } from '@/i18n/use-locale';
 import { radius, sizes, touchSlop } from '@/theme/layout';
 import { useTheme } from '@/theme/use-theme';
 
-import { DropdownMenu, useDropdown } from './dropdown-menu';
+import { MorphingPopover, usePopoverTrigger } from './morphing-popover';
 import { Icon } from './icon';
 import { Pressable } from './pressable';
 import { Text } from './text';
@@ -26,7 +26,7 @@ export function PeriodSelector() {
   const locale = useLocale();
   const { colors, shadows } = useTheme();
   const { month, currentMonth, setMonth } = useSelectedMonth();
-  const { bindTrigger, anchor: menuAnchor, open: openMenu, close: closeMenu, isOpen: menuOpen } = useDropdown();
+  const { bindTrigger, anchor: menuAnchor, open: openMenu, close: closeMenu, isOpen: menuOpen } = usePopoverTrigger();
 
   const choices = useMemo(() => {
     const months = recentMonths(currentMonth, MONTH_CHOICES);
@@ -65,7 +65,7 @@ export function PeriodSelector() {
         </Pressable>
       </View>
 
-      <DropdownMenu
+      <MorphingPopover
         anchor={menuAnchor}
         onClose={closeMenu}
         accessibilityLabel={t('period.menu')}

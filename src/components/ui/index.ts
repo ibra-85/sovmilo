@@ -8,7 +8,7 @@ export { CategoryIcon } from './category-icon';
 export { CategoryTile } from './category-tile';
 export { ConfirmDialog } from './confirm-dialog';
 export { Divider } from './divider';
-export { DropdownMenu, useDropdown, type DropdownAnchor, type DropdownItem } from './dropdown-menu';
+export { MorphingPopover, usePopoverTrigger, type PopoverAnchor, type PopoverItem } from './morphing-popover';
 export { GlassOverlay, GlassSurface, useGlassLook, type GlassSurfaceProps } from './glass-surface';
 export { FieldGroup, FormRow, InfoRow } from './field-group';
 export { AppScreen } from './app-screen';

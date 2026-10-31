@@ -32,6 +32,7 @@
   "budgetRow": {
     "remaining": "Reste {{amount}} · {{percent}} %",
     "nearLimit": "Presque atteint · reste {{amount}}",
+    "reached": "Limite atteinte · 100 %",
     "over": "Dépassé de {{amount}} · {{percent}} %",
     "a11y": "{{name}} : {{spent}} sur {{limit}}. {{status}}"
   },
@@ -183,6 +184,7 @@
     "limit": "limite",
     "statusOk": "Dans la limite · {{percent}} % utilisé",
     "statusNear": "Presque atteint · {{percent}} % utilisé",
+    "statusReached": "Limite atteinte · 100 % utilisé",
     "statusOver": "Dépassé de {{amount}} · {{percent}} %",
     "rowLimit": "Limite mensuelle",
     "rowUsed": "Utilisé",

@@ -3,7 +3,7 @@ import Animated, {
   interpolateColor,
   useAnimatedStyle,
   useSharedValue,
-  withTiming,
+  withSpring,
 } from 'react-native-reanimated';
 
 import { GlassOverlay, Icon, Pressable } from '@/components/ui';
@@ -26,12 +26,12 @@ interface ExpandableActionButtonProps {
  */
 export function ExpandableActionButton({ open, onPress, label }: ExpandableActionButtonProps) {
   const { colors, shadows } = useTheme();
-  const { timing } = useMotion();
+  const { spring } = useMotion();
 
   const progress = useSharedValue(open ? 1 : 0);
   useEffect(() => {
-    progress.value = withTiming(open ? 1 : 0, timing('standard', 'fabRotate'));
-  }, [open, progress, timing]);
+    progress.value = withSpring(open ? 1 : 0, spring('fabRotate'));
+  }, [open, progress, spring]);
 
   const rotation = useAnimatedStyle(() => ({
     transform: [{ rotate: `${progress.value * motionDistances.fabRotateDegrees}deg` }],

@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, View } from 'react-native';
 
-import { tabContentStyle } from '@/components/navigation';
+import { useTabContentStyle } from '@/components/navigation';
 import {
   AppScreen,
   EmptyState,
@@ -45,6 +45,7 @@ type ListRow =
 export function HistoryScreen() {
   const { t } = useTranslation();
   const locale = useLocale();
+  const tabContentStyle = useTabContentStyle();
   const router = useRouter();
   const today = useToday();
   const { month } = useSelectedMonth();

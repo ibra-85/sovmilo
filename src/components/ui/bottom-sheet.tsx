@@ -5,7 +5,7 @@ import Animated, {
   interpolate,
   useAnimatedStyle,
   useSharedValue,
-  withTiming,
+  withSpring,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -60,7 +60,7 @@ interface BottomSheetProps {
 export function BottomSheet({ visible, onClose, children, accessibilityLabel, dismissible = true }: BottomSheetProps) {
   const { colors, shadows } = useTheme();
   const glass = useGlassLook('sheet');
-  const { timing } = useMotion();
+  const { spring } = useMotion();
   const insets = useSafeAreaInsets();
   const screen = useWindowDimensions();
   const keyboardHeight = useKeyboardHeight();
@@ -77,14 +77,15 @@ export function BottomSheet({ visible, onClose, children, accessibilityLabel, di
   }, [sheetHeight, height]);
 
   useEffect(() => {
-    if (visible) drag.value = 0;
-  }, [visible, drag]);
+    // Rouvert pendant sa fermeture : l'écart du glissement revient en douceur au lieu de sauter.
+    if (visible) drag.value = withSpring(0, spring('sheetResize'));
+  }, [visible, drag, spring]);
 
   const keyboardOpen = keyboardHeight > 0;
   useEffect(() => {
-    floating.value = withTiming(keyboardOpen ? 1 : 0, timing('standard', 'sheetResize'));
+    floating.value = withSpring(keyboardOpen ? 1 : 0, spring('sheetResize'));
     if (keyboardOpen) keyboard.value = keyboardHeight;
-  }, [keyboardOpen, keyboardHeight, floating, keyboard, timing]);
+  }, [keyboardOpen, keyboardHeight, floating, keyboard, spring]);
 
   const pan = Gesture.Pan()
     .enabled(dismissible)
@@ -96,7 +97,8 @@ export function BottomSheet({ visible, onClose, children, accessibilityLabel, di
       if (farEnough || event.velocityY > DISMISS_VELOCITY) {
         scheduleOnRN(onClose);
       } else {
-        drag.set(withTiming(0, timing('standard', 'sheetResize')));
+        // Relâché trop tôt : le panneau revient avec la vitesse du geste (ressort, sans rebond).
+        drag.set(withSpring(0, { ...spring('sheetResize'), velocity: event.velocityY }));
       }
     });
 

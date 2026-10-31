@@ -94,7 +94,8 @@ export function formatMoney(
     formatters.set(key, formatter);
   }
   // La division n'est utilisée que pour l'AFFICHAGE : un entier de centimes / 100 s'arrondit toujours correctement à 2 décimales.
-  return formatter.format(cents / 100);
+  // `-0` (ex. l'opposé d'un total nul) s'afficherait « −0,00 € » : un montant nul n'a pas de signe.
+  return formatter.format(cents === 0 ? 0 : cents / 100);
 }
 
 /** Un montant découpé pour l'afficher en plusieurs styles (grand nombre, symbole € plus petit et grisé). */

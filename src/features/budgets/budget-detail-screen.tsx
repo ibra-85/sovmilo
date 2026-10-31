@@ -9,7 +9,7 @@ import {
   Button,
   CategoryIcon,
   ConfirmDialog,
-  DropdownMenu,
+  MorphingPopover,
   EmptyState,
   FieldGroup,
   Icon,
@@ -18,7 +18,7 @@ import {
   ProgressBar,
   ScreenHeader,
   Text,
-  useDropdown,
+  usePopoverTrigger,
   useToast,
 } from '@/components/ui';
 import { formatMonthName, formatMonthRange } from '@/domain/dates';
@@ -46,7 +46,7 @@ export function BudgetDetailScreen() {
   const { categoryId } = useLocalSearchParams<{ categoryId: string }>();
   const { month } = useSelectedMonth();
   const { entries } = useBudgetOverview(month);
-  const { bindTrigger, anchor: menuAnchor, open: openMenu, close: closeMenu, isOpen: menuOpen } = useDropdown();
+  const { bindTrigger, anchor: menuAnchor, open: openMenu, close: closeMenu, isOpen: menuOpen } = usePopoverTrigger();
   const [confirming, setConfirming] = useState(false);
   const [leaving, setLeaving] = useState(false);
 
@@ -83,9 +83,11 @@ export function BudgetDetailScreen() {
   const statusText =
     progress.status === 'over'
       ? t('budget.statusOver', { amount: formatMoneyAuto(-progress.remainingCents, locale), percent: progress.percent })
-      : progress.status === 'warning'
-        ? t('budget.statusNear', { percent: progress.percent })
-        : t('budget.statusOk', { percent: progress.percent });
+      : progress.status === 'reached'
+        ? t('budget.statusReached')
+        : progress.status === 'warning'
+          ? t('budget.statusNear', { percent: progress.percent })
+          : t('budget.statusOk', { percent: progress.percent });
 
   function confirmRemove() {
     removeBudget(category.id, month, progress.limitCents);
@@ -201,9 +203,10 @@ export function BudgetDetailScreen() {
         </View>
       </ScrollView>
 
-      <DropdownMenu
+      <MorphingPopover
         anchor={menuAnchor}
         onClose={closeMenu}
+        anchorRadius={radius.iconButton}
         accessibilityLabel={t('budget.menu')}
         items={[
           {

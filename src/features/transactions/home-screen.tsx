@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, View } from 'react-native';
 
-import { tabContentStyle } from '@/components/navigation';
+import { useTabContentStyle } from '@/components/navigation';
 import {
   AmountText,
   AppScreen,
@@ -19,7 +19,7 @@ import {
 } from '@/components/ui';
 import { computeMonthTotals } from '@/domain/budget';
 import { formatMonthLabel, formatMonthName, formatMonthShort } from '@/domain/dates';
-import { computeWeeklyExpenses, currentWeekIndex } from '@/domain/weekly';
+import { computeWeeklyExpenses, currentWeekIndex, weekRangeLabel } from '@/domain/weekly';
 import { BudgetCard } from '@/features/budgets/budget-card';
 import { useBudgetOverview } from '@/features/budgets/use-budget-overview';
 import { useSelectedMonth } from '@/hooks/use-selected-month';
@@ -42,6 +42,7 @@ const WATCHED_COUNT = 3;
 export function HomeScreen() {
   const { t } = useTranslation();
   const locale = useLocale();
+  const tabContentStyle = useTabContentStyle();
   const router = useRouter();
   const { colors } = useTheme();
   const today = useToday();
@@ -59,7 +60,11 @@ export function HomeScreen() {
   const recent = operations.slice(0, RECENT_COUNT);
 
   const monthShort = formatMonthShort(month, locale);
-  const bars = weeks.map((week) => ({ label: `${week.startDay}–${week.endDay} ${monthShort}`, cents: week.expenseCents }));
+  const bars = weeks.map((week) => ({
+    label: weekRangeLabel(week),
+    a11yLabel: `${weekRangeLabel(week)} ${monthShort}`,
+    cents: week.expenseCents,
+  }));
 
   return (
     <AppScreen>

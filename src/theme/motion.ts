@@ -38,9 +38,9 @@ export const durations = {
   menuOut: 160,
   menuItemIn: 160,
   menuItemStagger: 30,
-  /** Menus déroulants (« ⋯ », sélecteur de période). */
-  dropdownIn: 150,
-  dropdownOut: 100,
+  /** Popovers (« ⋯ », sélecteur de période) : la surface part du bouton et s'agrandit. */
+  dropdownIn: 220,
+  dropdownOut: 160,
   /** Panneau inférieur. */
   sheetIn: 280,
   sheetOut: 220,
@@ -79,3 +79,22 @@ export const motionDistances = {
   /** Panneau inférieur : fermeture si glissement > 30 % de la hauteur. */
   sheetDismissRatio: 0.3,
 } as const;
+
+/**
+ * Animations pilotées par un ressort (Reanimated `withSpring`) plutôt que par une durée fixe.
+ *
+ * Pourquoi : un ressort relancé en cours de route (second toucher) repart de la POSITION courante et garde la
+ * VITESSE courante quand le nouvel objectif est dans le même sens ; une animation `withTiming` repart de la position
+ * mais avec une vitesse remise à zéro et une nouvelle durée complète. Limite réelle de Reanimated 4 : si le nouvel
+ * objectif est dans le sens CONTRAIRE du mouvement en cours, la vitesse est annulée (le mouvement s'arrête net puis repart),
+ * il n'y a pas d'inversion par inertie. La position, elle, ne saute jamais.
+ *
+ * Ressort amorti critique (`dampingRatio: 1`) et `overshootClamping` : aucun rebond. `duration` de Reanimated est une
+ * durée « perçue » : la durée réelle est environ 1,5 fois plus longue, donc on la dérive des durées de ce fichier.
+ */
+export const SPRING_REAL_DURATION_RATIO = 1.5;
+
+/** Durée perçue à donner à `withSpring` pour obtenir à peu près la durée réelle `ms`. */
+export function springPerceivedDuration(ms: number): number {
+  return Math.max(1, Math.round(ms / SPRING_REAL_DURATION_RATIO));
+}

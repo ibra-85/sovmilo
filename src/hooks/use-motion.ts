@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
-import { Easing, useReducedMotion, type WithTimingConfig } from 'react-native-reanimated';
+import { Easing, ReduceMotion, useReducedMotion, type WithSpringConfig, type WithTimingConfig } from 'react-native-reanimated';
 
-import { curves, durations, type CurveName, type DurationName } from '@/theme/motion';
+import { curves, durations, springPerceivedDuration, type CurveName, type DurationName } from '@/theme/motion';
 
 /** `move` : translation, échelle, rotation, taille (supprimés si les animations sont réduites). `fade` : opacité seule. */
 export type MotionKind = 'move' | 'fade';
@@ -29,11 +29,31 @@ export function useMotion() {
     [reduced],
   );
 
+  /**
+   * Ressort sans rebond pour une bascule d'état (ouvert / fermé, onglet actif) : interruptible, la position courante
+   * est conservée et la vitesse aussi quand l'objectif reste dans le même sens (voir `theme/motion.ts`).
+   * Animations réduites : un déplacement devient instantané, un fondu dure 100 ms au plus.
+   */
+  const spring = useCallback(
+    (duration: DurationName, kind: MotionKind = 'move'): WithSpringConfig => {
+      const base = durations[duration];
+      const ms = reduced && kind === 'fade' ? Math.min(base, durations.reducedFade) : base;
+      return {
+        duration: springPerceivedDuration(ms),
+        dampingRatio: 1,
+        overshootClamping: true,
+        // Nous décidons nous-mêmes du comportement « animations réduites » ci-dessus.
+        reduceMotion: reduced && kind === 'move' ? ReduceMotion.Always : ReduceMotion.Never,
+      };
+    },
+    [reduced],
+  );
+
   /** Durée en ms d'un décalage (stagger) : nulle quand les animations sont réduites. */
   const delay = useCallback(
     (duration: DurationName, count = 1): number => (reduced ? 0 : durations[duration] * count),
     [reduced],
   );
 
-  return { reduced, timing, delay };
+  return { reduced, timing, spring, delay };
 }

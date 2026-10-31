@@ -1,21 +1,32 @@
-import '@/global.css';
-import '@/i18n'; // initialise la langue avant le premier rendu
+import "@/global.css";
+import "@/i18n"; // initialise la langue avant le premier rendu
 
-import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
-import { useFonts } from 'expo-font';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider, type Theme } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { View } from 'react-native';
+import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
+import { useFonts } from "expo-font";
+import {
+  DarkTheme,
+  DefaultTheme,
+  Stack,
+  ThemeProvider,
+  type Theme,
+} from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
+import * as SystemUI from "expo-system-ui";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { View } from "react-native";
 
-import { Text, ToastProvider } from '@/components/ui';
-import { db } from '@/db/client';
-import migrations from '@/db/migrations/migrations';
-import { seedDefaultCategories } from '@/db/seed';
-import { fontAssets } from '@/theme/fonts';
-import { useTheme } from '@/theme/use-theme';
+import { Text, ToastProvider } from "@/components/ui";
+import { db } from "@/db/client";
+import migrations from "@/db/migrations/migrations";
+import { seedDefaultCategories } from "@/db/seed";
+import { fontAssets } from "@/theme/fonts";
+import { restoreThemePreference } from "@/theme/use-theme-preference";
+import { useTheme } from "@/theme/use-theme";
+
+// Apparence choisie dans Paramètres : appliquée avant le premier rendu (pas de flash du mauvais thème).
+restoreThemePreference();
 
 // L'écran de démarrage reste affiché jusqu'à ce que la base et la police soient prêtes : pas d'écran vide ni de clignotement.
 void SplashScreen.preventAutoHideAsync();
@@ -34,11 +45,20 @@ function StartupError({ message }: { message: string }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 24, backgroundColor: colors.bg }}>
-      <Text variant="titleSection" style={{ textAlign: 'center' }}>
-        {t('startup.dbError')}
+    <View
+      style={{
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        padding: 24,
+        backgroundColor: colors.bg,
+      }}
+    >
+      <Text variant="titleSection" style={{ textAlign: "center" }}>
+        {t("startup.dbError")}
       </Text>
-      <Text variant="secondary" tone="muted" style={{ textAlign: 'center' }}>
+      <Text variant="secondary" tone="muted" style={{ textAlign: "center" }}>
         {message}
       </Text>
     </View>
@@ -74,6 +94,12 @@ function AppShell() {
     if (ready || seedError) void SplashScreen.hideAsync();
   }, [ready, seedError]);
 
+  // Fond de la fenêtre native. Pendant une transition (retour, fermeture d'un panneau) l'écran qui part laisse
+  // apparaître ce fond : par défaut il est BLANC, d'où le flash en mode sombre. On l'aligne sur le thème courant.
+  useEffect(() => {
+    void SystemUI.setBackgroundColorAsync(colors.bg);
+  }, [colors.bg]);
+
   if (seedError) return <StartupError message={seedError.message} />;
   if (!ready) return null;
 
@@ -92,20 +118,33 @@ function AppShell() {
   };
 
   return (
-    <ThemeProvider value={navigationTheme}>
-      <ToastProvider>
-        <StatusBar style="auto" />
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="add" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="transaction/[id]" />
-          <Stack.Screen name="transaction/edit/[id]" />
-          <Stack.Screen name="budget-detail/[categoryId]" />
-          <Stack.Screen name="budget-new" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="budget-limit/[categoryId]" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="balance" options={{ presentation: 'modal' }} />
-        </Stack>
-      </ToastProvider>
-    </ThemeProvider>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ThemeProvider value={navigationTheme}>
+        <ToastProvider>
+          <StatusBar style="auto" />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colors.bg },
+            }}
+          >
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="add" options={{ presentation: "modal" }} />
+            <Stack.Screen name="transaction/[id]" />
+            <Stack.Screen name="transaction/edit/[id]" />
+            <Stack.Screen name="budget-detail/[categoryId]" />
+            <Stack.Screen
+              name="budget-new"
+              options={{ presentation: "modal" }}
+            />
+            <Stack.Screen
+              name="budget-limit/[categoryId]"
+              options={{ presentation: "modal" }}
+            />
+            <Stack.Screen name="balance" options={{ presentation: "modal" }} />
+          </Stack>
+        </ToastProvider>
+      </ThemeProvider>
+    </View>
   );
 }

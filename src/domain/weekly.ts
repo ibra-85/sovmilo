@@ -46,3 +46,13 @@ export function currentWeekIndex(today: string, month: string): number | null {
   const index = weekRanges(month).findIndex((range) => day >= range.startDay && day <= range.endDay);
   return index === -1 ? null : index;
 }
+
+/** Libellé court d'une tranche sous une barre : « 1–7 », « 22–31 ». Le mois est déjà dans l'en-tête du graphique. */
+export function weekRangeLabel(range: { startDay: number; endDay: number }): string {
+  return `${range.startDay}–${range.endDay}`;
+}
+
+/** Nombre de jours d'une tranche. La dernière tranche (22 → fin du mois) en compte 7 à 10 selon le mois. */
+export function weekRangeLength(range: { startDay: number; endDay: number }): number {
+  return range.endDay - range.startDay + 1;
+}

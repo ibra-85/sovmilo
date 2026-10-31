@@ -32,6 +32,7 @@
   "budgetRow": {
     "remaining": "Осталось {{amount}} · {{percent}} %",
     "nearLimit": "Почти исчерпан · осталось {{amount}}",
+    "reached": "Лимит достигнут · 100 %",
     "over": "Превышен на {{amount}} · {{percent}} %",
     "a11y": "{{name}}: {{spent}} из {{limit}}. {{status}}"
   },
@@ -187,6 +188,7 @@
     "limit": "лимит",
     "statusOk": "В пределах лимита · использовано {{percent}} %",
     "statusNear": "Почти исчерпан · использовано {{percent}} %",
+    "statusReached": "Лимит достигнут · использовано 100 %",
     "statusOver": "Превышен на {{amount}} · {{percent}} %",
     "rowLimit": "Месячный лимит",
     "rowUsed": "Использовано",

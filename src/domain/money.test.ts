@@ -194,3 +194,18 @@ describe('formatMoneyAuto', () => {
     expect(formatMoneyAuto(5_000, 'fr', { signed: true })).toBe('+50 €');
   });
 });
+
+describe('montants nuls', () => {
+  it('n’affiche jamais « −0,00 € » (opposé d’un total nul)', () => {
+    expect(formatMoney(-0, 'fr')).toBe(formatMoney(0, 'fr'));
+    expect(formatMoney(-0, 'fr')).not.toContain('-');
+    expect(formatMoney(-0, 'fr')).not.toContain('−');
+    expect(formatMoney(-0, 'ru', { signed: true })).toBe(formatMoney(0, 'ru', { signed: true }));
+    expect(formatMoneyAuto(-0, 'fr')).not.toMatch(/[-−]/);
+  });
+
+  it('garde le signe des montants non nuls', () => {
+    expect(formatMoney(-1, 'fr')).toMatch(/[-−]/);
+    expect(formatMoney(1, 'fr', { signed: true })).toContain('+');
+  });
+});

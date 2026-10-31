@@ -132,7 +132,8 @@ export const sizes = {
   contextMenuWidth: 232,
   contextMenuRow: 50,
   /** Notification : distance au-dessus du bas (au-dessus du bouton principal). */
-  toastBottom: 110,
+  /** Espace entre le haut de la navigation flottante (ou du clavier) et le bas d'une notification. */
+  toastGap: 12,
 } as const;
 
 /** `hitSlop` qui porte une cible visuelle de `visible` dp à la zone tactile minimale. */
@@ -140,4 +141,29 @@ export function touchSlop(visibleWidth: number, visibleHeight: number = visibleW
   const horizontal = Math.max(0, Math.ceil((sizes.minTouch - visibleWidth) / 2));
   const vertical = Math.max(0, Math.ceil((sizes.minTouch - visibleHeight) / 2));
   return { top: vertical, bottom: vertical, left: horizontal, right: horizontal };
+}
+
+/** Distance entre le bord bas de l'écran et le bas de la navigation flottante (zone système comprise). */
+export function navigationBottom(insetBottom: number): number {
+  return Math.max(sizes.navBottom, insetBottom + 12);
+}
+
+/**
+ * Bas d'une notification : au-dessus de la navigation flottante, ou au-dessus du clavier quand il est ouvert (la
+ * navigation est alors cachée dessous). Ne dépend que de la zone système et de la hauteur du clavier.
+ */
+export function toastBottom(insetBottom: number, keyboardHeight: number): number {
+  if (keyboardHeight > 0) return keyboardHeight + sizes.toastGap;
+  return navigationBottom(insetBottom) + sizes.navHeight + sizes.toastGap;
+}
+
+/** Espace libre conservé sous le dernier élément d'un écran d'onglets, au-dessus de la navigation flottante. */
+const CONTENT_GAP = 40;
+
+/**
+ * Marge basse des écrans d'onglets : le dernier élément peut toujours être amené entièrement AU-DESSUS de la navigation
+ * flottante, quelle que soit la zone système en bas (gestes ou trois boutons). Jamais moins que `sizes.bottomReserve`.
+ */
+export function bottomReserve(insetBottom: number): number {
+  return Math.max(sizes.bottomReserve, navigationBottom(insetBottom) + sizes.navHeight + CONTENT_GAP);
 }

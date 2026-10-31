@@ -1,5 +1,5 @@
 import type { TransactionLike } from './budget';
-import { computeWeeklyExpenses, currentWeekIndex, weekRanges } from './weekly';
+import { computeWeeklyExpenses, currentWeekIndex, weekRangeLabel, weekRangeLength, weekRanges } from './weekly';
 
 const tx = (type: TransactionLike['type'], amountCents: number, occurredOn: string): TransactionLike => ({
   type,
@@ -76,5 +76,20 @@ describe('currentWeekIndex', () => {
 
   it('renvoie null hors du mois affiché', () => {
     expect(currentWeekIndex('2026-11-02', '2026-10')).toBeNull();
+  });
+});
+
+describe('libellés et longueur des tranches', () => {
+  it('donne des libellés courts, sans mois ni ellipse', () => {
+    expect(weekRanges('2026-10').map(weekRangeLabel)).toEqual(['1–7', '8–14', '15–21', '22–31']);
+    expect(weekRanges('2026-02').map(weekRangeLabel)[3]).toBe('22–28');
+  });
+
+  it('documente la dernière tranche : 7 à 10 jours selon le mois, les trois premières font toujours 7 jours', () => {
+    const lengths = (month: string) => weekRanges(month).map(weekRangeLength);
+    expect(lengths('2026-10')).toEqual([7, 7, 7, 10]); // 31 jours
+    expect(lengths('2026-11')).toEqual([7, 7, 7, 9]); // 30 jours
+    expect(lengths('2028-02')).toEqual([7, 7, 7, 8]); // 29 jours
+    expect(lengths('2026-02')).toEqual([7, 7, 7, 7]); // 28 jours
   });
 });

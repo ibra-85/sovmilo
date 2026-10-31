@@ -59,12 +59,15 @@ export function BudgetRow({
   const { icon, padding, gap, height } = rowMetrics.budget;
   const over = status === 'over';
   const warning = status === 'warning';
+  const reached = status === 'reached';
 
   const statusText = over
     ? t('budgetRow.over', { amount: formatMoney(-remainingCents, locale), percent })
-    : warning
-      ? t('budgetRow.nearLimit', { amount: formatMoney(remainingCents, locale) })
-      : t('budgetRow.remaining', { amount: formatMoney(remainingCents, locale), percent });
+    : reached
+      ? t('budgetRow.reached')
+      : warning
+        ? t('budgetRow.nearLimit', { amount: formatMoney(remainingCents, locale) })
+        : t('budgetRow.remaining', { amount: formatMoney(remainingCents, locale), percent });
 
   const label = t('budgetRow.a11y', {
     name,
@@ -106,11 +109,11 @@ export function BudgetRow({
         <ProgressBar percent={percent} over={over} />
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          {(over || warning) && (
+          {(over || warning || reached) && (
             <Icon name={over ? 'overBudget' : 'nearLimit'} size={16} color={over ? colors.danger : colors.ink} />
           )}
           <Text
-            variant={warning ? 'label' : 'caption'}
+            variant={warning || reached ? 'label' : 'caption'}
             tone={over ? 'danger' : 'muted'}
             style={{ flexShrink: 1 }}
             numberOfLines={2}>
