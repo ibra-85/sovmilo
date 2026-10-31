@@ -1,37 +1,35 @@
-import { useColorScheme } from 'react-native';
+import { useTheme } from './use-theme';
+import { colorTokens, type ThemeName } from './tokens';
 
 /**
- * Palette pour les endroits où l'on ne peut pas utiliser `className` (barre d'onglets, navigation, barre d'état).
- * Doit rester identique à src/global.css : le test src/theme/colors.test.ts vérifie la correspondance.
+ * PONT TEMPORAIRE vers l'ancienne palette (crème / sauge), utilisé par les écrans de l'étape 1–2a qui n'ont pas
+ * encore été refaits dans le nouveau design. Il traduit les anciens noms vers les jetons Precision Glass
+ * (src/theme/tokens.ts) pour que toute l'application soit déjà cohérente.
+ * À supprimer quand les derniers écrans auront migré vers `useTheme()`.
+ *
+ * Doit rester identique à la section « anciens noms » de src/global.css : voir colors.test.ts.
  */
-export const palette = {
-  light: {
-    bg: '#FAF5E8', // crème
-    surface: '#FFFDF7',
-    line: '#E5DDC9',
-    ink: '#2B2A26',
-    muted: '#6B675C',
-    sage: '#4A7C59', // vert sauge (positif)
-    coral: '#C95542', // corail doux (alertes)
-    amber: '#B07010', // ocre (avertissement)
-  },
-  dark: {
-    bg: '#1C1B17',
-    surface: '#2A2822',
-    line: '#3E3B32',
-    ink: '#F3EEDF',
-    muted: '#A8A394',
-    sage: '#8FC09B',
-    coral: '#F08C7A',
-    amber: '#E0A846',
-  },
-} as const;
+function legacy(name: ThemeName) {
+  const c = colorTokens[name];
+  return {
+    bg: c.bg,
+    surface: c.surface,
+    line: c.progressTrack,
+    ink: c.text,
+    muted: c.textMuted,
+    sage: c.primary,
+    coral: c.danger,
+    amber: c.text,
+  } as const;
+}
 
-export type ThemeName = keyof typeof palette;
+export const palette = { light: legacy('light'), dark: legacy('dark') } as const;
+
+export type { ThemeName };
 export type ThemeColors = (typeof palette)[ThemeName];
 
 export function useThemeName(): ThemeName {
-  return useColorScheme() === 'dark' ? 'dark' : 'light';
+  return useTheme().name;
 }
 
 export function useThemeColors(): ThemeColors {

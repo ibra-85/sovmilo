@@ -97,6 +97,66 @@ export function formatMoney(
   return formatter.format(cents / 100);
 }
 
+/** Un montant découpé pour l'afficher en plusieurs styles (grand nombre, symbole € plus petit et grisé). */
+export interface MoneyParts {
+  /** « − » (U+2212, vrai signe moins), « + » ou « » (zéro, ou positif quand `signed` est faux). */
+  sign: '−' | '+' | '';
+  /** Partie entière avec séparateurs de milliers : « 1 248 » (espaces fines insécables). */
+  integer: string;
+  /** Séparateur décimal (« , »), vide si les décimales sont masquées. */
+  decimal: string;
+  /** Décimales (« 60 »), vide si masquées. */
+  fraction: string;
+  currency: string;
+  /** Vrai si la langue place la devise avant le nombre (pas le cas en français ni en russe). */
+  currencyFirst: boolean;
+}
+
+/**
+ * Centimes → montant en morceaux, pour l'affichage soigné des maquettes (« +1 248,60 € » avec « € » en gris).
+ * `fraction: 'auto'` masque « ,00 » pour les montants ronds (« 312 € »), sans jamais arrondir : 312,40 reste « 312,40 ».
+ */
+export function formatMoneyParts(
+  cents: number,
+  locale: AppLocale,
+  options: { currency?: string; signed?: boolean; fraction?: 'always' | 'auto' } = {},
+): MoneyParts {
+  assertCents(cents);
+  const { currency = DEFAULT_CURRENCY, signed = false, fraction = 'always' } = options;
+  const absolute = Math.abs(cents);
+  const hideFraction = fraction === 'auto' && absolute % 100 === 0;
+
+  const key = `parts|${locale}|${currency}|${hideFraction}`;
+  let formatter = formatters.get(key);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(INTL_LOCALES[locale], {
+      style: 'currency',
+      currency,
+      signDisplay: 'never',
+      ...(hideFraction ? { minimumFractionDigits: 0, maximumFractionDigits: 0 } : {}),
+    });
+    formatters.set(key, formatter);
+  }
+
+  const parts = formatter.formatToParts(absolute / 100);
+  const join = (...types: string[]) =>
+    parts
+      .filter((part) => types.includes(part.type))
+      .map((part) => part.value)
+      .join('');
+  const firstNumberIndex = parts.findIndex((part) => part.type === 'integer');
+  const currencyIndex = parts.findIndex((part) => part.type === 'currency');
+
+  return {
+    sign: cents < 0 ? '−' : signed && cents > 0 ? '+' : '',
+    integer: join('integer', 'group'),
+    decimal: join('decimal'),
+    fraction: join('fraction'),
+    currency: join('currency'),
+    currencyFirst: currencyIndex !== -1 && currencyIndex < firstNumberIndex,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Pavé numérique : la saisie est une chaîne canonique « 12.5 » (point décimal, 2 décimales max).
 // ---------------------------------------------------------------------------
