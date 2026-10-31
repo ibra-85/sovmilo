@@ -17,6 +17,7 @@ import {
 } from '@/components/ui';
 import { formatMonthRange } from '@/domain/dates';
 import { formatMoneyAuto } from '@/domain/money';
+import { useContentWidth } from '@/hooks/use-content-width';
 import { useSelectedMonth } from '@/hooks/use-selected-month';
 import { useLocale } from '@/i18n/use-locale';
 import { space } from '@/theme/layout';
@@ -31,6 +32,7 @@ import { useBudgetOverview } from './use-budget-overview';
  */
 export function BudgetScreen() {
   const { t } = useTranslation();
+  const contentWidth = useContentWidth();
   const locale = useLocale();
   const tabContentStyle = useTabContentStyle();
   const router = useRouter();
@@ -78,6 +80,7 @@ export function BudgetScreen() {
                 cents={summary.remainingCents}
                 size="summary"
                 fraction="auto"
+                maxWidth={contentWidth}
                 tone={summary.remainingCents < 0 ? 'danger' : 'default'}
               />
             </View>
@@ -89,8 +92,8 @@ export function BudgetScreen() {
                   <Text variant="captionMedium">{formatMoneyAuto(summary.spentCents, locale)}</Text>{' '}
                   {t('budget.spentOn', { limit: formatMoneyAuto(summary.limitCents, locale) })}
                 </Text>
-                <Text variant="caption" tone="muted">
-                  {summary.percent} %
+                <Text variant="caption" tone="muted" style={{ flexShrink: 0 }}>
+                  {`${summary.percent} %`}
                 </Text>
               </View>
             </View>

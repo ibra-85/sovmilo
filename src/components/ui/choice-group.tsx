@@ -55,7 +55,9 @@ export function ChoiceGroup<T extends string>({ options, value, onChange, access
                   backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
                 })}>
                 <View style={{ flex: 1 }}>
-                  <Text variant={selected ? 'bodyStrong' : 'body'}>{option.label}</Text>
+                  <Text variant={selected ? 'bodyStrong' : 'body'} numberOfLines={3}>
+                    {option.label}
+                  </Text>
                   {option.description ? (
                     <Text variant="caption" tone="muted">
                       {option.description}

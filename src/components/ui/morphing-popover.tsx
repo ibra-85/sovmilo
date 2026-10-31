@@ -1,20 +1,22 @@
 import { Fragment, useCallback, useMemo, useState, type ComponentRef } from 'react';
-import { Modal, ScrollView, View, useWindowDimensions } from 'react-native';
+import { Modal, ScrollView, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 import Animated, { interpolate, useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { usePresence } from '@/hooks/use-presence';
 import { radius, sizes, space } from '@/theme/layout';
+import { typography } from '@/theme/typography';
 import { useTheme } from '@/theme/use-theme';
 
 import { Divider } from './divider';
 import { GlassOverlay, useGlassLook } from './glass-surface';
 import { Icon, type IconName } from './icon';
 import { Pressable } from './pressable';
-import { computePopoverPlacement, estimateMenuHeight, type Rect } from './popover-layout';
+import { computePopoverPlacement, estimateMenuHeight, type PopoverAlign, type Rect } from './popover-layout';
 import { Text } from './text';
 
 export type PopoverAnchor = Rect;
+export type { PopoverAlign };
 
 export interface PopoverItem {
   key: string;
@@ -65,10 +67,16 @@ interface MorphingPopoverProps {
   width?: number;
   /** Rayon du déclencheur : le popover part de cette forme et prend celle du menu en s'ouvrant. */
   anchorRadius?: number;
+  /** `end` (défaut) : bord droit sur celui du bouton « ⋯ ». `center` : centré sous une tuile. */
+  align?: PopoverAlign;
 }
 
 const PADDING = 6;
 const GAP = 6;
+const ICON_SIZE = 20;
+const ROW_GAP = 12;
+const ROW_PADDING = 14;
+const ROW_VERTICAL = 14;
 
 /**
  * Popover « qui sort du bouton » (menu « ⋯ », sélecteur de mois). Il remplace l'ancien menu déroulant.
@@ -93,11 +101,14 @@ export function MorphingPopover({
   accessibilityLabel,
   width = sizes.contextMenuWidth,
   anchorRadius = radius.pill,
+  align = 'end',
 }: MorphingPopoverProps) {
   const { colors, shadows } = useTheme();
   const glass = useGlassLook('menu');
   const window = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  // Hauteur d'une ligne de texte du libellé, texte agrandi compris (l'icône se centre dessus).
+  const lineHeight = Math.round((typography.body.lineHeight as number) * Math.min(window.fontScale, 1.8));
 
   // On garde le dernier emplacement pendant l'animation de fermeture (l'ancre est déjà remise à zéro).
   const [lastAnchor, setLastAnchor] = useState<PopoverAnchor | null>(anchor);
@@ -108,7 +119,10 @@ export function MorphingPopover({
     exit: ['standard', 'dropdownOut'],
   });
 
-  const contentHeight = estimateMenuHeight(items.length, sizes.contextMenuRow, PADDING);
+  // Hauteur réelle du contenu, MESURÉE (libellés longs sur deux lignes, russe, texte agrandi). Avant la première mesure, une
+  // estimation à une ligne par entrée ; la mesure arrive dès le premier rendu, alors que la surface est encore minuscule.
+  const [measured, setMeasured] = useState<number | null>(null);
+  const contentHeight = measured !== null ? measured + PADDING * 2 : estimateMenuHeight(items.length, sizes.contextMenuRow, PADDING);
   const placement = useMemo(
     () =>
       lastAnchor
@@ -120,9 +134,10 @@ export function MorphingPopover({
             insets,
             margin: space.screen / 2,
             gap: GAP,
+            align,
           })
         : null,
-    [lastAnchor, contentHeight, width, window, insets],
+    [lastAnchor, contentHeight, width, window, insets, align],
   );
 
   const surfaceStyle = useAnimatedStyle(() => {
@@ -176,39 +191,50 @@ export function MorphingPopover({
             contentStyle,
           ]}>
           <ScrollView style={{ flex: 1 }} bounces={false} showsVerticalScrollIndicator={false}>
-            {items.map((item, index) => (
-              <Fragment key={item.key}>
-                {index > 0 && <Divider inset={item.icon ? 14 + 20 + 12 : 14} />}
-                <Pressable
-                  accessibilityRole="menuitem"
-                  accessibilityLabel={item.label}
-                  accessibilityState={{ selected: item.selected }}
-                  pressTranslate={0}
-                  onPress={() => {
-                    onClose();
-                    item.onPress();
-                  }}
-                  style={({ pressed }) => ({
-                    minHeight: sizes.contextMenuRow,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 12,
-                    paddingHorizontal: 14,
-                    paddingVertical: 8,
-                    borderRadius: radius.menuItem - 2,
-                    backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
-                  })}>
-                  {item.icon && <Icon name={item.icon} size={20} color={item.destructive ? colors.danger : colors.ink} />}
-                  <Text
-                    variant={item.selected ? 'bodyStrong' : 'body'}
-                    tone={item.destructive ? 'danger' : 'default'}
-                    style={{ flex: 1 }}>
-                    {item.label}
-                  </Text>
-                  {item.selected && <Icon name="check" size={18} weight="strong" />}
-                </Pressable>
-              </Fragment>
-            ))}
+            <View onLayout={(event: LayoutChangeEvent) => setMeasured(Math.ceil(event.nativeEvent.layout.height))}>
+              {items.map((item, index) => (
+                <Fragment key={item.key}>
+                  {index > 0 && <Divider inset={item.icon ? ROW_PADDING + ICON_SIZE + ROW_GAP : ROW_PADDING} />}
+                  <Pressable
+                    accessibilityRole="menuitem"
+                    accessibilityLabel={item.label}
+                    accessibilityState={{ selected: item.selected }}
+                    pressTranslate={0}
+                    onPress={() => {
+                      onClose();
+                      item.onPress();
+                    }}
+                    style={({ pressed }) => ({
+                      minHeight: sizes.contextMenuRow,
+                      flexDirection: 'row',
+                      alignItems: 'flex-start',
+                      gap: ROW_GAP,
+                      paddingHorizontal: ROW_PADDING,
+                      paddingVertical: ROW_VERTICAL,
+                      borderRadius: radius.menuItem - 2,
+                      backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
+                    })}>
+                    {/* L'icône est centrée sur la PREMIÈRE ligne du libellé : bien alignée même quand le libellé passe sur deux lignes. */}
+                    {item.icon && (
+                      <View style={{ height: lineHeight, width: ICON_SIZE, alignItems: 'center', justifyContent: 'center' }}>
+                        <Icon name={item.icon} size={ICON_SIZE} color={item.destructive ? colors.danger : colors.ink} />
+                      </View>
+                    )}
+                    <Text
+                      variant={item.selected ? 'bodyStrong' : 'body'}
+                      tone={item.destructive ? 'danger' : 'default'}
+                      style={{ flex: 1, flexShrink: 1 }}>
+                      {item.label}
+                    </Text>
+                    {item.selected && (
+                      <View style={{ height: lineHeight, justifyContent: 'center' }}>
+                        <Icon name="check" size={18} weight="strong" />
+                      </View>
+                    )}
+                  </Pressable>
+                </Fragment>
+              ))}
+            </View>
           </ScrollView>
         </Animated.View>
       </Animated.View>

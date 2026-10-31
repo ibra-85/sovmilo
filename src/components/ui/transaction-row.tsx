@@ -1,5 +1,7 @@
 import { View } from 'react-native';
 
+import { useContentWidth } from '@/hooks/use-content-width';
+
 import { radius } from '@/theme/layout';
 import { useTheme } from '@/theme/use-theme';
 
@@ -44,6 +46,8 @@ export function TransactionRow({
   const { colors, shadows } = useTheme();
   const income = kind === 'income';
   const { icon, paddingVertical, height } = rowMetrics.transaction;
+  // Le montant garde la priorité jusqu'à la moitié de la ligne ; le titre, lui, se coupe (ellipse) sur une ligne.
+  const amountMaxWidth = useContentWidth() * 0.5;
 
   const content = (
     <>
@@ -67,7 +71,7 @@ export function TransactionRow({
           <CategoryIcon value={categoryIcon ?? null} size={22} />
         )}
       </View>
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, minWidth: 0 }}>
         <Text variant="body" numberOfLines={1}>
           {title}
         </Text>
@@ -75,7 +79,7 @@ export function TransactionRow({
           {subtitle}
         </Text>
       </View>
-      <AmountText cents={cents} size="row" signed />
+      <AmountText cents={cents} size="row" signed maxWidth={amountMaxWidth} />
     </>
   );
 

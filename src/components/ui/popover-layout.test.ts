@@ -27,6 +27,16 @@ describe('computePopoverPlacement', () => {
     expect(placement.height).toBe(112);
   });
 
+  it('se centre sous une tuile quand on le demande, puis reste dans l’écran', () => {
+    const tile = { x: 150, y: 300, width: 58, height: 58 };
+    const centered = computePopoverPlacement({ ...base, trigger: tile, align: 'center' });
+    expect(centered.left + centered.width / 2).toBeCloseTo(179);
+    const edge = computePopoverPlacement({ ...base, trigger: { ...tile, x: 300 }, align: 'center' });
+    expect(edge.left + edge.width).toBeLessThanOrEqual(360 - 10);
+    const near = computePopoverPlacement({ ...base, trigger: { ...tile, x: 4 }, align: 'center' });
+    expect(near.left).toBeGreaterThanOrEqual(10);
+  });
+
   it('ne recouvre jamais le déclencheur ni l’en-tête', () => {
     const placement = computePopoverPlacement(base);
     expect(placement.top).toBeGreaterThanOrEqual(base.trigger.y + base.trigger.height);

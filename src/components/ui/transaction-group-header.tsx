@@ -34,7 +34,7 @@ export function TransactionGroupHeader({ day, date, totalCents }: TransactionGro
         </Text>
         <Text variant="caption" tone="muted">{` · ${date}`}</Text>
       </Text>
-      <Text variant="caption" tone="muted" style={{ fontVariant: ['tabular-nums'] }}>
+      <Text variant="caption" tone="muted" style={{ fontVariant: ['tabular-nums'], flexShrink: 0 }}>
         {total}
       </Text>
     </View>

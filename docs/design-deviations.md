@@ -90,6 +90,23 @@ Flash blanc (clair ET sombre, avec « Système » aussi) : Accueil → Ajouter �
 Mouvement : ouvrir / refermer très vite le menu « ⋯ », le menu +, un panneau inférieur, la barre flottante et le sélecteur segmenté (retouche pendant l'animation : pas de saut). Menu « ⋯ » en haut de l'écran et près du bas : il ne couvre jamais l'en-tête, ne sort pas de l'écran.
 Autre : graphique (libellés non coupés, texte agrandi, petit écran), budget à 100 %, notification avec clavier ouvert, confirmation de suppression avec un nom très long (et en russe), Paramètres (thème appliqué tout de suite, conservé après redémarrage, « Système » suit Android), appui long sur une catégorie personnalisée, Services → Catégories, bouton Retour d'Android sur chaque écran et panneau.
 
+## 5 quinquies. Montants extrêmes : règles responsive
+
+Règles (code : `src/theme/amount-fit.ts`, `amount-layout.ts`, `AmountText`) :
+
+1. **Le € ne se sépare jamais de son nombre** : espace insécable (U+00A0) entre les deux, milliers en espace fine insécable (U+202F), « % » collé à son nombre dans les textes (fr : U+202F, ru : U+00A0). Un montant tient toujours sur UNE ligne.
+2. **Réduction mesurée, bornée** : si `maxWidth` est donné, la taille est la plus grande qui tient (largeurs réelles d'Inter SemiBold, +4 % de marge), jamais sous une échelle minimale par taille : saisie / détail / focal 50–55 %, total 70 %, **ligne de liste 87,5 % (14 sp)**. Filet de sécurité : `adjustsFontSizeToFit` (minimum 70 %).
+3. **Au-delà, la structure change** (pas la taille de toute l'interface) : cellule Revenus / Dépenses en pile, ligne de budget sur deux niveaux (nom puis montants), totaux du graphique empilés, valeurs sous les barres retirées sauf la barre choisie.
+4. **Aucune abréviation** (pas de « 2 M€ », « 10 k€ ») : décision à demander si elle devient nécessaire.
+5. Le texte agrandi du système est pris en compte (plafonné par le style, comme Android).
+
+Budgets en alerte : 8 dp entre les cartes d'une même liste, contour d'alerte plus net (`dangerBorder`).
+Menu contextuel : hauteur MESURÉE (libellés longs sur 2 lignes), icône centrée sur la première ligne, centré sous une tuile (appui long) ou aligné à droite d'un bouton « ⋯ ».
+Panneau de déplacement d'une catégorie : zone défilante bornée à l'écran (zones système et texte agrandi), boutons toujours visibles.
+
+**Couvert automatiquement** : mise en forme des 8 montants limites en fr et ru ; ajustement pour 6 zones à 360 dp ; texte agrandi ; échelles minimales ; géométrie du graphique (indicateur dans la carte, valeurs retirées) ; placement du popover (centré, bords) ; « % » insécable ; états de budget pour 0, 74, 100, 108, 200, 2040, 5100 %.
+**À vérifier sur téléphone** (rendu réel, non testable sans appareil) : voir la liste donnée dans le bilan du 01/11/2026.
+
 ## 5 ter. Règle : ne jamais utiliser `ImageBackground`
 
 React Native 0.88 a déprécié `ImageBackground` (avertissement « ImageBackground is deprecated and will be removed in a future release »).

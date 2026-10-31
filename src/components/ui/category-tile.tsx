@@ -1,3 +1,4 @@
+import type { ComponentRef, Ref } from 'react';
 import { View } from 'react-native';
 
 import { radius, sizes } from '@/theme/layout';
@@ -19,6 +20,8 @@ interface CategoryTileProps {
   /** Appui long : menu de gestion d'une catégorie personnalisée. */
   onLongPress?: () => void;
   accessibilityHint?: string;
+  /** Référence du carré de 58 dp (sans le libellé) : c'est lui, pas la tuile entière, qui sert d'ancre à un menu. */
+  squareRef?: Ref<ComponentRef<typeof View>>;
 }
 
 /**
@@ -34,6 +37,7 @@ export function CategoryTile({
   onPress,
   onLongPress,
   accessibilityHint,
+  squareRef,
 }: CategoryTileProps) {
   const { colors, shadows } = useTheme();
 
@@ -54,6 +58,8 @@ export function CategoryTile({
       accessibilityHint={accessibilityHint}
       style={{ width: sizes.categoryTileWidth, alignItems: 'center', gap: 6, paddingVertical: 4 }}>
       <View
+        ref={squareRef}
+        collapsable={false}
         style={{
           width: sizes.categoryTile,
           height: sizes.categoryTile,

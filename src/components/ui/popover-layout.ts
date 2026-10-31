@@ -31,7 +31,11 @@ export interface PopoverPlacementInput {
   margin: number;
   /** Espace entre le déclencheur et le popover. */
   gap: number;
+  /** `end` (défaut) : bord droit sur celui du déclencheur (bouton « ⋯ »). `center` : centré sous le déclencheur (tuile). */
+  align?: PopoverAlign;
 }
+
+export type PopoverAlign = 'end' | 'center';
 
 export interface PopoverPlacement {
   left: number;
@@ -58,9 +62,11 @@ export function computePopoverPlacement(input: PopoverPlacementInput): PopoverPl
   const maxRight = window.width - insets.right - margin;
   const width = Math.min(input.width, Math.max(0, maxRight - minLeft));
 
-  // Le popover est aligné sur le bord DROIT du déclencheur (là où se trouvent « ⋯ » et le sélecteur de période) ;
-  // il est ensuite ramené dans l'écran.
-  const left = clamp(trigger.x + trigger.width - width, minLeft, maxRight - width);
+  // Par défaut le popover est aligné sur le bord DROIT du déclencheur (là où se trouvent « ⋯ » et le sélecteur de période) ;
+  // pour une tuile, il est centré sur elle. Dans les deux cas il est ensuite ramené dans l'écran.
+  const wanted =
+    input.align === 'center' ? trigger.x + trigger.width / 2 - width / 2 : trigger.x + trigger.width - width;
+  const left = clamp(wanted, minLeft, maxRight - width);
 
   const spaceBelow = window.height - insets.bottom - margin - (trigger.y + trigger.height + gap);
   const spaceAbove = trigger.y - gap - (insets.top + margin);

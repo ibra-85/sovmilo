@@ -1,10 +1,12 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { View } from 'react-native';
+import { View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 
 import type { BudgetStatus } from '@/domain/budget';
 import { formatMoney } from '@/domain/money';
 import { useLocale } from '@/i18n/use-locale';
-import { radius } from '@/theme/layout';
+import { amountWidth } from '@/theme/amount-fit';
+import { radius, space } from '@/theme/layout';
 import { useTheme } from '@/theme/use-theme';
 
 import { AmountText } from './amount-text';
@@ -61,6 +63,24 @@ export function BudgetRow({
   const warning = status === 'warning';
   const reached = status === 'reached';
 
+  // Place réelle de la colonne de texte (mesurée) ; avant la mesure, une estimation depuis la fenêtre.
+  const { width: windowWidth, fontScale } = useWindowDimensions();
+  const [columnWidth, setColumnWidth] = useState(windowWidth - space.screen * 2 - 12 - padding * 2 - icon - 14);
+  const limitText = formatMoney(limitCents, locale);
+  const spentText = formatMoney(spentCents, locale);
+  // Nom, dépensé et plafond sur une même ligne tant que le nom garde au moins 42 % de la place ; sinon le nom a sa ligne
+  // (une seule ligne, ellipse) et les montants passent dessous : jamais de montant coupé ni de € à la ligne.
+  const amountsEm = amountWidth(
+    [
+      { text: spentText, size: 16 },
+      { text: ' / ', size: 14 },
+      { text: limitText, size: 14 },
+    ],
+    1,
+    Math.min(fontScale, 1.8),
+  );
+  const stacked = amountsEm > columnWidth * 0.58;
+
   const statusText = over
     ? t('budgetRow.over', { amount: formatMoney(-remainingCents, locale), percent })
     : reached
@@ -90,18 +110,16 @@ export function BudgetRow({
         <CategoryIcon value={categoryIcon ?? null} size={22} />
       </View>
 
-      <View style={{ flex: 1, gap }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+      <View style={{ flex: 1, gap, minWidth: 0 }} onLayout={(event: LayoutChangeEvent) => setColumnWidth(event.nativeEvent.layout.width)}>
+        <View
+          style={{ flexDirection: stacked ? 'column' : 'row', alignItems: stacked ? 'stretch' : 'center', justifyContent: 'space-between', gap: stacked ? 2 : 8 }}>
           <Text variant="body" numberOfLines={1} style={{ flexShrink: 1 }}>
             {name}
           </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', flexShrink: 0 }}>
-            <AmountText cents={spentCents} size="row" fraction="auto" />
-            <Text variant="caption" tone="muted">
-              {' / '}
-            </Text>
-            <Text variant="caption" tone="muted" style={{ fontVariant: ['tabular-nums'] }}>
-              {formatMoney(limitCents, locale)}
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', flexShrink: stacked ? 1 : 0 }}>
+            <AmountText cents={spentCents} size="row" fraction="auto" maxWidth={stacked ? columnWidth * 0.6 : undefined} />
+            <Text variant="caption" tone="muted" numberOfLines={1} style={{ flexShrink: 1 }}>
+              {` / ${limitText}`}
             </Text>
           </View>
         </View>
@@ -116,7 +134,7 @@ export function BudgetRow({
             variant={warning || reached ? 'label' : 'caption'}
             tone={over ? 'danger' : 'muted'}
             style={{ flexShrink: 1 }}
-            numberOfLines={2}>
+            numberOfLines={3}>
             {statusText}
           </Text>
         </View>

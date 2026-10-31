@@ -23,6 +23,7 @@ import {
 import { formatLongDate, formatShortDate } from '@/domain/dates';
 import { categoryLabel } from '@/features/categories/category-label';
 import { useCategoryMap } from '@/features/categories/use-categories';
+import { useContentWidth } from '@/hooks/use-content-width';
 import { useLocale } from '@/i18n/use-locale';
 import { radius, space } from '@/theme/layout';
 import { useTheme } from '@/theme/use-theme';
@@ -44,6 +45,7 @@ export function TransactionDetailScreen() {
   const locale = useLocale();
   const router = useRouter();
   const toast = useToast();
+  const contentWidth = useContentWidth();
   const { colors, shadows } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { transaction, loaded } = useTransaction(id);
@@ -137,7 +139,7 @@ export function TransactionDetailScreen() {
             {shown.title}
           </Text>
           <View style={{ marginTop: 12 }}>
-            <AmountText cents={shown.cents} size="detail" signed />
+            <AmountText cents={shown.cents} size="detail" signed maxWidth={contentWidth} />
           </View>
           <Text variant="secondary" tone="muted" style={{ marginTop: 8 }}>
             {typeName}
@@ -243,7 +245,7 @@ export function TransactionDetailScreen() {
             </Text>
           </View>
           <View style={{ flexShrink: 0 }}>
-            <AmountText cents={shown.cents} size="row" signed />
+            <AmountText cents={shown.cents} size="row" signed maxWidth={contentWidth * 0.5} />
           </View>
         </View>
       </ConfirmDialog>

@@ -24,6 +24,7 @@ import {
 import { formatMonthName, formatMonthRange } from '@/domain/dates';
 import { formatMoney, formatMoneyAuto } from '@/domain/money';
 import { categoryLabel } from '@/features/categories/category-label';
+import { useContentWidth } from '@/hooks/use-content-width';
 import { useSelectedMonth } from '@/hooks/use-selected-month';
 import { useLocale } from '@/i18n/use-locale';
 import { radius, space } from '@/theme/layout';
@@ -39,6 +40,7 @@ import { useBudgetOverview } from './use-budget-overview';
  */
 export function BudgetDetailScreen() {
   const { t } = useTranslation();
+  const contentWidth = useContentWidth();
   const locale = useLocale();
   const router = useRouter();
   const toast = useToast();
@@ -143,6 +145,7 @@ export function BudgetDetailScreen() {
               cents={over ? -progress.remainingCents : progress.remainingCents}
               size="hero"
               fraction="auto"
+              maxWidth={contentWidth}
               tone={over ? 'danger' : 'default'}
             />
           </View>
@@ -154,7 +157,7 @@ export function BudgetDetailScreen() {
             <Text variant="secondary" tone="muted" style={{ flexShrink: 1 }}>
               <Text variant="secondaryStrong">{formatMoneyAuto(progress.spentCents, locale)}</Text> {t('budget.used')}
             </Text>
-            <Text variant="secondary" tone="muted">
+            <Text variant="secondary" tone="muted" style={{ flexShrink: 1, textAlign: 'right' }}>
               {t('budget.limit')} <Text variant="secondaryStrong">{formatMoneyAuto(progress.limitCents, locale)}</Text>
             </Text>
           </View>

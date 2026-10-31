@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   BottomSheet,
@@ -11,6 +12,7 @@ import {
   MorphingPopover,
   Text,
   useToast,
+  type PopoverAlign,
   type PopoverAnchor,
 } from '@/components/ui';
 import type { Category } from '@/db/schema';
@@ -26,7 +28,7 @@ import { useCategories } from './use-categories';
 
 interface CategoryActions {
   /** Ouvre le menu Modifier / Supprimer d'une catégorie personnalisée, ancré sur `anchor`. Sans effet pour une catégorie par défaut. */
-  open: (category: Category, anchor: PopoverAnchor) => void;
+  open: (category: Category, anchor: PopoverAnchor, align?: PopoverAlign) => void;
   /** À poser une fois dans l'écran : menu, panneau de modification et confirmations. */
   element: ReactNode;
 }
@@ -45,9 +47,12 @@ export function useCategoryActions(kind: CategoryKind, onDeleted?: (id: string) 
   const { t } = useTranslation();
   const toast = useToast();
   const { colors } = useTheme();
+  const window = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const [target, setTarget] = useState<Category | null>(null);
   const [anchor, setAnchor] = useState<PopoverAnchor | null>(null);
+  const [align, setAlign] = useState<PopoverAlign>('end');
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [reassign, setReassign] = useState<CategoryUsage | null>(null);
@@ -56,12 +61,17 @@ export function useCategoryActions(kind: CategoryKind, onDeleted?: (id: string) 
   const [failed, setFailed] = useState(false);
 
   const name = target ? categoryLabel(target, t) : '';
+  // Hauteur de la zone défilante du panneau de déplacement : l'écran, moins les zones système, la poignée et le haut du
+  // panneau (≈ 96 dp), et la partie fixe du bas (deux boutons ≈ 144 dp + le texte des conséquences, qui grandit avec le texte).
+  const fixedBottom = 144 + 96 * Math.min(window.fontScale, 1.8);
+  const scrollMax = Math.max(160, window.height - insets.top - insets.bottom - 96 - fixedBottom);
   const candidates = siblings.filter((other) => other.id !== target?.id);
   const chosen = candidates.find((other) => other.id === targetId);
 
-  function open(category: Category, at: PopoverAnchor) {
+  function open(category: Category, at: PopoverAnchor, alignment: PopoverAlign = 'end') {
     if (!isCustomCategory(category)) return;
     setTarget(category);
+    setAlign(alignment);
     setFailed(false);
     setAnchor(at);
   }
@@ -123,6 +133,7 @@ export function useCategoryActions(kind: CategoryKind, onDeleted?: (id: string) 
         onClose={() => setAnchor(null)}
         accessibilityLabel={t('categoryManager.menu')}
         anchorRadius={radius.tile}
+        align={align}
         items={[
           { key: 'edit', icon: 'note', label: t('categoryManager.edit'), onPress: () => setEditing(true) },
           { key: 'delete', icon: 'trash', label: t('categoryManager.delete'), destructive: true, onPress: startDelete },
@@ -176,40 +187,45 @@ export function useCategoryActions(kind: CategoryKind, onDeleted?: (id: string) 
         onClose={() => setReassign(null)}
         accessibilityLabel={t('categoryManager.reassignTitle')}>
         <View style={{ gap: 12 }}>
-          <Text variant="titleSheet" accessibilityRole="header">
-            {t('categoryManager.reassignTitle')}
-          </Text>
-          <Text variant="body">{t('categoryManager.reassignIntro', { name })}</Text>
-          {reassign && (
-            <View style={{ gap: 4 }}>
-              {reassign.transactions > 0 && (
-                <Text variant="bodyStrong">{`• ${t('categoryManager.usageTransactions', { count: reassign.transactions })}`}</Text>
+          {/* Zone défilante : titre, contenu de la catégorie et choix. Elle est bornée à la hauteur de l'écran (moins les
+              zones système et la partie fixe du bas), donc les boutons restent TOUJOURS visibles, même avec 30 catégories de
+              remplacement, des noms très longs, le texte agrandi ou le russe. */}
+          <ScrollView style={{ maxHeight: scrollMax }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <View style={{ gap: 12 }}>
+              <Text variant="titleSheet" accessibilityRole="header">
+                {t('categoryManager.reassignTitle')}
+              </Text>
+              <Text variant="body">{t('categoryManager.reassignIntro', { name })}</Text>
+              {reassign && (
+                <View style={{ gap: 4 }}>
+                  {reassign.transactions > 0 && (
+                    <Text variant="bodyStrong">{`• ${t('categoryManager.usageTransactions', { count: reassign.transactions })}`}</Text>
+                  )}
+                  {reassign.budgets > 0 && (
+                    <Text variant="bodyStrong">{`• ${t('categoryManager.usageBudgets', { count: reassign.budgets })}`}</Text>
+                  )}
+                </View>
               )}
-              {reassign.budgets > 0 && (
-                <Text variant="bodyStrong">{`• ${t('categoryManager.usageBudgets', { count: reassign.budgets })}`}</Text>
+
+              {reassign && reassign.transactions > 0 && (
+                <>
+                  <Text variant="label">{t('categoryManager.reassignPick')}</Text>
+                  {candidates.length === 0 ? (
+                    <Text variant="secondary" tone="muted">
+                      {t('categoryManager.reassignNoTarget')}
+                    </Text>
+                  ) : (
+                    <ChoiceGroup<string>
+                      accessibilityLabel={t('categoryManager.reassignPick')}
+                      value={targetId ?? ''}
+                      onChange={setTargetId}
+                      options={candidates.map((other) => ({ value: other.id, label: categoryLabel(other, t) }))}
+                    />
+                  )}
+                </>
               )}
             </View>
-          )}
-
-          {reassign && reassign.transactions > 0 && (
-            <>
-              <Text variant="label">{t('categoryManager.reassignPick')}</Text>
-              {candidates.length === 0 ? (
-                <Text variant="secondary" tone="muted">
-                  {t('categoryManager.reassignNoTarget')}
-                </Text>
-              ) : (
-                <ScrollView style={{ maxHeight: 232 }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
-                  <ChoiceGroup<string>
-                    accessibilityLabel={t('categoryManager.reassignPick')}
-                    value={targetId ?? ''}
-                    onChange={setTargetId}
-                    options={candidates.map((other) => ({ value: other.id, label: categoryLabel(other, t) }))}
-                  />
-                </ScrollView>
-              )}
-            </>
-          )}
+          </ScrollView>
 
           {reassign && (chosen || reassign.transactions === 0) && (
             <View style={{ gap: 2 }} accessibilityLiveRegion="polite">

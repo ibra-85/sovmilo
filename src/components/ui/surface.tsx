@@ -41,7 +41,7 @@ export function Surface({ variant = 'card', radiusToken, style, ...rest }: Surfa
     variant === 'muted'
       ? { backgroundColor: colors.surfaceMuted }
       : variant === 'danger'
-        ? { backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.dangerLine }
+        ? { backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.dangerBorder }
         : { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.surfaceBorder };
 
   const base: ViewStyle = {

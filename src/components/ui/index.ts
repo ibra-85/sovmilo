@@ -1,6 +1,7 @@
 /** Bibliothèque interne de composants (design system « Precision Glass »). Point d'entrée unique pour les écrans. */
 export { AmountInput } from './amount-input';
-export { AmountText, type AmountSize, type AmountTextProps } from './amount-text';
+export { AmountText, type AmountTextProps } from './amount-text';
+export type { AmountSize } from '@/theme/amount-layout';
 export { BottomSheet } from './bottom-sheet';
 export { BudgetRow } from './budget-row';
 export { Button, type ButtonProps } from './button';
@@ -9,7 +10,7 @@ export { ChoiceGroup, type ChoiceOption } from './choice-group';
 export { CategoryTile } from './category-tile';
 export { ConfirmDialog } from './confirm-dialog';
 export { Divider } from './divider';
-export { MorphingPopover, useAnchorMeasure, usePopoverTrigger, type PopoverAnchor, type PopoverItem } from './morphing-popover';
+export { MorphingPopover, useAnchorMeasure, usePopoverTrigger, type PopoverAlign, type PopoverAnchor, type PopoverItem } from './morphing-popover';
 export { GlassOverlay, GlassSurface, useGlassLook, type GlassSurfaceProps } from './glass-surface';
 export { FieldGroup, FormRow, InfoRow, ServiceRow } from './field-group';
 export { AppScreen } from './app-screen';

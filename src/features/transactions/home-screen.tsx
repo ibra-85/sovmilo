@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 
 import { useTabContentStyle } from '@/components/navigation';
 import {
@@ -23,6 +23,8 @@ import { formatMonthLabel, formatMonthName, formatMonthShort } from '@/domain/da
 import { computeWeeklyExpenses, currentWeekIndex, weekRangeLabel } from '@/domain/weekly';
 import { BudgetCard } from '@/features/budgets/budget-card';
 import { useBudgetOverview } from '@/features/budgets/use-budget-overview';
+import { useContentWidth } from '@/hooks/use-content-width';
+import { layoutAmount } from '@/theme/amount-layout';
 import { setOperationsTypeFilter } from '@/hooks/use-operations-filter';
 import { useSelectedMonth } from '@/hooks/use-selected-month';
 import { useToday } from '@/hooks/use-today';
@@ -51,6 +53,7 @@ export function HomeScreen() {
   const today = useToday();
   const { month } = useSelectedMonth();
   const present = useTransactionPresenter();
+  const contentWidth = useContentWidth();
 
   const monthRows = useMonthTransactions(month);
   const operations = useMonthOperations(month);
@@ -96,6 +99,7 @@ export function HomeScreen() {
             cents={totals.remainingCents}
             size="home"
             signed
+            maxWidth={contentWidth}
             tone={totals.remainingCents < 0 ? 'danger' : 'default'}
           />
         </View>
@@ -205,10 +209,37 @@ interface SummaryCellProps {
 /**
  * Une moitié de la bande Revenus / Dépenses : pastille d'icône de 40 dp, légende, montant. Zone tactile pleine hauteur
  * de la carte (plus de 48 dp), retour visuel discret au toucher (fond « surfaceMuted »).
+ *
+ * Structure adaptative : la place à côté de l'icône est limitée (≈ 80 dp sur un écran de 360 dp). Si le montant n'y tient
+ * pas à 14 sp au moins, la cellule passe en pile — icône et légende en haut, montant dessous sur toute la largeur — au lieu
+ * de couper le montant ou d'envoyer le € à la ligne. La largeur de la cellule est mesurée (`onLayout`), pas supposée.
  */
 function SummaryCell({ icon, label, cents, signed = false, hint, onPress }: SummaryCellProps) {
   const { colors } = useTheme();
   const locale = useLocale();
+  const { fontScale, width: windowWidth } = useWindowDimensions();
+  // Avant la première mesure : moitié de la fenêtre moins les marges de l'écran.
+  const [cellWidth, setCellWidth] = useState((windowWidth - space.screen * 2) / 2);
+
+  const inner = cellWidth - CELL_PADDING * 2;
+  const beside = layoutAmount({ cents, locale, size: 'row', signed, maxWidth: inner - ICON - CELL_GAP, fontScale }).fit;
+  const stacked = !beside.fits;
+  const maxWidth = stacked ? inner : inner - ICON - CELL_GAP;
+
+  const iconView = (
+    <View
+      style={{
+        width: ICON,
+        height: ICON,
+        borderRadius: ICON / 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.surfaceMuted,
+      }}>
+      <Icon name={icon} size={18} />
+    </View>
+  );
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -216,33 +247,39 @@ function SummaryCell({ icon, label, cents, signed = false, hint, onPress }: Summ
       accessibilityHint={hint}
       pressTranslate={0}
       onPress={onPress}
+      onLayout={(event: LayoutChangeEvent) => setCellWidth(event.nativeEvent.layout.width)}
       style={({ pressed }) => ({
         flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
+        flexDirection: stacked ? 'column' : 'row',
+        alignItems: stacked ? 'flex-start' : 'center',
+        gap: stacked ? 8 : CELL_GAP,
         paddingVertical: 14,
-        paddingHorizontal: 14,
+        paddingHorizontal: CELL_PADDING,
         minHeight: sizes.minTouch,
         backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
       })}>
-      <View
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 20,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: colors.surfaceMuted,
-        }}>
-        <Icon name={icon} size={18} />
-      </View>
-      <View style={{ flexShrink: 1 }}>
-        <Text variant="caption" tone="muted" numberOfLines={1}>
-          {label}
-        </Text>
-        <AmountText cents={cents} size="row" signed={signed} />
+      {stacked ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: CELL_GAP, alignSelf: 'stretch' }}>
+          {iconView}
+          <Text variant="caption" tone="muted" numberOfLines={2} style={{ flex: 1 }}>
+            {label}
+          </Text>
+        </View>
+      ) : (
+        iconView
+      )}
+      <View style={{ flexShrink: 1, alignSelf: stacked ? 'stretch' : undefined }}>
+        {!stacked && (
+          <Text variant="caption" tone="muted" numberOfLines={1}>
+            {label}
+          </Text>
+        )}
+        <AmountText cents={cents} size="row" signed={signed} maxWidth={maxWidth} />
       </View>
     </Pressable>
   );
 }
+
+const ICON = 40;
+const CELL_GAP = 12;
+const CELL_PADDING = 14;

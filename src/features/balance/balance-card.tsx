@@ -5,6 +5,7 @@ import { View } from 'react-native';
 import { AmountText, Button, Divider, Surface, Text } from '@/components/ui';
 import { snapshotDay } from '@/domain/balance';
 import { formatLongDate } from '@/domain/dates';
+import { useContentWidth } from '@/hooks/use-content-width';
 import { useLocale } from '@/i18n/use-locale';
 
 import { useBalance } from './use-balance';
@@ -15,6 +16,8 @@ export function BalanceCard() {
   const locale = useLocale();
   const router = useRouter();
   const { snapshot, estimatedCents } = useBalance();
+  // Carte pleine largeur : la place d'un montant est l'écran moins ses marges et les 16 dp de chaque côté de la carte.
+  const amountWidth = useContentWidth() - 32 - 2;
 
   return (
     <View style={{ gap: 12 }}>
@@ -37,6 +40,7 @@ export function BalanceCard() {
               <AmountText
                 cents={snapshot.realBalanceCents}
                 size="summary"
+                maxWidth={amountWidth}
                 tone={snapshot.realBalanceCents < 0 ? 'danger' : 'default'}
               />
               <Text variant="caption" tone="muted">
@@ -51,7 +55,7 @@ export function BalanceCard() {
                   <Text variant="caption" tone="muted">
                     {t('balance.estimated')}
                   </Text>
-                  <AmountText cents={estimatedCents} size="total" tone={estimatedCents < 0 ? 'danger' : 'default'} />
+                  <AmountText cents={estimatedCents} size="total" maxWidth={amountWidth} tone={estimatedCents < 0 ? 'danger' : 'default'} />
                   <Text variant="caption" tone="muted">
                     {t('balance.estimatedHelp')}
                   </Text>

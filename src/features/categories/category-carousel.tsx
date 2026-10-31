@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
-import { CategoryTile, useAnchorMeasure, type PopoverAnchor } from '@/components/ui';
+import { CategoryTile, useAnchorMeasure, type PopoverAlign, type PopoverAnchor } from '@/components/ui';
 import type { Category } from '@/db/schema';
 import { isCustomCategory } from '@/domain/category-usage';
 import { space } from '@/theme/layout';
@@ -17,7 +17,7 @@ interface CategoryCarouselProps {
   /** Tuile « Créer » : toujours en tête. */
   onCreate: () => void;
   /** Appui long sur une catégorie PERSONNALISÉE : ouvre sa gestion (modifier, supprimer). */
-  onManage?: (category: Category, anchor: PopoverAnchor) => void;
+  onManage?: (category: Category, anchor: PopoverAnchor, align?: PopoverAlign) => void;
 }
 
 const FADE_WIDTH = 44;
@@ -74,7 +74,7 @@ interface ManageableTileProps {
   category: Category;
   selected: boolean;
   onSelect: (id: string) => void;
-  onManage?: (category: Category, anchor: PopoverAnchor) => void;
+  onManage?: (category: Category, anchor: PopoverAnchor, align?: PopoverAlign) => void;
 }
 
 /** Tuile de catégorie ; une catégorie personnalisée y gagne l'appui long (sa position est mesurée pour ancrer le menu). */
@@ -84,15 +84,14 @@ function ManageableTile({ category, selected, onSelect, onManage }: ManageableTi
   const manageable = onManage !== undefined && isCustomCategory(category);
 
   return (
-    <View ref={bind} collapsable={false}>
-      <CategoryTile
-        icon={category.icon}
-        label={categoryLabel(category, t)}
-        selected={selected}
-        onPress={() => onSelect(category.id)}
-        onLongPress={manageable ? () => measure((anchor) => onManage(category, anchor)) : undefined}
-        accessibilityHint={manageable ? t('categoryManager.longPressHint') : undefined}
-      />
-    </View>
+    <CategoryTile
+      icon={category.icon}
+      label={categoryLabel(category, t)}
+      selected={selected}
+      onPress={() => onSelect(category.id)}
+      onLongPress={manageable ? () => measure((anchor) => onManage(category, anchor, 'center')) : undefined}
+      accessibilityHint={manageable ? t('categoryManager.longPressHint') : undefined}
+      squareRef={bind}
+    />
   );
 }
