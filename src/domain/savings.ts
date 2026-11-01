@@ -257,6 +257,37 @@ export function moveItem<T>(items: readonly T[], from: number, to: number): T[] 
 }
 
 /**
+ * Nouvelle répartition des places quand l'élément `item` va à la place `toSlot` : `slots[i]` est la place actuelle de l'élément `i`.
+ * L'élément déplacé prend `toSlot` ; ceux qui se trouvaient entre sa place de départ et `toSlot` reculent ou avancent d'une place.
+ * Toujours une permutation : aucune place perdue ni dupliquée. Utilisée pendant le glissement, sans toucher à la base.
+ */
+export function shiftSlots(slots: readonly number[], item: number, toSlot: number): number[] {
+  'worklet';
+  const count = slots.length;
+  if (item < 0 || item >= count) return slots.slice();
+  const from = slots[item];
+  const to = Math.min(Math.max(toSlot, 0), count - 1);
+  const next: number[] = [];
+  for (let index = 0; index < count; index++) {
+    const slot = slots[index];
+    if (index === item) next.push(to);
+    else if (from < to && slot > from && slot <= to) next.push(slot - 1);
+    else if (from > to && slot >= to && slot < from) next.push(slot + 1);
+    else next.push(slot);
+  }
+  return next;
+}
+
+/** Identifiants dans l'ordre d'affichage, d'après les places : `ids[i]` occupe la place `slots[i]`. */
+export function slotsToOrder<T>(ids: readonly T[], slots: readonly number[]): T[] {
+  const order: T[] = new Array<T>(ids.length);
+  ids.forEach((id, index) => {
+    order[slots[index]] = id;
+  });
+  return order;
+}
+
+/**
  * Position visée quand on fait glisser la ligne `from` de `translationY` dp, les lignes ayant toutes la hauteur `rowHeight`.
  * La ligne change de place dès que son centre dépasse la moitié de la ligne voisine (arrondi au plus proche).
  */

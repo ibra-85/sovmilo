@@ -17,6 +17,8 @@ import {
   overallPercent,
   runningBalances,
   savedCents,
+  shiftSlots,
+  slotsToOrder,
   summarizeGoals,
   validateGoalName,
   validateMovementFields,
@@ -252,6 +254,39 @@ describe('ordre d\'affichage', () => {
     const from = 2;
     expect(dragTargetIndex(from, 80, 70, 5)).toBe(3);
     expect(dragTargetIndex(from, 5, 70, 5)).toBe(from);
+  });
+
+  it('décale les voisins quand une ligne descend', () => {
+    expect(shiftSlots([0, 1, 2, 3], 0, 2)).toEqual([2, 0, 1, 3]);
+    expect(slotsToOrder(['a', 'b', 'c', 'd'], shiftSlots([0, 1, 2, 3], 0, 2))).toEqual(['b', 'c', 'a', 'd']);
+  });
+
+  it('décale les voisins quand une ligne monte', () => {
+    expect(shiftSlots([0, 1, 2, 3], 3, 1)).toEqual([0, 2, 3, 1]);
+    expect(slotsToOrder(['a', 'b', 'c', 'd'], shiftSlots([0, 1, 2, 3], 3, 1))).toEqual(['a', 'd', 'b', 'c']);
+  });
+
+  it('reste une permutation après de nombreux déplacements successifs (aucune place perdue ni dupliquée)', () => {
+    let slots = [0, 1, 2, 3, 4, 5];
+    const moves: [number, number][] = [[0, 5], [3, 0], [5, 2], [1, 1], [4, 99], [2, -3], [0, 3]];
+    for (const [item, to] of moves) {
+      slots = shiftSlots(slots, item, to);
+      expect([...slots].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5]);
+    }
+  });
+
+  it('glisser vers une place puis revenir à la place de départ rend l’ordre d’origine (abandon)', () => {
+    const start = [0, 1, 2, 3];
+    const away = shiftSlots(start, 1, 3);
+    expect(away).not.toEqual(start);
+    expect(shiftSlots(away, 1, 1)).toEqual(start);
+  });
+
+  it('élément ou place hors limites : places bornées, élément inconnu ignoré', () => {
+    expect(shiftSlots([0, 1, 2], 0, 99)).toEqual([2, 0, 1]);
+    expect(shiftSlots([0, 1, 2], 2, -5)).toEqual([1, 2, 0]);
+    expect(shiftSlots([0, 1, 2], 7, 1)).toEqual([0, 1, 2]);
+    expect(shiftSlots([], 0, 0)).toEqual([]);
   });
 
   it('entrées dégénérées : hauteur nulle ou liste vide gardent la position', () => {

@@ -21,14 +21,11 @@ import { useTheme } from '@/theme/use-theme';
 
 import { GlassOverlay, useGlassLook } from './glass-surface';
 import { Pressable } from './pressable';
+import { sheetDragOffset, sheetShouldDismiss } from './sheet-dismiss';
 
 /** Marge du panneau détaché quand le clavier est ouvert (design : 10 dp, quatre coins arrondis). */
 const FLOATING_MARGIN = 10;
 const HANDLE_ZONE = 28;
-/** Au-dessus de ce glissement vers le bas (px/s), le panneau se ferme même s'il n'a pas parcouru 30 % de sa hauteur. */
-const DISMISS_VELOCITY = 900;
-/** Résistance quand on tire vers le haut : le panneau suit à 12 %. */
-const UPWARD_RESISTANCE = 0.12;
 
 interface BottomSheetProps {
   visible: boolean;
@@ -118,11 +115,10 @@ export function BottomSheet({ visible, onClose, children, accessibilityLabel, di
   const pan = Gesture.Pan()
     .enabled(dismissible)
     .onUpdate((event) => {
-      drag.set(event.translationY >= 0 ? event.translationY : event.translationY * UPWARD_RESISTANCE);
+      drag.set(sheetDragOffset(event.translationY));
     })
     .onEnd((event) => {
-      const farEnough = drag.get() > height.get() * motionDistances.sheetDismissRatio;
-      if (farEnough || event.velocityY > DISMISS_VELOCITY) {
+      if (sheetShouldDismiss(drag.get(), event.velocityY, height.get(), motionDistances.sheetDismissRatio)) {
         scheduleOnRN(onClose);
       } else {
         // Relâché trop tôt : le panneau revient avec la vitesse du geste (ressort, sans rebond).

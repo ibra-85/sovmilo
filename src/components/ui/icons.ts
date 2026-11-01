@@ -27,6 +27,7 @@ import House04Icon from '@hugeicons/core-free-icons/House04Icon';
 import Invoice01Icon from '@hugeicons/core-free-icons/Invoice01Icon';
 import KeyboardIcon from '@hugeicons/core-free-icons/KeyboardIcon';
 import Loading03Icon from '@hugeicons/core-free-icons/Loading03Icon';
+import Menu01Icon from '@hugeicons/core-free-icons/Menu01Icon';
 import MoreHorizontalIcon from '@hugeicons/core-free-icons/MoreHorizontalIcon';
 import PawPrintIcon from '@hugeicons/core-free-icons/PawPrintIcon';
 import PencilEdit01Icon from '@hugeicons/core-free-icons/PencilEdit01Icon';
@@ -77,6 +78,7 @@ const interfaceIcons = {
   note: PencilEdit01Icon,
   search: Search01Icon,
   more: MoreHorizontalIcon,
+  grip: Menu01Icon, // poignée de réorganisation (trois traits)
   keyboard: KeyboardIcon,
   calendar: Calendar03Icon,
 

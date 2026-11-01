@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, View, useWindowDimensions } from 'react-native';
 
-import { AmountText, AppScreen, Button, Divider, EmptyState, Icon, Pressable, ProgressBar, ScreenHeader, Surface, Text, useToast } from '@/components/ui';
+import { AmountText, AppScreen, Button, Divider, EmptyState, Icon, IconButton, Pressable, ProgressBar, ScreenHeader, Surface, Text, useToast } from '@/components/ui';
 import { formatMoney } from '@/domain/money';
 import { overallPercent } from '@/domain/savings';
 import { useToday } from '@/hooks/use-today';
@@ -14,7 +14,8 @@ import { useTheme } from '@/theme/use-theme';
 import { GoalRowView } from './goal-row';
 import { GoalSheet } from './goal-sheet';
 import { MovementSheet, type MovementSaved } from './movement-sheet';
-import { cancelMovement } from './repository';
+import { ReorderList } from './reorder-list';
+import { cancelMovement, reorderGoals } from './repository';
 import { useActiveGoals, useArchivedGoals, type GoalRow } from './use-savings';
 
 /** Une notification qui propose « Annuler » doit rester assez longtemps pour qu'on ait le temps de la lire et de la toucher. */
@@ -38,6 +39,7 @@ export function SavingsScreen() {
 
   const [creating, setCreating] = useState(false);
   const [adding, setAdding] = useState<GoalRow | null>(null);
+  const [reordering, setReordering] = useState(false);
 
   const close = useCallback(() => {
     if (router.canGoBack()) router.back();
@@ -64,13 +66,34 @@ export function SavingsScreen() {
     });
   }
 
+  // Appelée une fois par déplacement terminé (relâchement ou flèche), jamais pendant le glissement.
+  const saveOrder = useCallback(
+    (orderedIds: string[]) => {
+      try {
+        reorderGoals(orderedIds);
+      } catch {
+        toast.show({ message: t('savings.reorder.failed') });
+      }
+    },
+    [toast, t],
+  );
+
   const percent = useMemo(() => overallPercent(goals), [goals]);
   const hasGoals = goals.length > 0;
   const contentWidth = window.width - 2 * space.screen;
 
   return (
     <AppScreen bottomInset>
-      <ScreenHeader title={t('savings.title')} onBack={close} backLabel={t('common.back')} />
+      <ScreenHeader
+        title={t('savings.title')}
+        onBack={close}
+        backLabel={t('common.back')}
+        trailing={
+          goals.length >= 2 && !reordering ? (
+            <IconButton icon="grip" label={t('savings.reorder.start')} onPress={() => setReordering(true)} />
+          ) : undefined
+        }
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -82,7 +105,16 @@ export function SavingsScreen() {
           </View>
         ) : null}
 
-        {hasGoals ? (
+        {hasGoals && reordering ? (
+          <>
+            <Text variant="secondary" tone="muted">
+              {t('savings.reorder.help')}
+            </Text>
+            <ReorderList goals={goals} onCommit={saveOrder} />
+          </>
+        ) : null}
+
+        {hasGoals && !reordering ? (
           <>
             <Surface radiusToken="group" style={{ padding: 16, gap: 6 }}>
               <Text variant="caption" tone="muted">
@@ -121,7 +153,7 @@ export function SavingsScreen() {
           </>
         ) : null}
 
-        {archived.goals.length > 0 ? (
+        {archived.goals.length > 0 && !reordering ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('savings.archivesLink', { count: archived.goals.length })}
@@ -135,27 +167,33 @@ export function SavingsScreen() {
           </Pressable>
         ) : null}
 
-        <View style={{ gap: 4 }}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('savings.transferLink')}
-            accessibilityHint={t('savings.transferHelp')}
-            pressTranslate={0}
-            onPress={() => router.push({ pathname: '/add', params: { type: 'transfer' } })}
-            style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text variant="bodyStrong" tone="muted" style={{ flex: 1 }}>
-              {t('savings.transferLink')}
+        {!reordering ? (
+          <View style={{ gap: 4 }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('savings.transferLink')}
+              accessibilityHint={t('savings.transferHelp')}
+              pressTranslate={0}
+              onPress={() => router.push({ pathname: '/add', params: { type: 'transfer' } })}
+              style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text variant="bodyStrong" tone="muted" style={{ flex: 1 }}>
+                {t('savings.transferLink')}
+              </Text>
+              <Icon name="chevronRight" size={18} color={colors.textMuted} />
+            </Pressable>
+            <Text variant="caption" tone="muted">
+              {t('savings.transferHelp')}
             </Text>
-            <Icon name="chevronRight" size={18} color={colors.textMuted} />
-          </Pressable>
-          <Text variant="caption" tone="muted">
-            {t('savings.transferHelp')}
-          </Text>
-        </View>
+          </View>
+        ) : null}
       </ScrollView>
 
       <View style={{ paddingHorizontal: space.screen, paddingTop: 12, paddingBottom: 12 }}>
-        <Button label={t('savings.create')} icon="createPlus" onPress={() => setCreating(true)} />
+        {reordering ? (
+          <Button label={t('savings.reorder.done')} icon="check" onPress={() => setReordering(false)} />
+        ) : (
+          <Button label={t('savings.create')} icon="createPlus" onPress={() => setCreating(true)} />
+        )}
       </View>
 
       <GoalSheet
