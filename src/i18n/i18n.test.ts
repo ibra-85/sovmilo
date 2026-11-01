@@ -71,3 +71,28 @@ describe('complétude des traductions', () => {
     }
   });
 });
+
+describe('menu d’une catégorie personnalisée : libellés courts, noms d’accessibilité explicites', () => {
+  const fr = createI18n('fr');
+  const ru = createI18n('ru');
+
+  it('affiche « Modifier » et « Supprimer » (français et russe)', () => {
+    expect(fr.t('categoryManager.edit')).toBe('Modifier');
+    expect(fr.t('categoryManager.delete')).toBe('Supprimer');
+    expect(ru.t('categoryManager.edit')).toBe('Изменить');
+    expect(ru.t('categoryManager.delete')).toBe('Удалить');
+  });
+
+  it('garde le nom de la catégorie dans le libellé lu par TalkBack', () => {
+    expect(fr.t('categoryManager.deleteA11y', { name: 'Test' })).toBe('Supprimer la catégorie Test');
+    expect(fr.t('categoryManager.editA11y', { name: 'Test' })).toBe('Modifier la catégorie Test');
+    expect(ru.t('categoryManager.deleteA11y', { name: 'Тест' })).toBe('Удалить категорию Тест');
+    expect(ru.t('categoryManager.editA11y', { name: 'Тест' })).toBe('Изменить категорию Тест');
+  });
+
+  it('ne change pas le menu d’une opération', () => {
+    expect(fr.t('detail.edit')).toBe('Modifier l’opération');
+    expect(fr.t('detail.delete')).toBe('Supprimer l’opération');
+    expect(ru.t('detail.delete')).toBe('Удалить операцию');
+  });
+});

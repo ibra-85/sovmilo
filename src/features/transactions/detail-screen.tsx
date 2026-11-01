@@ -51,7 +51,7 @@ export function TransactionDetailScreen() {
   const { transaction, loaded } = useTransaction(id);
   const present = useTransactionPresenter();
   const categoryById = useCategoryMap();
-  const { bindTrigger, anchor: menuAnchor, open: openMenu, close: closeMenu, isOpen: menuOpen } = usePopoverTrigger();
+  const { bindTrigger, anchor: menuAnchor, open: openMenu, close: closeMenu, reopen: reopenMenu, isOpen: menuOpen } = usePopoverTrigger();
   const [confirming, setConfirming] = useState(false);
   const [leaving, setLeaving] = useState(false);
 
@@ -175,7 +175,9 @@ export function TransactionDetailScreen() {
       <MorphingPopover
         anchor={menuAnchor}
         onClose={closeMenu}
+        onReopen={reopenMenu}
         anchorRadius={radius.iconButton}
+        triggerContent={<Icon name="more" size={22} color={colors.ink} />}
         accessibilityLabel={t('detail.menu')}
         items={[
           {

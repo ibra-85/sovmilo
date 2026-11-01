@@ -26,7 +26,7 @@ export function PeriodSelector() {
   const locale = useLocale();
   const { colors, shadows } = useTheme();
   const { month, currentMonth, setMonth } = useSelectedMonth();
-  const { bindTrigger, anchor: menuAnchor, open: openMenu, close: closeMenu, isOpen: menuOpen } = usePopoverTrigger();
+  const { bindTrigger, anchor: menuAnchor, open: openMenu, close: closeMenu, reopen: reopenMenu, isOpen: menuOpen } = usePopoverTrigger();
 
   const choices = useMemo(() => {
     const months = recentMonths(currentMonth, MONTH_CHOICES);
@@ -34,6 +34,17 @@ export function PeriodSelector() {
   }, [currentMonth, month]);
 
   const label = formatMonthLabel(month, locale);
+
+  // Contenu de la pastille, partagé avec le popover : il s'y efface à l'identique pendant que le menu apparaît.
+  const pillContent = (
+    <>
+      <Icon name="calendar" size={18} />
+      <Text variant="secondary" numberOfLines={1}>
+        {label}
+      </Text>
+      <Icon name="chevronDown" size={16} color={colors.textMuted} />
+    </>
+  );
 
   return (
     <>
@@ -57,18 +68,16 @@ export function PeriodSelector() {
             borderColor: colors.surfaceBorder,
             boxShadow: shadows.tile,
           })}>
-          <Icon name="calendar" size={18} />
-          <Text variant="secondary" numberOfLines={1}>
-            {label}
-          </Text>
-          <Icon name="chevronDown" size={16} color={colors.textMuted} />
+          {pillContent}
         </Pressable>
       </View>
 
       <MorphingPopover
         anchor={menuAnchor}
         onClose={closeMenu}
+        onReopen={reopenMenu}
         accessibilityLabel={t('period.menu')}
+        triggerContent={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>{pillContent}</View>}
         items={choices.map((choice) => ({
           key: choice,
           label: formatMonthLabel(choice, locale),
