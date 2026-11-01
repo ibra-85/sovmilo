@@ -32,7 +32,7 @@ Toujours installer les dépendances avec `npx expo install` pour avoir des versi
 6. Avancer par petites étapes vérifiables, chacune terminée par : ce qui a été fait, comment le tester, ce qui reste.
 7. Ne pas écraser du code existant sans expliquer la modification.
 8. Aucun texte affiché en dur : tout passe par les fichiers de traduction `fr` et `ru`.
-9. Pas d'API dépréciée.
+9. Pas d'API dépréciée. En particulier, **ne jamais utiliser `ImageBackground`** (déprécié) : `View` + `Image` en position absolue. L'avertissement venait de NativeWind, contourné dans `metro.config.js` ; voir `docs/design-deviations.md` § « 5 ter ».
 
 ## 4. Règles métier
 
@@ -67,7 +67,9 @@ Synchronisation (étape ultérieure) : la base locale reste la source de vérit�
 
 ## 7. UX
 
-- Navigation par onglets : **Accueil**, **Historique**, **Budget**, **Plus**.
+> **Mise à jour (design handoff, 31 octobre 2026)** : le design « Precision Glass » du dossier `design/` (docs `DESIGN.md`, `COMPONENTS.md`, `MOTION.md`, `INTERACTIONS.md`, `OPEN_DECISIONS.md` + maquettes) est la **source de vérité visuelle**. Il remplace ce qui suit sur les couleurs (graphite / citron au lieu de crème / sauge), la navigation (**Accueil, Opérations, Budgets, Services**, barre flottante + bouton +) et les composants. Les jetons vivent dans `src/theme/`, les composants dans `src/components/ui/` ; les écrans de l'étape 2a seront refaits dans ce design par lots. Les règles de lisibilité ci-dessous (texte ≥ 16 sp pour le corps, zones tactiles ≥ 48–56 dp, confirmation avant suppression) restent valables.
+
+- Navigation par onglets (ancienne version, remplacée par le design) : **Accueil**, **Historique**, **Budget**, **Plus**.
 - Accueil : reste à dépenser du mois en très gros, gros bouton **➕ Ajouter**, répartition par catégorie, 5 dernières opérations.
 - Ajout d'une dépense : pavé numérique géant, puis grille de grosses icônes de catégories, puis ✓. Date du jour et paiement par carte par défaut, modifiables.
 - Texte ≥ 16 sp, zones tactiles ≥ 56 dp, confirmation avant suppression avec possibilité d'annuler.

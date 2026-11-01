@@ -1,0 +1,71 @@
+import { useEffect } from 'react';
+import Animated, {
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+
+import { GlassOverlay, Icon, Pressable } from '@/components/ui';
+import { withAlpha } from '@/theme/color-utils';
+import { useMotion } from '@/hooks/use-motion';
+import { radius, sizes } from '@/theme/layout';
+import { motionDistances } from '@/theme/motion';
+import { useTheme } from '@/theme/use-theme';
+
+interface ExpandableActionButtonProps {
+  open: boolean;
+  onPress: () => void;
+  /** « Actions rapides » / « Fermer les actions rapides » (design : libellé + état déplié pour TalkBack). */
+  label: string;
+}
+
+/**
+ * Bouton + circulaire (60 dp). Ouvert : l'icône pivote de 45° (le + devient ×) et le contour passe au citron
+ * renforcé, en 200 ms, en même temps. Pressé : enfoncement de 1 dp et matière « pressée ».
+ */
+export function ExpandableActionButton({ open, onPress, label }: ExpandableActionButtonProps) {
+  const { colors, shadows } = useTheme();
+  const { spring } = useMotion();
+
+  const progress = useSharedValue(open ? 1 : 0);
+  useEffect(() => {
+    progress.value = withSpring(open ? 1 : 0, spring('fabRotate'));
+  }, [open, progress, spring]);
+
+  const rotation = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${progress.value * motionDistances.fabRotateDegrees}deg` }],
+  }));
+  const ring = useAnimatedStyle(() => ({
+    borderColor: interpolateColor(progress.value, [0, 1], [colors.fabBorder, colors.fabBorderOpen]),
+  }));
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ expanded: open }}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        width: sizes.fabSize,
+        height: sizes.fabSize,
+        borderRadius: radius.full,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: pressed ? colors.fabPressed : withAlpha(colors.fab, 0.96),
+        boxShadow: pressed ? shadows.fabPressed : shadows.fab,
+      })}>
+      <GlassOverlay variant="fab" radius={sizes.fabSize / 2} />
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: radius.full, borderWidth: 1.5 },
+          ring,
+        ]}
+      />
+      <Animated.View pointerEvents="none" style={rotation}>
+        <Icon name="plus" size={26} color={colors.fabIcon} weight="strong" />
+      </Animated.View>
+    </Pressable>
+  );
+}

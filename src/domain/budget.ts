@@ -34,10 +34,17 @@ export interface BudgetRow {
   deleted: boolean;
 }
 
-/** Au-delà de ce pourcentage du plafond, on prévient (puis on alerte au-delà de 100 %). */
+/**
+ * Au-delà de ce pourcentage du plafond, on prévient (« presque atteint »).
+ * SEUIL PROVISOIRE, à confirmer par le propriétaire (le design propose 75 %) : il n'est utilisé qu'ici.
+ */
 export const BUDGET_WARNING_PERCENT = 80;
 
-export type BudgetStatus = 'ok' | 'warning' | 'over';
+/**
+ * `ok` : dans la limite. `warning` : proche de la limite (au-delà du seuil de préalerte). `reached` : limite atteinte
+ * exactement, ni « presque » ni dépassée. `over` : dépassé.
+ */
+export type BudgetStatus = 'ok' | 'warning' | 'reached' | 'over';
 
 export interface CategoryBudgetProgress {
   categoryId: string;
@@ -99,11 +106,12 @@ export function computeCategorySpending(
 }
 
 /**
- * `warning` au-delà de 80 % du plafond, `over` au-delà de 100 %. Pile 100 % reste `warning` : le plafond est atteint, pas dépassé.
+ * `warning` au-delà du seuil de préalerte (80 %), `reached` quand le plafond est atteint EXACTEMENT, `over` au-delà.
  * Calcul en entiers (pas de pourcentage décimal) pour que 80,00 % pile ne bascule jamais à cause d'un arrondi.
  */
 export function budgetStatus(spentCents: number, limitCents: number): BudgetStatus {
   if (spentCents > limitCents) return 'over';
+  if (spentCents === limitCents) return 'reached';
   if (spentCents * 100 > limitCents * BUDGET_WARNING_PERCENT) return 'warning';
   return 'ok';
 }
@@ -165,5 +173,47 @@ export function computeMonthTotals(transactions: readonly TransactionLike[], mon
     savingsCents,
     remainingCents: incomeCents - expenseCents - savingsCents,
     operationCount,
+  };
+}
+
+/** Un budget avec plafond (les catégories sans plafond n'ont pas de budget). */
+export type LimitedBudgetProgress = CategoryBudgetProgress & { limitCents: number; remainingCents: number; percent: number; status: BudgetStatus };
+
+export function hasLimit(progress: CategoryBudgetProgress): progress is LimitedBudgetProgress {
+  return progress.limitCents !== null;
+}
+
+const STATUS_RANK: Record<BudgetStatus, number> = { over: 0, reached: 1, warning: 2, ok: 3 };
+
+/** Ordre d'urgence : dépassés, puis limites atteintes, puis presque atteints, puis les autres ; à état égal, le plus consommé d'abord. */
+export function compareByUrgency(a: LimitedBudgetProgress, b: LimitedBudgetProgress): number {
+  return STATUS_RANK[a.status] - STATUS_RANK[b.status] || b.percent - a.percent;
+}
+
+export interface BudgetSummary {
+  count: number;
+  /** Somme des plafonds. */
+  limitCents: number;
+  /** Somme des dépenses des seules catégories budgétées. */
+  spentCents: number;
+  /** Plafonds − dépenses (négatif si le total est dépassé). */
+  remainingCents: number;
+  /** Part consommée du total, en %, arrondie vers le bas ; 0 sans budget. */
+  percent: number;
+}
+
+/**
+ * Résumé « Reste sur vos budgets » : somme des budgets par catégorie. Il ne couvre pas forcément toutes les dépenses du mois
+ * (une catégorie sans budget n'y entre pas) : c'est la règle proposée par le design (OPEN_DECISIONS §1).
+ */
+export function summarizeBudgets(budgets: readonly LimitedBudgetProgress[]): BudgetSummary {
+  const limitCents = budgets.reduce((sum, b) => sum + b.limitCents, 0);
+  const spentCents = budgets.reduce((sum, b) => sum + b.spentCents, 0);
+  return {
+    count: budgets.length,
+    limitCents,
+    spentCents,
+    remainingCents: limitCents - spentCents,
+    percent: limitCents > 0 ? Math.floor((spentCents * 100) / limitCents) : 0,
   };
 }

@@ -1,4 +1,4 @@
-import { and, desc, isNull, like } from 'drizzle-orm';
+import { and, desc, eq, isNull, like } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 
 import { db } from '@/db/client';
@@ -36,6 +36,19 @@ export function useRecentTransactions(limit: number): Transaction[] {
   return data;
 }
 
+/** Les opérations d'un mois (`YYYY-MM`), de la plus récente à la plus ancienne. */
+export function useMonthOperations(month: string): Transaction[] {
+  const { data } = useLiveQuery(
+    db
+      .select()
+      .from(transactions)
+      .where(and(isNull(transactions.deletedAt), like(transactions.occurredOn, `${month}-%`)))
+      .orderBy(desc(transactions.occurredOn), desc(transactions.createdAt)),
+    [month],
+  );
+  return data;
+}
+
 /** Toutes les opérations non supprimées, de la plus récente à la plus ancienne. Le tri et les filtres se font ensuite en mémoire. */
 export function useAllTransactions(): Transaction[] {
   const { data } = useLiveQuery(
@@ -46,4 +59,20 @@ export function useAllTransactions(): Transaction[] {
       .orderBy(desc(transactions.occurredOn), desc(transactions.createdAt)),
   );
   return data;
+}
+
+/**
+ * Une opération par son identifiant (non supprimée), suivie en direct : le détail se met à jour après une modification.
+ * `loaded` reste faux jusqu'à la première réponse de la base, pour ne pas afficher « introuvable » pendant le chargement.
+ */
+export function useTransaction(id: string): { transaction: Transaction | undefined; loaded: boolean } {
+  const { data, updatedAt } = useLiveQuery(
+    db
+      .select()
+      .from(transactions)
+      .where(and(eq(transactions.id, id), isNull(transactions.deletedAt)))
+      .limit(1),
+    [id],
+  );
+  return { transaction: data[0], loaded: updatedAt !== undefined };
 }

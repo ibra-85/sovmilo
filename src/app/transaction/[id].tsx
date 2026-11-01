@@ -1,1 +1,1 @@
-export { EditScreen as default } from '@/features/transactions/edit-screen';
+export { TransactionDetailScreen as default } from '@/features/transactions/detail-screen';

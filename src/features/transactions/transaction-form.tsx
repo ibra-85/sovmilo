@@ -1,28 +1,29 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, View } from 'react-native';
 
-import { BigButton } from '@/components/big-button';
-import { Chip } from '@/components/chip';
-import { Keypad } from '@/components/keypad';
-import { OutlineButton } from '@/components/outline-button';
-import { Screen } from '@/components/screen';
 import {
-  applyKeypadKey,
-  centsToInputString,
-  formatKeypadValue,
-  getCurrencySymbol,
-  keypadValueToCents,
-  type KeypadKey,
-} from '@/domain/money';
-import { PAYMENT_METHODS, type CategoryKind, type PaymentMethod, type TransactionType } from '@/domain/types';
-import { CategoryGrid } from '@/features/categories/category-grid';
+  AmountInput,
+  AppScreen,
+  BottomSheet,
+  Button,
+  FieldGroup,
+  FormRow,
+  ScreenHeader,
+  Text,
+  TextField,
+  useToast,
+} from '@/components/ui';
+import { centsToInputString, keypadValueToCents } from '@/domain/money';
+import type { CategoryKind, PaymentMethod, TransactionType } from '@/domain/types';
+import { CategoryCarousel } from '@/features/categories/category-carousel';
+import { useCategoryActions } from '@/features/categories/category-actions';
+import { NewCategorySheet } from '@/features/categories/new-category-sheet';
 import { useCategories } from '@/features/categories/use-categories';
 import { useToday } from '@/hooks/use-today';
-import { useLocale } from '@/i18n/use-locale';
-import { useThemeColors } from '@/theme/colors';
+import { space } from '@/theme/layout';
 
-import { DateField } from './date-field';
+import { DateRow } from './date-row';
 
 export interface TransactionFormValues {
   type: TransactionType;
@@ -34,57 +35,62 @@ export interface TransactionFormValues {
 }
 
 interface TransactionFormProps {
-  title: string;
-  /** Valeurs d'une opération existante (modification). Sans elles : nouvelle opération, détails repliés. */
+  /** Valeurs d'une opération existante (modification) : le type ne change plus. */
   initial?: TransactionFormValues;
-  /** Type présélectionné pour une nouvelle opération. */
-  initialType?: TransactionType;
+  /** Type d'une nouvelle opération (décidé par le point d'entrée : menu +, bouton « Mettre de côté »). */
+  type?: TransactionType;
   /** Enregistre. Peut lever une erreur : le formulaire reste alors ouvert et affiche un message. */
   onSubmit: (values: TransactionFormValues) => void;
   onClose: () => void;
-  /** Si fourni, un bouton « Supprimer » apparaît en bas du formulaire. */
-  onDelete?: () => void;
 }
 
-const TYPES: TransactionType[] = ['expense', 'income', 'transfer'];
+const MAX_NOTE_LENGTH = 200;
 
 /**
- * Formulaire commun à l'ajout et à la modification d'une opération.
- * Parcours rapide : montant au pavé → catégorie → ✓. La date (aujourd'hui), le paiement (carte) et la note
- * ont des valeurs par défaut et se règlent dans « Date, paiement, note », replié à l'ajout et ouvert à la modification.
+ * Formulaire commun à l'ajout et à la modification (design/screens/03-add-expense) : montant en grand, carrousel de
+ * catégories (« Créer » en tête), lignes Date et Note, puis le bouton principal en bas. Un seul écran, sans étapes :
+ * le clavier numérique s'ouvre en touchant le montant.
+ *
+ * Le type (dépense, revenu, épargne) n'est pas un choix du formulaire : il vient du point d'entrée, comme dans le design.
+ * Le moyen de paiement n'est plus proposé (le design n'a pas ce champ) : « carte » par défaut, la valeur d'une opération
+ * existante est conservée à la modification. Voir docs/design-deviations.md.
  */
-export function TransactionForm({ title, initial, initialType = 'expense', onSubmit, onClose, onDelete }: TransactionFormProps) {
+export function TransactionForm({ initial, type: newType = 'expense', onSubmit, onClose }: TransactionFormProps) {
   const { t } = useTranslation();
-  const locale = useLocale();
-  const colors = useThemeColors();
+  const toast = useToast();
   const today = useToday();
 
-  const [type, setType] = useState<TransactionType>(initial?.type ?? initialType);
+  const type = initial?.type ?? newType;
+  const editing = initial !== undefined;
+  const isSavings = type === 'transfer';
+
   const [value, setValue] = useState(initial ? centsToInputString(initial.amountCents, '.') : '');
   const [categoryId, setCategoryId] = useState<string | null>(initial?.categoryId ?? null);
   const [occurredOn, setOccurredOn] = useState(initial?.occurredOn ?? today);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(initial?.paymentMethod ?? 'card');
   const [note, setNote] = useState(initial?.note ?? '');
-  const [detailsOpen, setDetailsOpen] = useState(initial !== undefined);
+  const [noteDraft, setNoteDraft] = useState(note);
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [categorySheetOpen, setCategorySheetOpen] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const saving = useRef(false); // évite le double enregistrement si l'on appuie deux fois très vite
 
   const categoryKind: CategoryKind = type === 'income' ? 'income' : 'expense';
   const categories = useCategories(categoryKind);
+  // Une catégorie supprimée depuis le carrousel ne reste pas sélectionnée.
+  const categoryActions = useCategoryActions(categoryKind, (id) => setCategoryId((current) => (current === id ? null : current)));
   const cents = keypadValueToCents(value);
-  const isSavings = type === 'transfer';
   const canSave = cents > 0 && (isSavings || categoryId !== null);
 
-  function changeType(next: TransactionType) {
-    if (next === type) return;
-    setType(next);
-    setCategoryId(null); // les catégories de revenus et de dépenses sont différentes, et l'épargne n'en a pas
-  }
-
-  function pressKey(key: KeypadKey) {
-    setSaveFailed(false);
-    setValue((current) => applyKeypadKey(current, key));
-  }
+  const titleKey = type === 'income' ? 'add.titleIncome' : isSavings ? 'add.titleSavings' : 'add.titleExpense';
+  const amountKey = type === 'income' ? 'add.amountIncome' : isSavings ? 'add.amountSavings' : 'add.amountExpense';
+  const saveKey = editing
+    ? 'add.saveChanges'
+    : type === 'income'
+      ? 'add.saveIncome'
+      : isSavings
+        ? 'add.saveSavings'
+        : 'add.saveExpense';
+  const title = editing ? t('edit.title') : t(titleKey);
 
   function save() {
     if (!canSave || saving.current) return;
@@ -95,7 +101,7 @@ export function TransactionForm({ title, initial, initialType = 'expense', onSub
         amountCents: cents,
         categoryId: isSavings ? null : categoryId,
         occurredOn,
-        paymentMethod: isSavings ? 'transfer' : paymentMethod,
+        paymentMethod: isSavings ? 'transfer' : (initial?.paymentMethod ?? 'card'),
         note,
       });
     } catch {
@@ -104,123 +110,106 @@ export function TransactionForm({ title, initial, initialType = 'expense', onSub
     }
   }
 
-  const typeLabel = (option: TransactionType) =>
-    option === 'expense' ? t('add.typeExpense') : option === 'income' ? t('add.typeIncome') : t('add.typeSavings');
+  function openNote() {
+    setNoteDraft(note);
+    setNoteOpen(true);
+  }
+
+  function validateNote() {
+    setNote(noteDraft.trim());
+    setNoteOpen(false);
+  }
 
   return (
-    <Screen bottomInset>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
-        <View className="flex-row items-center justify-between pl-4">
-          <Text accessibilityRole="header" className="text-xl font-bold text-ink">
-            {title}
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('add.close')}
-            onPress={onClose}
-            className="h-14 w-14 items-center justify-center active:opacity-60">
-            <Text className="text-2xl text-muted">✕</Text>
-          </Pressable>
-        </View>
+    <AppScreen bottomInset>
+      <ScreenHeader title={title} onBack={onClose} backLabel={t('add.close')} />
 
-        {/* Zone fixe : type d'opération et montant restent visibles quand on fait défiler la suite */}
-        <View className="gap-3 px-4 pb-3">
-          <View accessibilityRole="radiogroup" className="flex-row gap-2">
-            {TYPES.map((option) => (
-              <Chip grow key={option} label={typeLabel(option)} selected={option === type} onPress={() => changeType(option)} />
-            ))}
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingTop: 36, paddingBottom: 24 }}>
+          <View style={{ paddingHorizontal: space.screen }}>
+            <AmountInput
+              label={t(amountKey)}
+              value={value}
+              onChangeValue={(next) => {
+                setSaveFailed(false);
+                setValue(next);
+              }}
+              autoFocus={!editing}
+            />
           </View>
-
-          <View accessible accessibilityLabel={`${t('add.amount')} ${formatKeypadValue(value, locale)} ${getCurrencySymbol(locale)}`}>
-            <Text
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              className={`text-center text-6xl font-bold ${type === 'income' ? 'text-sage' : 'text-ink'}`}>
-              {formatKeypadValue(value, locale)} {getCurrencySymbol(locale)}
-            </Text>
-          </View>
-        </View>
-
-        <ScrollView contentContainerClassName="gap-5 px-4 pb-4" keyboardShouldPersistTaps="handled">
-          <Keypad onKey={pressKey} />
 
           {!isSavings && (
-            <View className="gap-2">
-              <Text accessibilityRole="header" className="text-xl font-bold text-ink">
+            <View style={{ marginTop: 40, gap: space.sectionTitle }}>
+              <Text variant="titleSection" accessibilityRole="header" style={{ paddingHorizontal: space.screen }}>
                 {t('add.category')}
               </Text>
-              <CategoryGrid categories={categories} selectedId={categoryId} onSelect={setCategoryId} />
+              <CategoryCarousel
+                categories={categories}
+                selectedId={categoryId}
+                onSelect={setCategoryId}
+                onCreate={() => setCategorySheetOpen(true)}
+                onManage={categoryActions.open}
+              />
             </View>
           )}
 
-          <View className="gap-3">
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ expanded: detailsOpen }}
-              onPress={() => setDetailsOpen((open) => !open)}
-              className="min-h-[56px] flex-row items-center justify-between rounded-2xl border border-line bg-surface px-4 active:opacity-70">
-              <Text className="text-lg font-semibold text-ink">{t('add.details')}</Text>
-              <Text className="text-xl text-muted">{detailsOpen ? '▲' : '▼'}</Text>
-            </Pressable>
-
-            {detailsOpen && (
-              <View className="gap-5">
-                <View className="gap-2">
-                  <Text className="text-lg font-bold text-ink">{t('add.date')}</Text>
-                  <DateField value={occurredOn} today={today} onChange={setOccurredOn} />
-                </View>
-
-                {!isSavings && (
-                  <View className="gap-2">
-                    <Text className="text-lg font-bold text-ink">{t('add.payment')}</Text>
-                    <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-2">
-                      {PAYMENT_METHODS.map((method) => (
-                        <Chip
-                          key={method}
-                          label={t(`paymentMethods.${method}`)}
-                          selected={method === paymentMethod}
-                          onPress={() => setPaymentMethod(method)}
-                        />
-                      ))}
-                    </View>
-                  </View>
-                )}
-
-                <View className="gap-2">
-                  <Text className="text-lg font-bold text-ink">{t('add.note')}</Text>
-                  <TextInput
-                    value={note}
-                    onChangeText={setNote}
-                    placeholder={t('add.notePlaceholder')}
-                    placeholderTextColor={colors.muted}
-                    maxLength={200}
-                    accessibilityLabel={t('add.note')}
-                    className="min-h-[56px] rounded-2xl border-2 border-line bg-surface px-4 text-lg text-ink"
-                  />
-                </View>
-              </View>
-            )}
+          <View style={{ marginTop: 32, paddingHorizontal: space.screen }}>
+            <FieldGroup>
+              <DateRow value={occurredOn} today={today} onChange={setOccurredOn} />
+              <FormRow
+                icon="note"
+                label={t('add.note')}
+                value={note === '' ? undefined : note}
+                placeholder={t('add.noteOptional')}
+                onPress={openNote}
+              />
+            </FieldGroup>
           </View>
-
-          {onDelete && <OutlineButton tone="coral" label={t('edit.delete')} onPress={onDelete} />}
         </ScrollView>
 
-        <View className="gap-2 border-t border-line px-4 pb-2 pt-3">
+        <View style={{ paddingHorizontal: space.screen, paddingTop: 8, paddingBottom: 12, gap: 8 }}>
           {saveFailed ? (
-            <Text accessibilityLiveRegion="polite" className="text-center text-base font-medium text-coral">
+            <Text variant="secondary" tone="danger" accessibilityLiveRegion="polite" style={{ textAlign: 'center' }}>
               {t('add.saveError')}
             </Text>
-          ) : !canSave ? (
-            <Text className="text-center text-base text-muted">{isSavings ? t('add.hintSavings') : t('add.hint')}</Text>
           ) : null}
-          <BigButton
-            label={`✓  ${t('add.confirm')}`}
-            accessibilityLabel={t('add.confirm')}
-            disabled={!canSave}
-            onPress={save}
-          />
+          <Button label={t(saveKey)} icon="check" disabled={!canSave} onPress={save} />
         </View>
       </KeyboardAvoidingView>
-    </Screen>
+
+      <BottomSheet visible={noteOpen} onClose={() => setNoteOpen(false)} accessibilityLabel={t('add.noteSheetTitle')}>
+        <View style={{ gap: 16 }}>
+          <Text variant="titleSheet" accessibilityRole="header">
+            {t('add.noteSheetTitle')}
+          </Text>
+          <TextField
+            label={t('add.note')}
+            value={noteDraft}
+            onChangeText={setNoteDraft}
+            placeholder={t('add.notePlaceholder')}
+            maxLength={MAX_NOTE_LENGTH}
+            autoFocus
+            returnKeyType="done"
+            onSubmitEditing={validateNote}
+          />
+          <Button label={t('add.noteDone')} icon="check" onPress={validateNote} />
+        </View>
+      </BottomSheet>
+
+      <NewCategorySheet
+        visible={categorySheetOpen}
+        kind={categoryKind}
+        onClose={() => setCategorySheetOpen(false)}
+        onCreated={(id, name) => {
+          setCategorySheetOpen(false);
+          setCategoryId(id);
+          toast.show({ message: t('category.created', { name }) });
+        }}
+      />
+      {categoryActions.element}
+    </AppScreen>
   );
 }

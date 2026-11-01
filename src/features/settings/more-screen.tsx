@@ -1,54 +1,69 @@
+import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 
-import { Screen } from '@/components/screen';
-import { APP_LOCALES } from '@/domain/types';
+import { useTabContentStyle } from '@/components/navigation';
+import { AppScreen, FieldGroup, ScreenHeader, ServiceRow, Text } from '@/components/ui';
 import { BalanceCard } from '@/features/balance/balance-card';
-import { setAppLocale } from '@/i18n';
-import { useLocale } from '@/i18n/use-locale';
+import { space } from '@/theme/layout';
 
-/** Onglet « Plus » : solde du compte et choix de la langue ; les autres réglages viendront aux étapes suivantes. */
+/**
+ * Services : solde manuel, épargne, catégories, paramètres, et les services à venir. Le design ne dessine pas cet écran
+ * (À CONCEVOIR) : il est composé avec les éléments du design system. Un service qui n'existe pas encore (Factures, Courses,
+ * Statistiques) est une ligne atténuée avec la pastille « Bientôt », NON touchable : aucune fausse interaction.
+ * La langue et l'apparence sont dans Paramètres.
+ */
 export function MoreScreen() {
   const { t } = useTranslation();
-  const locale = useLocale();
+  const tabContentStyle = useTabContentStyle();
+  const router = useRouter();
 
   return (
-    <Screen>
-      <ScrollView contentContainerClassName="gap-5 px-4 pb-6 pt-4">
-        <Text accessibilityRole="header" className="text-3xl font-bold text-ink">
-          {t('settings.title')}
-        </Text>
+    <AppScreen>
+      <ScreenHeader title={t('tabs.more')} />
 
+      <ScrollView
+        contentContainerStyle={[{ paddingHorizontal: space.screen, paddingTop: 14, gap: space.section }, tabContentStyle]}
+        showsVerticalScrollIndicator={false}>
         <BalanceCard />
 
-        <View className="gap-2">
-          <Text accessibilityRole="header" className="text-xl font-bold text-ink">
-            {t('settings.language')}
+        <View style={{ gap: 12 }}>
+          <Text variant="titleSection" accessibilityRole="header">
+            {t('services.toolsTitle')}
           </Text>
-          <Text className="text-base text-muted">{t('settings.languageHelp')}</Text>
+          <FieldGroup>
+            <ServiceRow
+              icon="savings"
+              title={t('services.savingsTitle')}
+              text={t('services.savingsHelp')}
+              onPress={() => router.push({ pathname: '/add', params: { type: 'transfer' } })}
+            />
+            <ServiceRow
+              icon="tag"
+              title={t('services.categoriesTitle')}
+              text={t('services.categoriesText')}
+              onPress={() => router.push('/categories')}
+            />
+            <ServiceRow
+              icon="settings"
+              title={t('services.settingsTitle')}
+              text={t('services.settingsText')}
+              onPress={() => router.push('/settings')}
+            />
+          </FieldGroup>
+        </View>
 
-          <View accessibilityRole="radiogroup" className="overflow-hidden rounded-3xl border border-line bg-surface">
-            {APP_LOCALES.map((option, index) => {
-              const selected = option === locale;
-              return (
-                <Pressable
-                  key={option}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: selected }}
-                  onPress={() => void setAppLocale(option)}
-                  className={`min-h-[64px] flex-row items-center justify-between px-4 active:bg-line ${
-                    index > 0 ? 'border-t border-line' : ''
-                  }`}>
-                  <Text className={`text-xl ${selected ? 'font-bold text-sage' : 'font-medium text-ink'}`}>
-                    {t(`languages.${option}`)}
-                  </Text>
-                  {selected && <Text className="text-2xl font-bold text-sage">✓</Text>}
-                </Pressable>
-              );
-            })}
-          </View>
+        <View style={{ gap: 12 }}>
+          <Text variant="titleSection" accessibilityRole="header">
+            {t('services.soonTitle')}
+          </Text>
+          <FieldGroup>
+            <ServiceRow icon="bills" title={t('services.bills')} text={t('services.billsText')} soonLabel={t('services.soon')} />
+            <ServiceRow icon="cart" title={t('services.groceries')} text={t('services.groceriesText')} soonLabel={t('services.soon')} />
+            <ServiceRow icon="budgets" title={t('services.stats')} text={t('services.statsText')} soonLabel={t('services.soon')} />
+          </FieldGroup>
         </View>
       </ScrollView>
-    </Screen>
+    </AppScreen>
   );
 }

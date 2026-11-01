@@ -1,58 +1,79 @@
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
-import { OutlineButton } from '@/components/outline-button';
+import { AmountText, Button, Divider, Surface, Text } from '@/components/ui';
 import { snapshotDay } from '@/domain/balance';
 import { formatLongDate } from '@/domain/dates';
-import { formatMoney } from '@/domain/money';
+import { useContentWidth } from '@/hooks/use-content-width';
 import { useLocale } from '@/i18n/use-locale';
 
 import { useBalance } from './use-balance';
 
-/** Dans « Plus » : le solde réel saisi d'après la banque, le solde estimé depuis, et le bouton pour le mettre à jour. */
+/** Dans Services : le solde réel saisi d'après la banque, le solde estimé depuis, et le bouton pour le mettre à jour. */
 export function BalanceCard() {
   const { t } = useTranslation();
   const locale = useLocale();
   const router = useRouter();
   const { snapshot, estimatedCents } = useBalance();
+  // Carte pleine largeur : la place d'un montant est l'écran moins ses marges et les 16 dp de chaque côté de la carte.
+  const amountWidth = useContentWidth() - 32 - 2;
 
   return (
-    <View className="gap-2">
-      <Text accessibilityRole="header" className="text-xl font-bold text-ink">
-        {t('balance.title')}
-      </Text>
-      <Text className="text-base text-muted">{t('balance.help')}</Text>
+    <View style={{ gap: 12 }}>
+      <View style={{ gap: 2 }}>
+        <Text variant="titleSection" accessibilityRole="header">
+          {t('balance.title')}
+        </Text>
+        <Text variant="secondary" tone="muted">
+          {t('balance.help')}
+        </Text>
+      </View>
 
-      <View className="gap-4 rounded-3xl border border-line bg-surface p-4">
+      <Surface style={{ padding: 16, gap: 16 }}>
         {snapshot ? (
           <>
-            <View className="gap-1">
-              <Text className="text-base text-muted">{t('balance.real')}</Text>
-              <Text className={`text-3xl font-bold ${snapshot.realBalanceCents < 0 ? 'text-coral' : 'text-ink'}`}>
-                {formatMoney(snapshot.realBalanceCents, locale)}
+            <View style={{ gap: 4 }}>
+              <Text variant="caption" tone="muted">
+                {t('balance.real')}
               </Text>
-              <Text className="text-base text-muted">
+              <AmountText
+                cents={snapshot.realBalanceCents}
+                size="summary"
+                maxWidth={amountWidth}
+                tone={snapshot.realBalanceCents < 0 ? 'danger' : 'default'}
+              />
+              <Text variant="caption" tone="muted">
                 {t('balance.recordedOn', { date: formatLongDate(snapshotDay(snapshot.recordedAt), locale) })}
               </Text>
             </View>
 
             {estimatedCents !== null && (
-              <View className="gap-1 border-t border-line pt-4">
-                <Text className="text-base text-muted">{t('balance.estimated')}</Text>
-                <Text className={`text-2xl font-bold ${estimatedCents < 0 ? 'text-coral' : 'text-ink'}`}>
-                  {formatMoney(estimatedCents, locale)}
-                </Text>
-                <Text className="text-base text-muted">{t('balance.estimatedHelp')}</Text>
-              </View>
+              <>
+                <Divider />
+                <View style={{ gap: 4 }}>
+                  <Text variant="caption" tone="muted">
+                    {t('balance.estimated')}
+                  </Text>
+                  <AmountText cents={estimatedCents} size="total" maxWidth={amountWidth} tone={estimatedCents < 0 ? 'danger' : 'default'} />
+                  <Text variant="caption" tone="muted">
+                    {t('balance.estimatedHelp')}
+                  </Text>
+                </View>
+              </>
             )}
           </>
         ) : (
-          <Text className="text-lg text-ink">{t('balance.none')}</Text>
+          <Text variant="body">{t('balance.none')}</Text>
         )}
 
-        <OutlineButton label={snapshot ? t('balance.update') : t('balance.enter')} onPress={() => router.push('/balance')} />
-      </View>
+        <Button
+          label={snapshot ? t('balance.update') : t('balance.enter')}
+          variant="secondary"
+          icon="note"
+          onPress={() => router.push('/balance')}
+        />
+      </Surface>
     </View>
   );
 }

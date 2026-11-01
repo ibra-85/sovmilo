@@ -104,7 +104,8 @@ describe('budgetStatus', () => {
     [8_000, 'ok'], // pile 80 % : pas encore une alerte
     [8_001, 'warning'],
     [9_999, 'warning'],
-    [10_000, 'warning'], // pile 100 % : plafond atteint, pas dépassé
+    [9_999, 'warning'], // 99,99 % : encore « presque atteint »
+    [10_000, 'reached'], // pile 100 % : limite atteinte, ni « presque » ni dépassée
     [10_001, 'over'],
     [50_000, 'over'],
   ])('%i sur un plafond de 10 000 → %s', (spent, expected) => {

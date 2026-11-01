@@ -1,40 +1,28 @@
 import { Tabs } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { Text } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View } from 'react-native';
 
-import { palette, useThemeName } from '@/theme/colors';
+import { FloatingNavigation } from '@/components/navigation';
+import { useTheme } from '@/theme/use-theme';
 
-const tabIcon = (emoji: string) =>
-  function TabIcon() {
-    return <Text style={{ fontSize: 24 }}>{emoji}</Text>;
-  };
-
-/** Barre d'onglets : Accueil, Historique, Budget, Plus. */
+/**
+ * Écrans d'onglets : Accueil, Opérations, Budgets, Services.
+ *
+ * La barre d'onglets native est désactivée (`tabBar` renvoie rien) : la navigation flottante du design est dessinée
+ * par-dessus les écrans, pour que le voile du menu + recouvre le contenu. Les routes (`index`, `history`, `budget`,
+ * `more`) gardent leur nom ; seuls les libellés ont changé (voir docs/design-deviations.md).
+ */
 export default function TabsLayout() {
-  const { t } = useTranslation();
-  const colors = palette[useThemeName()];
-  const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.sage,
-        tabBarInactiveTintColor: colors.muted,
-        tabBarLabelStyle: { fontSize: 16, fontWeight: '600' }, // texte ≥ 16 sp
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.line,
-          height: 68 + insets.bottom, // zones tactiles ≥ 56 dp
-          paddingTop: 6,
-          paddingBottom: insets.bottom + 4,
-        },
-      }}>
-      <Tabs.Screen name="index" options={{ title: t('tabs.home'), tabBarIcon: tabIcon('🏠') }} />
-      <Tabs.Screen name="history" options={{ title: t('tabs.history'), tabBarIcon: tabIcon('🧾') }} />
-      <Tabs.Screen name="budget" options={{ title: t('tabs.budget'), tabBarIcon: tabIcon('🎯') }} />
-      <Tabs.Screen name="more" options={{ title: t('tabs.more'), tabBarIcon: tabIcon('⚙️') }} />
-    </Tabs>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <Tabs tabBar={() => null} screenOptions={{ headerShown: false }}>
+        <Tabs.Screen name="index" />
+        <Tabs.Screen name="history" />
+        <Tabs.Screen name="budget" />
+        <Tabs.Screen name="more" />
+      </Tabs>
+      <FloatingNavigation />
+    </View>
   );
 }

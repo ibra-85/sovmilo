@@ -1,106 +1,285 @@
 import { useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 
-import { BigButton } from '@/components/big-button';
-import { OutlineButton } from '@/components/outline-button';
-import { Screen } from '@/components/screen';
+import { useTabContentStyle } from '@/components/navigation';
+import {
+  AmountText,
+  AppScreen,
+  EmptyState,
+  Icon,
+  PeriodSelector,
+  Pressable,
+  ScreenHeader,
+  SectionHeader,
+  Surface,
+  Text,
+  TransactionRow,
+  WeeklyChart,
+} from '@/components/ui';
 import { computeMonthTotals } from '@/domain/budget';
-import { formatMoney } from '@/domain/money';
-import { useCategoryMap } from '@/features/categories/use-categories';
+import { formatMonthLabel, formatMonthName, formatMonthShort } from '@/domain/dates';
+import { computeWeeklyExpenses, currentWeekIndex, weekRangeLabel } from '@/domain/weekly';
+import { BudgetCard } from '@/features/budgets/budget-card';
+import { useBudgetOverview } from '@/features/budgets/use-budget-overview';
+import { useContentWidth } from '@/hooks/use-content-width';
+import { layoutAmount } from '@/theme/amount-layout';
+import { setOperationsTypeFilter } from '@/hooks/use-operations-filter';
+import { useSelectedMonth } from '@/hooks/use-selected-month';
 import { useToday } from '@/hooks/use-today';
 import { useLocale } from '@/i18n/use-locale';
+import { formatMoney } from '@/domain/money';
+import { sizes, space } from '@/theme/layout';
+import { useTheme } from '@/theme/use-theme';
 
-import { TransactionRow } from './transaction-row';
-import { useMonthTransactions, useRecentTransactions } from './use-transactions';
+import { useTransactionPresenter } from './use-presenter';
+import { useMonthOperations, useMonthTransactions } from './use-transactions';
 
-const RECENT_COUNT = 5;
+const RECENT_COUNT = 3;
+const WATCHED_COUNT = 3;
 
+/**
+ * Accueil V6.1 (design/screens/02-home) : le résultat du mois en grand, posé directement sur le fond, puis la bande
+ * Revenus / Dépenses, les budgets à surveiller, les opérations récentes et le graphique par semaine. Seules les zones
+ * qui regroupent une information sont des cartes ; les opérations récentes restent sur le fond.
+ */
 export function HomeScreen() {
   const { t } = useTranslation();
   const locale = useLocale();
+  const tabContentStyle = useTabContentStyle();
   const router = useRouter();
+  const { colors } = useTheme();
+  const today = useToday();
+  const { month } = useSelectedMonth();
+  const present = useTransactionPresenter();
+  const contentWidth = useContentWidth();
 
-  const month = useToday().slice(0, 7);
   const monthRows = useMonthTransactions(month);
-  const recent = useRecentTransactions(RECENT_COUNT);
-  const categoryById = useCategoryMap();
+  const operations = useMonthOperations(month);
+  const overview = useBudgetOverview(month);
 
   const totals = useMemo(() => computeMonthTotals(monthRows, month), [monthRows, month]);
-  const overspent = totals.remainingCents < 0;
+  const weeks = useMemo(() => computeWeeklyExpenses(monthRows, month), [monthRows, month]);
+  const monthName = formatMonthName(month, locale);
+  const watched = useMemo(() => [...overview.watched, ...overview.withinLimits].slice(0, WATCHED_COUNT), [overview]);
+  const recent = operations.slice(0, RECENT_COUNT);
+
+  // Ouvre l'onglet Opérations déjà filtré. Le mois consulté est partagé (use-selected-month) : il est conservé tel quel.
+  function openOperations(filter: 'income' | 'expense') {
+    setOperationsTypeFilter(filter);
+    router.navigate('/history');
+  }
+
+  const monthShort = formatMonthShort(month, locale);
+  const bars = weeks.map((week) => ({
+    label: weekRangeLabel(week),
+    a11yLabel: `${weekRangeLabel(week)} ${monthShort}`,
+    cents: week.expenseCents,
+  }));
 
   return (
-    <Screen>
-      <ScrollView contentContainerClassName="gap-5 px-4 pb-6 pt-4">
-        {/* Reste à dépenser, en très gros : corail s'il est négatif, sauge sinon */}
-        <View className="gap-1">
-          <Text className="text-lg font-medium text-muted">{t('home.remainingTitle')}</Text>
-          <Text
-            accessibilityRole="header"
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            className={`text-6xl font-bold ${overspent ? 'text-coral' : 'text-sage'}`}>
-            {formatMoney(totals.remainingCents, locale)}
+    <AppScreen>
+      <ScreenHeader title="Sovmilo" logotype trailing={<PeriodSelector />} />
+
+      <ScrollView
+        contentContainerStyle={[{ paddingHorizontal: space.screen, paddingTop: 18 }, tabContentStyle]}
+        showsVerticalScrollIndicator={false}>
+        {/* Résultat du mois : posé sur le fond, sans carte */}
+        <View style={{ gap: 2 }}>
+          <Text variant="titleSection" accessibilityRole="header">
+            {t('home.resultTitle')}
           </Text>
-          <Text className="text-base text-muted">{t('home.monthCount', { count: totals.operationCount })}</Text>
+          <Text variant="secondary" tone="muted">
+            {t(totals.savingsCents > 0 ? 'home.resultSubtitleSavings' : 'home.resultSubtitle', { month: monthName })}
+          </Text>
+        </View>
+        <View style={{ marginTop: 16 }}>
+          <AmountText
+            cents={totals.remainingCents}
+            size="home"
+            signed
+            maxWidth={contentWidth}
+            tone={totals.remainingCents < 0 ? 'danger' : 'default'}
+          />
         </View>
 
-        <View className="flex-row gap-3">
-          <SummaryCard label={t('home.income')} value={formatMoney(totals.incomeCents, locale)} />
-          <SummaryCard label={t('home.expenses')} value={formatMoney(totals.expenseCents, locale)} />
-          {totals.savingsCents > 0 && (
-            <SummaryCard label={t('home.savings')} value={formatMoney(totals.savingsCents, locale)} />
+        {/* Bande Revenus / Dépenses : deux actions indépendantes (filtre d'Opérations) sur une même surface */}
+        <Surface style={{ marginTop: 22, flexDirection: 'row', alignItems: 'stretch', overflow: 'hidden' }}>
+          <SummaryCell
+            icon="arrowIncome"
+            label={t('home.income')}
+            cents={totals.incomeCents}
+            signed
+            hint={t('home.openIncome')}
+            onPress={() => openOperations('income')}
+          />
+          <View style={{ width: 1, marginVertical: 14, backgroundColor: colors.hairline }} />
+          <SummaryCell
+            icon="arrowExpense"
+            label={t('home.expenses')}
+            cents={-totals.expenseCents}
+            hint={t('home.openExpenses')}
+            onPress={() => openOperations('expense')}
+          />
+        </Surface>
+
+        {/* Budgets à surveiller */}
+        <View style={{ marginTop: space.section, gap: space.sectionTitle }}>
+          <SectionHeader
+            title={t('home.budgetsTitle')}
+            actionLabel={t('home.seeAll')}
+            actionAccessibilityLabel={t('home.seeAllBudgets')}
+            onAction={() => router.navigate('/budget')}
+          />
+          {watched.length > 0 ? (
+            <BudgetCard entries={watched} />
+          ) : (
+            <Surface>
+              <EmptyState
+                icon="budgets"
+                title={t('home.noBudgetTitle')}
+                text={t('home.noBudgetText')}
+                actionLabel={t('budget.create')}
+                onAction={() => router.push('/budget-new')}
+              />
+            </Surface>
           )}
         </View>
 
-        <BigButton
-          label={t('home.addButton')}
-          icon={<Text className="text-3xl font-bold text-on-accent">+</Text>}
-          onPress={() => router.push('/add')}
-        />
-        <OutlineButton
-          label={`🐷  ${t('home.saveButton')}`}
-          onPress={() => router.push({ pathname: '/add', params: { type: 'transfer' } })}
-        />
-
-        <View className="gap-2">
-          <Text accessibilityRole="header" className="text-xl font-bold text-ink">
-            {t('home.recentTitle')}
-          </Text>
-          {recent.length === 0 ? (
-            <View className="items-center gap-1 rounded-3xl border border-line bg-surface p-6">
-              <Text className="text-xl font-semibold text-ink">{t('home.emptyTitle')}</Text>
-              <Text className="text-center text-base text-muted">{t('home.emptyText')}</Text>
-            </View>
-          ) : (
-            <View className="overflow-hidden rounded-3xl border border-line bg-surface">
-              {recent.map((transaction, index) => (
-                <View key={transaction.id} className={index > 0 ? 'border-t border-line' : undefined}>
+        {/* Opérations récentes : posées sur le fond */}
+        <View style={{ marginTop: space.section, gap: space.sectionTitle }}>
+          <SectionHeader
+            title={t('home.recentTitle')}
+            actionLabel={t('home.seeAll')}
+            actionAccessibilityLabel={t('home.seeAllOperations')}
+            onAction={() => router.navigate('/history')}
+          />
+          {recent.length > 0 ? (
+            <View>
+              {recent.map((transaction) => {
+                const shown = present(transaction, 'home');
+                return (
                   <TransactionRow
-                    transaction={transaction}
-                    category={transaction.categoryId ? categoryById.get(transaction.categoryId) : undefined}
+                    key={transaction.id}
+                    kind={shown.kind}
+                    categoryIcon={shown.categoryIcon}
+                    title={shown.title}
+                    subtitle={shown.subtitle}
+                    cents={shown.cents}
+                    accessibilityLabel={shown.accessibilityLabel}
+                    accessibilityHint={t('history.rowHint')}
                     onPress={() => router.push({ pathname: '/transaction/[id]', params: { id: transaction.id } })}
                   />
-                </View>
-              ))}
+                );
+              })}
             </View>
+          ) : (
+            <EmptyState icon="transactions" title={t('home.emptyTitle')} text={t('home.emptyText')} />
           )}
         </View>
+
+        {/* Dépenses par semaine */}
+        <View style={{ marginTop: space.section, gap: space.sectionTitle }}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
+            <Text variant="titleSection" accessibilityRole="header" style={{ flexShrink: 1 }}>
+              {t('home.weeklyTitle')}
+            </Text>
+            <Text variant="secondary" tone="muted" numberOfLines={1}>
+              {formatMonthLabel(month, locale)}
+            </Text>
+          </View>
+          <WeeklyChart bars={bars} currentIndex={currentWeekIndex(today, month)} totalCents={totals.expenseCents} />
+        </View>
       </ScrollView>
-    </Screen>
+    </AppScreen>
   );
 }
 
-function SummaryCard({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="flex-1 gap-1 rounded-2xl border border-line bg-surface p-3">
-      <Text className="text-base text-muted" numberOfLines={1}>
-        {label}
-      </Text>
-      <Text className="text-lg font-bold text-ink" numberOfLines={1} adjustsFontSizeToFit>
-        {value}
-      </Text>
+interface SummaryCellProps {
+  icon: 'arrowIncome' | 'arrowExpense';
+  label: string;
+  cents: number;
+  signed?: boolean;
+  /** Ce que fait le toucher, pour TalkBack (« Voir les revenus du mois »). */
+  hint: string;
+  onPress: () => void;
+}
+
+/**
+ * Une moitié de la bande Revenus / Dépenses : pastille d'icône de 40 dp, légende, montant. Zone tactile pleine hauteur
+ * de la carte (plus de 48 dp), retour visuel discret au toucher (fond « surfaceMuted »).
+ *
+ * Structure adaptative : la place à côté de l'icône est limitée (≈ 80 dp sur un écran de 360 dp). Si le montant n'y tient
+ * pas à 14 sp au moins, la cellule passe en pile — icône et légende en haut, montant dessous sur toute la largeur — au lieu
+ * de couper le montant ou d'envoyer le € à la ligne. La largeur de la cellule est mesurée (`onLayout`), pas supposée.
+ */
+function SummaryCell({ icon, label, cents, signed = false, hint, onPress }: SummaryCellProps) {
+  const { colors } = useTheme();
+  const locale = useLocale();
+  const { fontScale, width: windowWidth } = useWindowDimensions();
+  // Avant la première mesure : moitié de la fenêtre moins les marges de l'écran.
+  const [cellWidth, setCellWidth] = useState((windowWidth - space.screen * 2) / 2);
+
+  const inner = cellWidth - CELL_PADDING * 2;
+  const beside = layoutAmount({ cents, locale, size: 'row', signed, maxWidth: inner - ICON - CELL_GAP, fontScale }).fit;
+  const stacked = !beside.fits;
+  const maxWidth = stacked ? inner : inner - ICON - CELL_GAP;
+
+  const iconView = (
+    <View
+      style={{
+        width: ICON,
+        height: ICON,
+        borderRadius: ICON / 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.surfaceMuted,
+      }}>
+      <Icon name={icon} size={18} />
     </View>
   );
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${label}, ${formatMoney(cents, locale, { signed })}`}
+      accessibilityHint={hint}
+      pressTranslate={0}
+      onPress={onPress}
+      onLayout={(event: LayoutChangeEvent) => setCellWidth(event.nativeEvent.layout.width)}
+      style={({ pressed }) => ({
+        flex: 1,
+        flexDirection: stacked ? 'column' : 'row',
+        alignItems: stacked ? 'flex-start' : 'center',
+        gap: stacked ? 8 : CELL_GAP,
+        paddingVertical: 14,
+        paddingHorizontal: CELL_PADDING,
+        minHeight: sizes.minTouch,
+        backgroundColor: pressed ? colors.surfaceMuted : 'transparent',
+      })}>
+      {stacked ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: CELL_GAP, alignSelf: 'stretch' }}>
+          {iconView}
+          <Text variant="caption" tone="muted" numberOfLines={2} style={{ flex: 1 }}>
+            {label}
+          </Text>
+        </View>
+      ) : (
+        iconView
+      )}
+      <View style={{ flexShrink: 1, alignSelf: stacked ? 'stretch' : undefined }}>
+        {!stacked && (
+          <Text variant="caption" tone="muted" numberOfLines={1}>
+            {label}
+          </Text>
+        )}
+        <AmountText cents={cents} size="row" signed={signed} maxWidth={maxWidth} />
+      </View>
+    </Pressable>
+  );
 }
+
+const ICON = 40;
+const CELL_GAP = 12;
+const CELL_PADDING = 14;

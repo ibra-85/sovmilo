@@ -1,4 +1,12 @@
-import { EMPTY_FILTERS, countActiveFilters, filterHistory, groupByMonth, normalizeSearch, type HistoryItem } from './history';
+import {
+  EMPTY_FILTERS,
+  countActiveFilters,
+  filterHistory,
+  groupByDay,
+  groupByMonth,
+  normalizeSearch,
+  type HistoryItem,
+} from './history';
 
 const item = (overrides: Partial<HistoryItem> = {}): HistoryItem => ({
   type: 'expense',
@@ -108,5 +116,33 @@ describe('groupByMonth', () => {
 
   it('renvoie une liste vide sans opération', () => {
     expect(groupByMonth([])).toEqual([]);
+  });
+});
+
+describe('groupByDay', () => {
+  const op = (type: 'expense' | 'income' | 'transfer', amountCents: number, occurredOn: string) => ({
+    type,
+    amountCents,
+    occurredOn,
+  });
+
+  it('regroupe par jour en gardant l’ordre et calcule le total net', () => {
+    const groups = groupByDay([
+      op('expense', 4280, '2026-10-31'),
+      op('expense', 640, '2026-10-31'),
+      op('expense', 1290, '2026-10-29'),
+      op('income', 185000, '2026-10-28'),
+      op('expense', 6800, '2026-10-28'),
+    ]);
+    expect(groups.map((g) => [g.day, g.items.length, g.netCents])).toEqual([
+      ['2026-10-31', 2, -4920],
+      ['2026-10-29', 1, -1290],
+      ['2026-10-28', 2, 178200],
+    ]);
+  });
+
+  it('compte un virement vers l’épargne comme une sortie et renvoie [] sans opération', () => {
+    expect(groupByDay([op('transfer', 3000, '2026-10-02')])[0].netCents).toBe(-3000);
+    expect(groupByDay([])).toEqual([]);
   });
 });

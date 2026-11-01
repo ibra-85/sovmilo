@@ -4,18 +4,18 @@ describe('pluriels russes', () => {
   const ru = createI18n('ru');
 
   it.each([
-    [0, '0 операций в этом месяце'],
-    [1, '1 операция в этом месяце'],
-    [2, '2 операции в этом месяце'],
-    [4, '4 операции в этом месяце'],
-    [5, '5 операций в этом месяце'],
-    [11, '11 операций в этом месяце'],
-    [21, '21 операция в этом месяце'],
-    [22, '22 операции в этом месяце'],
-    [25, '25 операций в этом месяце'],
-    [111, '111 операций в этом месяце'],
+    [0, '0 бюджетов'],
+    [1, '1 бюджет'],
+    [2, '2 бюджета'],
+    [4, '4 бюджета'],
+    [5, '5 бюджетов'],
+    [11, '11 бюджетов'],
+    [21, '21 бюджет'],
+    [22, '22 бюджета'],
+    [25, '25 бюджетов'],
+    [111, '111 бюджетов'],
   ])('%i → « %s »', (count, expected) => {
-    expect(ru.t('home.monthCount', { count })).toBe(expected);
+    expect(ru.t('budget.count', { count })).toBe(expected);
   });
 });
 
@@ -23,21 +23,21 @@ describe('pluriels français', () => {
   const fr = createI18n('fr');
 
   it.each([
-    [0, '0 opération ce mois-ci'], // en français, 0 est au singulier
-    [1, '1 opération ce mois-ci'],
-    [2, '2 opérations ce mois-ci'],
-    [12, '12 opérations ce mois-ci'],
+    [0, '0 budget'], // en français, 0 est au singulier
+    [1, '1 budget'],
+    [2, '2 budgets'],
+    [12, '12 budgets'],
   ])('%i → « %s »', (count, expected) => {
-    expect(fr.t('home.monthCount', { count })).toBe(expected);
+    expect(fr.t('budget.count', { count })).toBe(expected);
   });
 });
 
 describe('changement de langue', () => {
   it('bascule sans toucher aux autres instances', async () => {
     const instance = createI18n('fr');
-    expect(instance.t('home.addButton')).toBe('Ajouter');
+    expect(instance.t('nav.addExpense')).toBe('Ajouter une dépense');
     await instance.changeLanguage('ru');
-    expect(instance.t('home.addButton')).toBe('Добавить');
+    expect(instance.t('nav.addExpense')).toBe('Добавить расход');
   });
 });
 
