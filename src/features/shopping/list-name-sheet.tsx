@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type ComponentRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { View } from 'react-native';
+import { TextInput, View } from 'react-native';
 
 import { BottomSheet, Button, Text, TextField } from '@/components/ui';
 import { MAX_LIST_NAME_LENGTH, cleanShoppingName, validateListName } from '@/domain/shopping';
@@ -23,6 +23,7 @@ export function ListNameSheet({ visible, onClose, list, onCreated, onRenamed }: 
   const [name, setName] = useState('');
   const [failed, setFailed] = useState(false);
   const lastSubmit = useRef(0);
+  const nameInput = useRef<ComponentRef<typeof TextInput>>(null);
 
   // Chaque ouverture repart d'un champ prérempli (renommer) ou vide (créer), sans effet.
   const [wasVisible, setWasVisible] = useState(visible);
@@ -62,7 +63,8 @@ export function ListNameSheet({ visible, onClose, list, onCreated, onRenamed }: 
   const title = t(list ? 'shopping.renameTitle' : 'shopping.newListTitle');
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} accessibilityLabel={title}>
+    // Focus donné une fois le panneau posé (même coordination que le panneau d'article), pas à son montage.
+    <BottomSheet visible={visible} onClose={onClose} accessibilityLabel={title} onPresented={() => nameInput.current?.focus()}>
       <Text variant="titleSheet" accessibilityRole="header">
         {title}
       </Text>
@@ -78,11 +80,11 @@ export function ListNameSheet({ visible, onClose, list, onCreated, onRenamed }: 
             setFailed(false);
           }}
           maxLength={MAX_LIST_NAME_LENGTH + 10}
-          autoFocus
           autoCapitalize="sentences"
           returnKeyType="done"
           onSubmitEditing={submit}
           error={error}
+          inputRef={nameInput}
         />
       </View>
 

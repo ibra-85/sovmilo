@@ -125,6 +125,16 @@ Panneau de déplacement d'une catégorie : zone défilante bornée à l'écran (
 **Couvert automatiquement** (Jest, vraie base SQLite) : validation des noms, quantités (virgule, point, décimales refusées, zéro, trop grand), prix, arrondis, articles sans prix, noms très longs, création / renommage / suppression de liste, ajout / modification / coche / décoche / suppression / restauration d'article, persistance après « redémarrage » (réouverture du fichier), migration sur une base contenant déjà des opérations, indépendance des opérations, parité et pluriels FR / RU (1, 2, 5, 11, 21, 22).
 **À vérifier sur téléphone** (rendu et tactile, non testables sans appareil) : voir la liste donnée dans le bilan du lot 4.
 
+### Lot 4.1 : finitions de Courses
+
+**Sursaut à l'ouverture de « Ajouter un article »** — cause : le champ avait `autoFocus`, donc le focus était demandé au montage du panneau, PENDANT son animation d'entrée (280 ms). Sur Android le clavier arrive à un moment qui varie ; quand il arrivait en cours d'entrée, deux choses bougeaient d'un coup : le panneau se « détachait » et remontait au-dessus du clavier, et la zone défilante, dont la hauteur maximale dépendait de la hauteur du clavier, se raccourcissait, ce qui changeait la hauteur du panneau et donc sa position de départ.
+Correction, en deux parties :
+1. **Séquence explicite** : `BottomSheet` a une propriété facultative `onPresented`, appelée une seule fois quand l'entrée est terminée (réaction Reanimated sur la progression ≥ 0,995). Les panneaux de Courses y donnent le focus au champ : le clavier arrive toujours sur un panneau immobile, et le panneau ne fait que remonter d'un seul mouvement (ressort `sheetResize`). Pas de `setTimeout`. Les autres panneaux ne changent pas (propriété optionnelle).
+2. **Hauteur stable** : la place du clavier est réservée dès l'ouverture (dernière hauteur connue via `getLastKeyboardHeight()`, sinon 40 % de l'écran), donc la hauteur du panneau ne varie pas quand le clavier apparaît ou se ferme. La ligne « « X » ajouté » a sa place réservée dans le mode ajout (elle n'agrandit plus le panneau).
+Limite : à la toute première ouverture après le lancement, la réserve est une estimation (la vraie hauteur du clavier n'est pas encore connue) ; la hauteur du panneau est la même ensuite. Le clavier met ~280 ms de plus à apparaître qu'avant (il attend la fin de l'entrée).
+
+**Liste entièrement cochée** — trois états distincts : liste jamais remplie → grand état vide avec invitation ; articles restants → « À acheter » puis « Déjà pris (n) » ; tout coché → une seule ligne compacte (pastille de validation + « Tous les articles sont pris ! », fondu 160 ms) à la place de la ligne d'état, puis directement « Déjà pris (n) ». Plus de grande zone vide ; l'ancien texte d'aide (`allDoneText`) est supprimé. Décocher un article fait revenir « À acheter ».
+
 ## 5 ter. Règle : ne jamais utiliser `ImageBackground`
 
 React Native 0.88 a déprécié `ImageBackground` (avertissement « ImageBackground is deprecated and will be removed in a future release »).

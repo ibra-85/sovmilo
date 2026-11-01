@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, View, useWindowDimensions } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 import {
   AmountText,
@@ -21,6 +22,7 @@ import {
 } from '@/components/ui';
 import type { ShoppingItem } from '@/db/schema';
 import { formatMoney } from '@/domain/money';
+import { useMotion } from '@/hooks/use-motion';
 import { useLocale } from '@/i18n/use-locale';
 import { radius, space } from '@/theme/layout';
 import { useTheme } from '@/theme/use-theme';
@@ -46,6 +48,8 @@ export function ShoppingListScreen() {
   const toast = useToast();
   const locale = useLocale();
   const { colors } = useTheme();
+  const { timing } = useMotion();
+  const fadeMs = timing('enter', 'menuItemIn', 'fade').duration ?? 0;
   const window = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id: string }>();
   const listId = id ?? '';
@@ -77,8 +81,6 @@ export function ShoppingListScreen() {
     },
     [toast, t],
   );
-
-  const edit = useCallback((item: ShoppingItem) => setEditing(item), []);
 
   const back = (title: string) => <ScreenHeader title={title} onBack={close} backLabel={t('shopping.backToLists')} />;
 
@@ -136,6 +138,8 @@ export function ShoppingListScreen() {
   const statusText =
     total === 0 ? t('shopping.listEmpty') : remaining === 0 ? t('shopping.listAllDone') : t('shopping.listRemaining', { count: remaining });
   const estimateWidth = window.width - 2 * space.screen - 32;
+  // Trois états distincts : liste jamais remplie (total = 0), articles restants, tout est pris.
+  const allDone = total > 0 && remaining === 0;
 
   return (
     <AppScreen bottomInset>
@@ -154,9 +158,25 @@ export function ShoppingListScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingHorizontal: space.screen, paddingTop: 8, paddingBottom: 24, gap: 20 }}>
-        <Text variant="secondaryStrong" tone="muted" accessibilityLiveRegion="polite">
-          {statusText}
-        </Text>
+        {allDone ? (
+          // Tout est pris : une seule ligne compacte et positive (pas de grande zone vide), les articles pris juste en dessous.
+          <Animated.View
+            entering={FadeIn.duration(fadeMs)}
+            accessibilityLiveRegion="polite"
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 40 }}>
+            <View
+              style={{ width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.successBg }}>
+              <Icon name="check" size={16} color={colors.successIcon} weight="strong" />
+            </View>
+            <Text variant="bodyStrong" style={{ flex: 1 }}>
+              {t('shopping.allDoneTitle')}
+            </Text>
+          </Animated.View>
+        ) : (
+          <Text variant="secondaryStrong" tone="muted" accessibilityLiveRegion="polite">
+            {statusText}
+          </Text>
+        )}
 
         {estimate.pricedCount > 0 && (
           <Surface
@@ -179,14 +199,12 @@ export function ShoppingListScreen() {
 
         {total === 0 && <EmptyState icon="cart" title={t('shopping.emptyListTitle')} text={t('shopping.emptyListText')} />}
 
-        {total > 0 && remaining === 0 && <EmptyState icon="check" title={t('shopping.allDoneTitle')} text={t('shopping.allDoneText')} />}
-
         {todo.length > 0 && (
           <View style={{ gap: 10 }}>
             <Text variant="titleSection" accessibilityRole="header">
               {t('shopping.toBuyTitle')}
             </Text>
-            <ItemGroup items={todo} onToggle={toggle} onEdit={edit} />
+            <ItemGroup items={todo} onToggle={toggle} onEdit={setEditing} />
           </View>
         )}
 
@@ -195,7 +213,7 @@ export function ShoppingListScreen() {
             <Text variant="titleSection" tone="muted" accessibilityRole="header">
               {t('shopping.doneTitle', { count: done.length })}
             </Text>
-            <ItemGroup items={done} onToggle={toggle} onEdit={edit} />
+            <ItemGroup items={done} onToggle={toggle} onEdit={setEditing} />
           </View>
         )}
       </ScrollView>

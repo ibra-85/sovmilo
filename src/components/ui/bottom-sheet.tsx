@@ -1,8 +1,9 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Modal, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   interpolate,
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -40,7 +41,16 @@ interface BottomSheetProps {
    * À CONFIRMER, on choisit la prudence) : ni voile, ni glissement, ni bouton Retour ne ferment le panneau.
    */
   dismissible?: boolean;
+  /**
+   * Appelé une fois, quand le panneau a TERMINÉ son entrée (immobile, en bas). C'est le moment de donner le focus à un
+   * champ : le clavier apparaît alors sur un panneau qui ne bouge plus, au lieu d'arriver au milieu de l'animation d'entrée
+   * (son moment d'arrivée varie d'un appareil et d'une ouverture à l'autre). Facultatif : sans lui, rien ne change.
+   */
+  onPresented?: () => void;
 }
+
+/** Part de l'entrée (0 à 1) au-delà de laquelle le panneau est considéré comme posé (reste ~3 dp de course). */
+const PRESENTED_THRESHOLD = 0.995;
 
 /**
  * Panneau inférieur modal (design « BottomSheet »). Dans une fenêtre `Modal` : il recouvre tout, y compris la
@@ -57,7 +67,7 @@ interface BottomSheetProps {
  * 250 ms) ; la hauteur change sans transition. À reprendre après un essai sur appareil (risque de conflit avec la
  * remontée du clavier).
  */
-export function BottomSheet({ visible, onClose, children, accessibilityLabel, dismissible = true }: BottomSheetProps) {
+export function BottomSheet({ visible, onClose, children, accessibilityLabel, dismissible = true, onPresented }: BottomSheetProps) {
   const { colors, shadows } = useTheme();
   const glass = useGlassLook('sheet');
   const { spring } = useMotion();
@@ -80,6 +90,24 @@ export function BottomSheet({ visible, onClose, children, accessibilityLabel, di
     // Rouvert pendant sa fermeture : l'écart du glissement revient en douceur au lieu de sauter.
     if (visible) drag.value = withSpring(0, spring('sheetResize'));
   }, [visible, drag, spring]);
+
+  // Entrée terminée : prévient l'appelant, une seule fois par ouverture (jamais pendant une fermeture).
+  const visibleRef = useRef(visible);
+  const onPresentedRef = useRef(onPresented);
+  useEffect(() => {
+    visibleRef.current = visible;
+    onPresentedRef.current = onPresented;
+  });
+  const notifyPresented = useCallback(() => {
+    if (visibleRef.current) onPresentedRef.current?.();
+  }, []);
+  useAnimatedReaction(
+    () => progress.value >= PRESENTED_THRESHOLD,
+    (reached, previous) => {
+      if (reached && !previous) scheduleOnRN(notifyPresented);
+    },
+    [notifyPresented],
+  );
 
   const keyboardOpen = keyboardHeight > 0;
   useEffect(() => {

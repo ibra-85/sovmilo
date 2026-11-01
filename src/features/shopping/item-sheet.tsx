@@ -22,7 +22,7 @@ import {
   type ShoppingUnit,
 } from '@/domain/shopping';
 import type { ShoppingItem } from '@/db/schema';
-import { useKeyboardHeight } from '@/hooks/use-keyboard-height';
+import { getLastKeyboardHeight, useKeyboardHeight } from '@/hooks/use-keyboard-height';
 import { useLocale } from '@/i18n/use-locale';
 import { radius } from '@/theme/layout';
 import { useTheme } from '@/theme/use-theme';
@@ -39,6 +39,9 @@ interface ItemSheetProps {
   /** Suppression demandée depuis le mode modification (bouton explicite, en plus de l'appui long). */
   onDelete?: (item: ShoppingItem) => void;
 }
+
+/** Part de la hauteur d'écran réservée au clavier tant qu'on n'a pas encore vu sa vraie hauteur (~30 % sur la plupart des claviers). */
+const KEYBOARD_ESTIMATE = 0.4;
 
 type QuantityErrorKey = 'shopping.errors.quantityDecimals' | 'shopping.errors.quantityTooLarge' | 'shopping.errors.quantityInvalid';
 
@@ -99,8 +102,13 @@ export function ItemSheet({ visible, onClose, listId, item, onDelete }: ItemShee
 
   // Zone défilante bornée : titre, champs et unités défilent, les boutons restent toujours visibles (clavier ouvert, texte
   // agrandi, russe). Hauteur disponible = écran − zones système − clavier − poignée et marges − partie fixe du bas.
-  const fixedBottom = 150 + 70 * Math.min(window.fontScale, 1.8);
-  const scrollMax = Math.max(140, window.height - insets.top - insets.bottom - keyboardHeight - 56 - fixedBottom);
+  // La place du clavier est RÉSERVÉE dès l'ouverture (dernière hauteur connue, sinon une estimation) : la hauteur du panneau
+  // ne change donc pas quand le clavier apparaît ou se ferme, et le panneau ne fait que monter / descendre, sans saut.
+  const keyboardReserve = Math.max(keyboardHeight, getLastKeyboardHeight() || Math.round(window.height * KEYBOARD_ESTIMATE));
+  // Ligne de confirmation « ajouté » (ajout seulement) : sa place est réservée pour qu'elle n'agrandisse pas le panneau en apparaissant.
+  const addedLineHeight = Math.round(22 * Math.min(window.fontScale, 1.5));
+  const fixedBottom = 150 + 70 * Math.min(window.fontScale, 1.8) + (item ? 0 : addedLineHeight + 12);
+  const scrollMax = Math.max(140, window.height - insets.top - insets.bottom - keyboardReserve - 56 - fixedBottom);
 
   function changeUnit(next: ShoppingUnit) {
     if (next === unit) return;
@@ -168,7 +176,8 @@ export function ItemSheet({ visible, onClose, listId, item, onDelete }: ItemShee
   const currency = getCurrencySymbol(locale);
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} accessibilityLabel={title}>
+    // Pas d'`autoFocus` : le focus (donc le clavier) est donné une fois le panneau posé, jamais pendant son entrée.
+    <BottomSheet visible={visible} onClose={onClose} accessibilityLabel={title} onPresented={() => nameInput.current?.focus()}>
       <View style={{ gap: 12 }}>
         <ScrollView style={{ maxHeight: scrollMax }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <View style={{ gap: 16 }}>
@@ -186,7 +195,6 @@ export function ItemSheet({ visible, onClose, listId, item, onDelete }: ItemShee
                 setFailed(false);
               }}
               maxLength={MAX_ITEM_NAME_LENGTH + 20}
-              autoFocus
               autoCapitalize="sentences"
               returnKeyType={item ? 'done' : 'next'}
               // « Entrée » ajoute l'article et garde le clavier ouvert : pas besoin de viser le bouton entre deux articles.
@@ -238,12 +246,16 @@ export function ItemSheet({ visible, onClose, listId, item, onDelete }: ItemShee
           </View>
         </ScrollView>
 
-        {lastAdded !== null && !item && (
-          <View accessibilityLiveRegion="polite" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Icon name="check" size={18} color={colors.successIcon} weight="strong" />
-            <Text variant="secondary" tone="muted" numberOfLines={2} style={{ flex: 1 }}>
-              {t('shopping.added', { name: lastAdded })}
-            </Text>
+        {!item && (
+          <View accessibilityLiveRegion="polite" style={{ height: addedLineHeight, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {lastAdded !== null && (
+              <>
+                <Icon name="check" size={18} color={colors.successIcon} weight="strong" />
+                <Text variant="secondary" tone="muted" numberOfLines={1} style={{ flex: 1 }}>
+                  {t('shopping.added', { name: lastAdded })}
+                </Text>
+              </>
+            )}
           </View>
         )}
 
