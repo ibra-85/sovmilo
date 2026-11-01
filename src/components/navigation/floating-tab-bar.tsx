@@ -18,6 +18,7 @@ import {
   TAB_LABEL_GAP,
   activeTabWidth,
   computeTabLayout,
+  fitPillPadding,
   shouldUseIconsOnly,
   tabIconLeft,
   tabLabelOpacity,
@@ -58,7 +59,9 @@ export function FloatingTabBar({ items, activeIndex, onSelect, fontScale, access
   const [innerWidth, setInnerWidth] = useState(0);
   const [labelWidths, setLabelWidths] = useState<number[]>(() => items.map(() => 0));
 
-  const activeWidths = useMemo(() => labelWidths.map(activeTabWidth), [labelWidths]);
+  // Marge de la pastille : réduite si le libellé le plus long (selon la langue) ne tient pas autrement.
+  const pillPadding = useMemo(() => fitPillPadding(innerWidth, labelWidths), [innerWidth, labelWidths]);
+  const activeWidths = useMemo(() => labelWidths.map((width) => activeTabWidth(width, pillPadding)), [labelWidths, pillPadding]);
   const iconsOnly = shouldUseIconsOnly(innerWidth, activeWidths, fontScale);
   const ready = innerWidth > 0 && labelWidths.every((width) => width > 0);
 

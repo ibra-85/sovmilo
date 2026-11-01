@@ -213,6 +213,13 @@ Les dimensions du menu sont dans une seule table (`MENU_METRICS`) utilisée pour
 - **Paramètres** (design Precision Glass, `ChoiceGroup` comme Apparence) : Automatique (avec la langue utilisée : « Suit le téléphone · Français »), Français, Русский.
 - **À vérifier sur téléphone** (non testable en Jest) : changer la langue d'Android puis revenir dans Sovmilo ; appui sur Retour/Accueil entre-temps ; texte système agrandi dans Paramètres ; TalkBack ; thème clair/sombre.
 
+### Lot 5.2.1 : libellé de l'onglet actif absent en français
+
+- **Cause** : pas la traduction ni le changement de langue du Lot 5.2, mais le seuil « icônes seules » de la barre (`shouldUseIconsOnly`). La barre exige que la pastille du libellé le plus long laisse 44 dp à chacun des 3 autres onglets. Sur un écran de 393 dp (barre de 267 dp), le maximum était 75 dp de libellé ; « Opérations » mesure 75 dp en Inter semi-gras 14 (76 mesuré avec la marge de 1 dp) contre 72 pour « Операции ». Le français dépassait donc le seuil de 1 dp et TOUS les libellés disparaissaient, le russe passait. Mesures prises dans le fichier de police : Accueil 51, Opérations 75, Budgets 56, Services 59 ; Главная 57, Операции 70, Бюджеты 68, Сервисы 63.
+- **Correction** (`tab-layout.ts`, `floating-tab-bar.tsx`) : `fitPillPadding` réduit la marge interne de la pastille (14 dp du design, jamais moins de 8 dp) juste assez pour que le libellé le plus long tienne. Sur 393 dp la marge passe à 13 dp en français ; le russe garde 14 dp. Design, animations, onglets inactifs et passage en icônes seules à 130 % de texte sont inchangés.
+- **Limite** : sur un écran étroit (360 dp, barre de 234 dp) « Opérations » ne tient pas même à 8 dp ; la barre reste alors en icônes seules, comme prévu pour les petits écrans.
+- **Test de non-régression** : `tab-layout.test.ts` (mesures réelles FR / RU, cause reproduite avec la marge de 14 dp, géométrie exacte après correction).
+
 ### Avertissement Reanimated « Dependencies should only be used on the web »
 
 - **Cause** : notre propre `useAnimatedReaction(...)` dans `src/components/ui/bottom-sheet.tsx` (ajouté au lot 4.1 pour `onPresented`) recevait un tableau de dépendances. Sur natif, Reanimated ignore ces dépendances et le signale en développement.
