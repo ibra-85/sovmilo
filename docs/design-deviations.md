@@ -220,6 +220,30 @@ Les dimensions du menu sont dans une seule table (`MENU_METRICS`) utilisée pour
 - **Limite** : sur un écran étroit (360 dp, barre de 234 dp) « Opérations » ne tient pas même à 8 dp ; la barre reste alors en icônes seules, comme prévu pour les petits écrans.
 - **Test de non-régression** : `tab-layout.test.ts` (mesures réelles FR / RU, cause reproduite avec la marge de 14 dp, géométrie exacte après correction).
 
+## 5 octies. Lot 6 : Épargne et fondations UX
+
+Audit complet dans `docs/ux-audit.md`. Ce qui concerne le design :
+
+### Épargne (Lot 6B)
+
+- **Épargne déclarative** : un versement signifie « j'ai mis cette somme de côté ». Rien n'est écrit dans les opérations, les budgets, les factures ni le solde réel. Le total affiché en tête est libellé « Mis de côté (déclaré) » avec la mention « Ce n'est pas le solde de votre banque ».
+- **Le montant épargné n'est jamais stocké** : il est la somme des versements moins les retraits actifs. Il ne peut donc pas diverger de l'historique. Un mouvement annulé reste en base (`deleted_at`) ; un objectif sans historique se supprime logiquement ; un objectif avec historique ne peut qu'être archivé.
+- **Chronologie cohérente** : le montant épargné ne doit être négatif à aucun moment (pas seulement à la fin). Corriger, annuler ou rétablir un mouvement revérifie toute la chronologie ; un retrait antidaté avant le versement qui le couvre est refusé. L'ordre de départage d'un même jour est l'ordre de saisie, puis l'identifiant.
+- **Double toucher** : l'identifiant du mouvement est choisi à l'ouverture du panneau ; l'enregistrer deux fois n'ajoute qu'un mouvement. Le panneau ajoute en plus un verrou de 600 ms.
+- **Progression** : pourcentage entier arrondi vers le bas (jamais 100 % avant la cible), barre plafonnée à 100 %, montants exacts conservés, état « atteint » ou « dépassé de X » écrit (la coche et la couleur « réussite » ne font qu'accompagner le texte). Un retrait qui repasse sous la cible recalcule l'état ; aucun objectif n'est archivé automatiquement.
+- **Écarts avec le design** : le design ne dessine pas Épargne. L'écran est composé avec les éléments existants (`Surface`, `FieldGroup`, `ProgressBar`, panneaux du Lot 5). Nouveautés de composants : `ProgressBar` accepte `complete` ; `DateRow` accepte une valeur vide et des bornes ; icône `grip` (poignée de réorganisation).
+- **Services → Épargne** ouvre maintenant l'écran Épargne. Le virement vers l'épargne (type `transfer`) reste accessible par le lien « Noter un virement dans les opérations » ; il n'est pas relié aux objectifs.
+- **Pas de premier versement à la création** : la création demande nom et montant à atteindre seulement (cf. audit § 4).
+- **Annuler un archivage** : pas de bouton « Annuler » dans la notification (restaurer remettrait l'objectif en fin de liste, un changement d'ordre silencieux). La restauration se fait depuis « Objectifs archivés ».
+
+### Interactions (Lot 6C)
+
+- **Réorganiser** (mode ≡ dans l'en-tête, visible à partir de deux objectifs) : glisser depuis la poignée après un appui long de 220 ms, ou flèches monter / descendre. Les lignes ont toutes la même hauteur (72 dp × échelle du texte, plafonnée à 160 %). Les voisines se décalent avec le mouvement standard (jeton `menuItemIn`, instantané si les animations sont réduites). L'ordre est écrit **une fois**, au relâchement ; un geste interrompu restaure l'état de départ sans rien écrire.
+- **Limite connue** : pas de défilement automatique pendant le glissement ; sur une longue liste, les flèches permettent de franchir de grandes distances.
+- **Panneaux** : le glissement de fermeture existant est conservé tel quel. Seules ses règles (seuil de 30 %, vitesse de 900 px/s, résistance de 12 % vers le haut) ont été extraites dans `src/components/ui/sheet-dismiss.ts` pour être testées.
+- **Non retenus ou reportés** (raisons dans `docs/ux-audit.md` § 12) : tirer pour actualiser, appui long avec aperçu, balayage de ligne, interception du retour par le bord.
+- **Catégories de mouvement** (pour mémoire) : *entrée/sortie de calque* (panneaux, menus : jetons `sheetIn/Out`, `menuIn/Out`), *réponse au toucher* (`press`, `release`), *changement d'état* (ressort sans rebond : onglets, ouverture), *déplacement de liste* (`menuItemIn`, décalage des voisines), *remplissage* (`progressFill`). Animations réduites : tout déplacement devient instantané, un fondu dure 100 ms au plus.
+
 ### Avertissement Reanimated « Dependencies should only be used on the web »
 
 - **Cause** : notre propre `useAnimatedReaction(...)` dans `src/components/ui/bottom-sheet.tsx` (ajouté au lot 4.1 pour `onPresented`) recevait un tableau de dépendances. Sur natif, Reanimated ignore ces dépendances et le signale en développement.
