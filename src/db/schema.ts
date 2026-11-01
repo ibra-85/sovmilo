@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
+import { BILL_RECURRENCES } from '@/domain/bills';
 import { SHOPPING_UNITS } from '@/domain/shopping';
 import { APP_LOCALES, CATEGORY_KINDS, DEFAULT_CURRENCY, PAYMENT_METHODS, TRANSACTION_TYPES } from '@/domain/types';
 
@@ -144,6 +145,64 @@ export const shoppingItems = sqliteTable(
   ],
 );
 
+/**
+ * Factures : la DÉFINITION d'une dépense à payer (nom, montant prévu, récurrence). Ses échéances sont dans `bill_occurrences`.
+ * Rien ici ne touche à `transactions`, aux budgets ni au solde : payer une facture est un suivi déclaré, pas une opération.
+ */
+export const bills = sqliteTable(
+  'bills',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    name: text('name').notNull(),
+    /** Montant prévu en centimes pour les prochaines échéances ; NULL = à renseigner (jamais 0). */
+    expectedAmountCents: integer('expected_amount_cents'),
+    recurrence: text('recurrence', { enum: BILL_RECURRENCES }).notNull().default('none'),
+    /** Date `YYYY-MM-DD` de départ de la série (première échéance) : le jour d'origine (31…) vient d'ici, jamais de l'échéance précédente. */
+    anchorDate: text('anchor_date').notNull(),
+    /** Récurrence arrêtée : dernier jour (`YYYY-MM-DD`) où une échéance peut exister. NULL = la série continue. */
+    stoppedOn: text('stopped_on'),
+    note: text('note'),
+    ...timestamps,
+  },
+  (table) => [
+    check('bills_expected_amount_positive', sql`${table.expectedAmountCents} IS NULL OR ${table.expectedAmountCents} > 0`),
+    check('bills_recurrence_known', sql`${table.recurrence} IN ('none', 'monthly', 'yearly')`),
+  ],
+);
+
+/**
+ * Échéances individuelles d'une facture, chacune avec son propre état. Le paiement déclaré (`paid_on`, `paid_amount_cents`) est
+ * porté par l'échéance : un paiement est donc relié à UNE seule échéance, par construction. Le montant prévu est copié ici à
+ * la création : changer le montant de la facture ne réécrit jamais une échéance déjà payée.
+ */
+export const billOccurrences = sqliteTable(
+  'bill_occurrences',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    billId: text('bill_id')
+      .notNull()
+      .references(() => bills.id),
+    /** Échéance civile `YYYY-MM-DD` (pas d'heure, pas de fuseau). */
+    dueOn: text('due_on').notNull(),
+    amountCents: integer('amount_cents'),
+    /** Date de paiement déclarée ; NULL = pas payée. */
+    paidOn: text('paid_on'),
+    /** Montant réellement payé ; NULL = non noté. Seulement si l'échéance est payée. */
+    paidAmountCents: integer('paid_amount_cents'),
+    ...timestamps,
+  },
+  (table) => [
+    check('bill_occurrences_amount_positive', sql`${table.amountCents} IS NULL OR ${table.amountCents} > 0`),
+    check('bill_occurrences_paid_amount_positive', sql`${table.paidAmountCents} IS NULL OR ${table.paidAmountCents} > 0`),
+    check('bill_occurrences_paid_amount_needs_payment', sql`${table.paidAmountCents} IS NULL OR ${table.paidOn} IS NOT NULL`),
+    // Jamais deux échéances à la même date pour une facture : c'est ce qui rend la génération idempotente (pas de doublon au redémarrage).
+    uniqueIndex('bill_occurrences_bill_due_idx').on(table.billId, table.dueOn),
+    index('bill_occurrences_due_idx').on(table.dueOn),
+  ],
+);
+
 export type Profile = typeof profiles.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type NewCategory = typeof categories.$inferInsert;
@@ -153,3 +212,5 @@ export type Budget = typeof budgets.$inferSelect;
 export type AccountSnapshot = typeof accountSnapshots.$inferSelect;
 export type ShoppingList = typeof shoppingLists.$inferSelect;
 export type ShoppingItem = typeof shoppingItems.$inferSelect;
+export type Bill = typeof bills.$inferSelect;
+export type BillOccurrence = typeof billOccurrences.$inferSelect;

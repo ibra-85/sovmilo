@@ -12,6 +12,8 @@ interface DateRowProps {
   value: string;
   today: string;
   onChange: (value: string) => void;
+  /** Légende de la ligne ; « Date » par défaut. */
+  label?: string;
 }
 
 /** Libellé de la ligne : « Aujourd’hui, 31 oct. », « Hier, 30 oct. », sinon la date en toutes lettres. */
@@ -32,7 +34,7 @@ function useDateLabel(today: string) {
  * panneau inférieur avec le sélecteur du système sur iOS. Le design ne dessine pas le sélecteur de date (À CONCEVOIR) :
  * on utilise celui du système plutôt que d'en inventer un.
  */
-export function DateRow({ value, today, onChange }: DateRowProps) {
+export function DateRow({ value, today, onChange, label: rowLabel }: DateRowProps) {
   const { t } = useTranslation();
   const locale = useLocale();
   const label = useDateLabel(today);
@@ -53,7 +55,7 @@ export function DateRow({ value, today, onChange }: DateRowProps) {
 
   return (
     <>
-      <FormRow icon="calendar" label={t('add.date')} value={label(value)} onPress={open} />
+      <FormRow icon="calendar" label={rowLabel ?? t('add.date')} value={label(value)} onPress={open} />
       {Platform.OS !== 'android' && (
         <BottomSheet visible={sheetOpen} onClose={() => setSheetOpen(false)} accessibilityLabel={t('add.pickDate')}>
           <Text variant="titleSheet" accessibilityRole="header">

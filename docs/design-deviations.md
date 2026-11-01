@@ -135,6 +135,48 @@ Limite : à la toute première ouverture après le lancement, la réserve est un
 
 **Liste entièrement cochée** — trois états distincts : liste jamais remplie → grand état vide avec invitation ; articles restants → « À acheter » puis « Déjà pris (n) » ; tout coché → une seule ligne compacte (pastille de validation + « Tous les articles sont pris ! », fondu 160 ms) à la place de la ligne d'état, puis directement « Déjà pris (n) ». Plus de grande zone vide ; l'ancien texte d'aide (`allDoneText`) est supprimé. Décocher un article fait revenir « À acheter ».
 
+## 5 septies. Lot 5 : module Factures et échéances
+
+Écrans : Services → Factures (`/bills`), détail (`/bills/[id]`), formulaire (`/bill-form`, modal), panneau « Marquer comme payée ». Code : `src/features/bills/` (dépôt `repository.ts`, hooks `use-bills.ts`, textes `format.ts`, écrans), calculs purs dans `src/domain/bills.ts`. Migration `0003` : ajout seul (tables `bills` et `bill_occurrences`), aucune table existante modifiée. Pas de synchronisation dans ce lot.
+
+**Données** : `bills` = la définition (nom, montant prévu optionnel, récurrence none / monthly / yearly, date d'ancrage, `stopped_on`, note). `bill_occurrences` = une ligne par échéance (`due_on`, montant prévu figé, `paid_on`, `paid_amount_cents`). Contraintes SQLite : montants NULL ou > 0, un montant payé exige une date de paiement, `(bill_id, due_on)` unique (aucun doublon possible). Suppression logique.
+
+**Récurrence** (testée) :
+1. Le jour est TOUJOURS recalculé depuis la date d'ancrage : 31 janv. → 28 févr. → 31 mars ; annuel 29 févr. → 28 févr. les années non bissextiles, 29 févr. les bissextiles.
+2. Les échéances sont générées jusqu'à 3 mois après aujourd'hui (`GENERATION_HORIZON_MONTHS`), avec toujours au moins une échéance à venir. Génération idempotente, bornée (plafond de sécurité 1 200 dates), uniquement en dates civiles `YYYY-MM-DD` (aucun fuseau, aucun changement d'heure).
+3. Une facture oubliée reste visible « en retard » ; chaque échéance se paie indépendamment.
+4. Modifier la série (montant, date, récurrence) ne touche QUE les échéances non payées ; un paiement passé n'est jamais réécrit. Arrêter la récurrence conserve l'historique (supprime les échéances futures non payées).
+
+**Statuts** : en retard = non payée ET échéance avant aujourd'hui (le jour même = « à payer aujourd'hui »). « Bientôt » = dans les `SOON_WINDOW_DAYS` = 7 jours (valeur de présentation, centralisée). Le statut s'écrit toujours en texte (jamais la couleur seule).
+
+**Totaux** : « Reste à payer » = échéances non payées de la période affichée ; les retards des périodes précédentes sont annoncés à part, sans double comptage. Montant inconnu : jamais compté 0 €, le total est signalé « partiel » avec le nombre de montants à renseigner. Entiers en centimes partout ; le montant payé (réel) peut différer du prévu et reste distinct.
+
+**Séparation financière** : marquer payée ne crée AUCUNE opération et ne touche ni budgets ni solde manuel (test : `transactions`, `budgets`, `account_snapshots` identiques avant / après). Aucun lien automatique Factures ↔ Opérations.
+
+**Choix d'interface** : lignes compactes avec un bouton rond de paiement de 56 dp ; panneau de paiement (date par défaut aujourd'hui, montant prévu proposé, modifiable ou vide) ; paiement annulable (toast « Annuler », 6 s) ; section « Payées » repliable ; en retard = icône d'alerte + texte, sans grande carte rouge ; menu contextuel avec MorphingPopover (modifier / arrêter la récurrence / supprimer).
+
+**Décisions ouvertes** :
+1. Première échéance au plus 366 jours dans le passé (borne de sécurité).
+2. Pas d'état « archivé » séparé : arrêter la récurrence en tient lieu ; on ne peut pas la reprendre.
+3. Modifier la série reconstruit le calendrier non payé à partir de la nouvelle date.
+4. Renommer une facture renomme aussi l'historique de ses paiements.
+5. Une échéance payée est classée dans le mois de son échéance, pas de son paiement.
+6. La section « En retard » est globale (indépendante du mois affiché).
+7. Pas de modification ni de saut d'une seule échéance.
+8. Supprimer une facture est définitif après confirmation (pas d'annulation).
+9. Paiement anticipé autorisé ; date de paiement future refusée.
+10. Aucune notification ni rappel (hors périmètre du lot).
+
+**Couvert automatiquement** (Jest, vraie base SQLite) : les quatre parcours, mois à 28 / 29 / 30 / 31 jours, années bissextiles, décembre → janvier, fuseaux et changements d'heure, statuts, totaux sans double comptage, montants inconnus, très grands montants, contraintes, idempotence, redémarrage, atomicité, migration sur base existante, séparation financière, parité et pluriels FR / RU.
+**À vérifier sur téléphone** : rendu, clavier, retour Android, texte agrandi, mouvement réduit, long texte russe.
+
+### Avertissement Reanimated « Dependencies should only be used on the web »
+
+- **Cause** : notre propre `useAnimatedReaction(...)` dans `src/components/ui/bottom-sheet.tsx` (ajouté au lot 4.1 pour `onPresented`) recevait un tableau de dépendances. Sur natif, Reanimated ignore ces dépendances et le signale en développement.
+- **Correction** : appel sans tableau de dépendances (le compilateur worklets suit les valeurs capturées). Aucun `LogBox.ignoreLogs`, aucune mise à jour de bibliothèque, `node_modules` intact.
+- **Garde-fou** : `src/hooks/reanimated-deps.test.ts` analyse le code source et échoue si un `useAnimatedStyle`, `useDerivedValue`, `useAnimatedReaction`, `useAnimatedProps` ou `useAnimatedScrollHandler` reçoit un tableau de dépendances. Les hooks React ordinaires (`useEffect`, `useMemo`, `useCallback`) gardent les leurs.
+- **Non vérifié sur appareil** : la disparition du message à l'exécution n'a pas été constatée (l'application n'est pas lancée dans ce lot).
+
 ## 5 ter. Règle : ne jamais utiliser `ImageBackground`
 
 React Native 0.88 a déprécié `ImageBackground` (avertissement « ImageBackground is deprecated and will be removed in a future release »).
@@ -152,7 +194,7 @@ Les couleurs d'alerte (`danger*`) ne sont pas fixées par les maquettes : provis
 
 1. **Report des limites de budget d'un mois sur l'autre** : implémenté à l'étape 2a (les limites se reportent), **jamais confirmé**. Non modifié.
 2. **Seuil « presque atteint »** : le domaine utilise 80 % (étape 2a) ; le design propose 75 % (fictif).
-3. **Contenu de l'onglet Services** : Solde manuel, Épargne, Catégories, Paramètres + Factures / Courses / Statistiques « Bientôt » (lot 3.1).
+3. **Contenu de l'onglet Services** : Solde manuel, Épargne, Catégories, Paramètres + Courses (lot 4) et Factures (lot 5) actives, Statistiques « Bientôt ».
 10. **Catégorie utilisée** : réaffectation des opérations, budgets retirés — décidé et confirmé le 31/10/2026.
 4. **Épargne (virement)** : absente des maquettes, conservée dans le domaine ; son bouton est dans Services.
 5. **Taille du texte et des cibles** : `CLAUDE.md` (≥ 16 sp, ≥ 56 dp) contre design (13–14 sp, 48 dp).

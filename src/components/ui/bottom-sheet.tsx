@@ -101,12 +101,12 @@ export function BottomSheet({ visible, onClose, children, accessibilityLabel, di
   const notifyPresented = useCallback(() => {
     if (visibleRef.current) onPresentedRef.current?.();
   }, []);
+  // Sans tableau de dépendances : sur Android, Reanimated les ignore et le signale (le Worklets capture `notifyPresented`, stable).
   useAnimatedReaction(
     () => progress.value >= PRESENTED_THRESHOLD,
     (reached, previous) => {
       if (reached && !previous) scheduleOnRN(notifyPresented);
     },
-    [notifyPresented],
   );
 
   const keyboardOpen = keyboardHeight > 0;

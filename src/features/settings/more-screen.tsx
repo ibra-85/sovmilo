@@ -51,6 +51,12 @@ export function MoreScreen() {
               onPress={() => router.push('/shopping')}
             />
             <ServiceRow
+              icon="bills"
+              title={t('services.bills')}
+              text={t('services.billsText')}
+              onPress={() => router.push('/bills')}
+            />
+            <ServiceRow
               icon="settings"
               title={t('services.settingsTitle')}
               text={t('services.settingsText')}
@@ -64,7 +70,6 @@ export function MoreScreen() {
             {t('services.soonTitle')}
           </Text>
           <FieldGroup>
-            <ServiceRow icon="bills" title={t('services.bills')} text={t('services.billsText')} soonLabel={t('services.soon')} />
             <ServiceRow icon="budgets" title={t('services.stats')} text={t('services.statsText')} soonLabel={t('services.soon')} />
           </FieldGroup>
         </View>

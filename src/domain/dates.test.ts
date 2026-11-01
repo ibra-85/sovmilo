@@ -1,5 +1,7 @@
 import {
   daysInMonth,
+  formatDateWithYear,
+  formatDayMonth,
   formatMonthName,
   formatMonthShort,
   formatMonthRange,
@@ -157,5 +159,18 @@ describe('formatMonthShort', () => {
   it('abrège le nom du mois', () => {
     expect(formatMonthShort('2026-10', 'fr')).toBe('oct.');
     expect(formatMonthShort('2026-10', 'ru')).toMatch(/^окт/);
+  });
+});
+
+describe('formatDayMonth / formatDateWithYear', () => {
+  it('jour et mois en toutes lettres, sans année', () => {
+    expect(formatDayMonth('2026-03-05', 'fr')).toBe('5 mars');
+    expect(formatDayMonth('2026-03-05', 'ru')).toBe('5 марта');
+    expect(formatDayMonth('2026-02-30', 'fr')).toBe('2026-02-30');
+  });
+
+  it('date courte avec l\'année', () => {
+    expect(formatDateWithYear('2026-11-12', 'fr')).toMatch(/^12 nov\.? 2026$/);
+    expect(formatDateWithYear('nimporte', 'fr')).toBe('nimporte');
   });
 });

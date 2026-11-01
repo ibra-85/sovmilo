@@ -74,6 +74,20 @@ export function formatShortDate(value: string, locale: AppLocale): string {
   return new Intl.DateTimeFormat(INTL_LOCALES[locale], { day: 'numeric', month: 'short' }).format(date);
 }
 
+/** Jour et mois en toutes lettres, sans année, ex. « 5 mars » / « 5 марта ». Renvoie la valeur brute si la date est invalide. */
+export function formatDayMonth(value: string, locale: AppLocale): string {
+  const date = parseISODate(value);
+  if (!date) return value;
+  return new Intl.DateTimeFormat(INTL_LOCALES[locale], { day: 'numeric', month: 'long' }).format(date);
+}
+
+/** Date courte avec l'année, ex. « 12 nov. 2026 » / « 12 нояб. 2026 г. ». Renvoie la valeur brute si la date est invalide. */
+export function formatDateWithYear(value: string, locale: AppLocale): string {
+  const date = parseISODate(value);
+  if (!date) return value;
+  return new Intl.DateTimeFormat(INTL_LOCALES[locale], { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
+}
+
 /** Mois décalé de `delta` mois (négatif = passé) : `shiftMonth('2026-01', -1)` → `'2025-12'`. Lève une erreur si le mois est invalide. */
 export function shiftMonth(month: string, delta: number): string {
   if (!isMonthKey(month)) throw new RangeError(`Mois invalide (format YYYY-MM attendu) : ${month}`);
