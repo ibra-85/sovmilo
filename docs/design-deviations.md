@@ -108,6 +108,23 @@ Panneau de déplacement d'une catégorie : zone défilante bornée à l'écran (
 **Couvert automatiquement** : mise en forme des 8 montants limites en fr et ru ; ajustement pour 6 zones à 360 dp ; texte agrandi ; échelles minimales ; géométrie du graphique (indicateur dans la carte, valeurs retirées) ; placement du popover (centré, bords) ; « % » insécable ; états de budget pour 0, 74, 100, 108, 200, 2040, 5100 %.
 **À vérifier sur téléphone** (rendu réel, non testable sans appareil) : voir la liste donnée dans le bilan du 01/11/2026.
 
+## 5 sexies. Lot 4 : module Courses
+
+Écrans : Services → Courses (`/shopping`, liste des listes), détail d'une liste (`/shopping/[id]`), panneaux « Nouvel article / Modifier l'article » et « Nouvelle liste / Renommer ». Code : `src/features/shopping/`, calculs purs dans `src/domain/shopping.ts`, tables `shopping_lists` et `shopping_items` (migration `0002`, ajout seul : aucune table existante n'est touchée).
+
+**Données** : quantité en MILLIÈMES d'unité (entier : 1,5 kg = 1500), prix unitaire en centimes (entier, `null` = pas de prix), unités pièce / kg / g / L / mL / paquet. Décimales (3 au plus) seulement pour kg et L. Grammes : le prix saisi est au kg ; millilitres : au litre (comme en rayon). Suppression logique (`deleted_at`), comme le reste de l'application. Pas de synchronisation dans ce lot.
+
+**Règles de prix** (testées) :
+1. Total d'une ligne = quantité × prix unitaire, arrondi UNE fois, à la moitié supérieure, en entiers (aucun nombre flottant) : 250 g à 4,20 €/kg = 1,05 € ; 0,5 kg à 3,35 €/kg = 1,68 €.
+2. Le total estimé ne compte QUE les articles encore à acheter ET ayant un prix. Un article coché sort du total.
+3. S'il manque des prix, l'écran écrit « Total partiel : N articles n'ont pas de prix ». Sans aucun prix, aucun total n'est affiché.
+4. Cocher un article ne crée aucune opération et ne touche ni au solde ni aux budgets (test : le contenu de `transactions` est identique avant / après).
+
+**Choix d'interface** : pas de liste créée d'office (pas de fausses données) ; bouton principal fixe en bas de chaque écran ; articles cochés rangés dans « Déjà pris (n) », jamais supprimés automatiquement, décochables ; aucun geste caché (toucher la ligne ouvre la modification, qui contient « Supprimer l'article ») ; suppression d'un article = immédiate avec « Annuler » dans la notification (6 s) ; suppression d'une liste = confirmation qui annonce le nombre d'articles.
+
+**Couvert automatiquement** (Jest, vraie base SQLite) : validation des noms, quantités (virgule, point, décimales refusées, zéro, trop grand), prix, arrondis, articles sans prix, noms très longs, création / renommage / suppression de liste, ajout / modification / coche / décoche / suppression / restauration d'article, persistance après « redémarrage » (réouverture du fichier), migration sur une base contenant déjà des opérations, indépendance des opérations, parité et pluriels FR / RU (1, 2, 5, 11, 21, 22).
+**À vérifier sur téléphone** (rendu et tactile, non testables sans appareil) : voir la liste donnée dans le bilan du lot 4.
+
 ## 5 ter. Règle : ne jamais utiliser `ImageBackground`
 
 React Native 0.88 a déprécié `ImageBackground` (avertissement « ImageBackground is deprecated and will be removed in a future release »).

@@ -9,7 +9,7 @@ import { space } from '@/theme/layout';
 
 /**
  * Services : solde manuel, épargne, catégories, paramètres, et les services à venir. Le design ne dessine pas cet écran
- * (À CONCEVOIR) : il est composé avec les éléments du design system. Un service qui n'existe pas encore (Factures, Courses,
+ * (À CONCEVOIR) : il est composé avec les éléments du design system. Un service qui n'existe pas encore (Factures,
  * Statistiques) est une ligne atténuée avec la pastille « Bientôt », NON touchable : aucune fausse interaction.
  * La langue et l'apparence sont dans Paramètres.
  */
@@ -45,6 +45,12 @@ export function MoreScreen() {
               onPress={() => router.push('/categories')}
             />
             <ServiceRow
+              icon="cart"
+              title={t('services.groceries')}
+              text={t('services.groceriesText')}
+              onPress={() => router.push('/shopping')}
+            />
+            <ServiceRow
               icon="settings"
               title={t('services.settingsTitle')}
               text={t('services.settingsText')}
@@ -59,7 +65,6 @@ export function MoreScreen() {
           </Text>
           <FieldGroup>
             <ServiceRow icon="bills" title={t('services.bills')} text={t('services.billsText')} soonLabel={t('services.soon')} />
-            <ServiceRow icon="cart" title={t('services.groceries')} text={t('services.groceriesText')} soonLabel={t('services.soon')} />
             <ServiceRow icon="budgets" title={t('services.stats')} text={t('services.statsText')} soonLabel={t('services.soon')} />
           </FieldGroup>
         </View>

@@ -149,6 +149,8 @@ function AppShell() {
               />
               <Stack.Screen name="settings" />
               <Stack.Screen name="categories" />
+              <Stack.Screen name="shopping" />
+              <Stack.Screen name="shopping/[id]" />
             </Stack>
           </PopoverHostProvider>
         </ToastProvider>

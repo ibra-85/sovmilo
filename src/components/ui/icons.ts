@@ -1,4 +1,5 @@
 import Add01Icon from '@hugeicons/core-free-icons/Add01Icon';
+import MinusSignIcon from '@hugeicons/core-free-icons/MinusSignIcon';
 import Airplane01Icon from '@hugeicons/core-free-icons/Airplane01Icon';
 import Alert02Icon from '@hugeicons/core-free-icons/Alert02Icon';
 import AlertCircleIcon from '@hugeicons/core-free-icons/AlertCircleIcon';
@@ -70,6 +71,7 @@ const interfaceIcons = {
   income: Download01Icon, // « Ajouter un revenu »
   scanReceipt: Camera01Icon,
   createPlus: Add01Icon,
+  minus: MinusSignIcon,
   check: Tick02Icon,
   trash: Delete02Icon,
   note: PencilEdit01Icon,
