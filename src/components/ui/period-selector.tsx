@@ -26,7 +26,7 @@ export function PeriodSelector() {
   const locale = useLocale();
   const { colors, shadows } = useTheme();
   const { month, currentMonth, setMonth } = useSelectedMonth();
-  const { bindTrigger, anchor: menuAnchor, open: openMenu, close: closeMenu, reopen: reopenMenu, isOpen: menuOpen } = usePopoverTrigger();
+  const { bindTrigger, coverStyle, anchor: menuAnchor, open: openMenu, close: closeMenu, reopen: reopenMenu, isOpen: menuOpen } = usePopoverTrigger();
 
   const choices = useMemo(() => {
     const months = recentMonths(currentMonth, MONTH_CHOICES);
@@ -48,7 +48,7 @@ export function PeriodSelector() {
 
   return (
     <>
-      <View ref={bindTrigger} collapsable={false}>
+      <View ref={bindTrigger} collapsable={false} style={coverStyle}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('period.a11y', { month: label })}

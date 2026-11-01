@@ -22,6 +22,8 @@ interface CategoryTileProps {
   accessibilityHint?: string;
   /** Référence du carré de 58 dp (sans le libellé) : c'est lui, pas la tuile entière, qui sert d'ancre à un menu. */
   squareRef?: Ref<ComponentRef<typeof View>>;
+  /** Un menu a pris la place du carré (il se transforme en menu) : le carré est masqué, sans quitter la mise en page. */
+  covered?: boolean;
 }
 
 /**
@@ -38,6 +40,7 @@ export function CategoryTile({
   onLongPress,
   accessibilityHint,
   squareRef,
+  covered = false,
 }: CategoryTileProps) {
   const { colors, shadows } = useTheme();
 
@@ -71,6 +74,7 @@ export function CategoryTile({
           borderStyle: create ? 'dashed' : 'solid',
           borderColor: create ? colors.dashed : selected ? colors.selectedBorder : colors.surfaceBorder,
           boxShadow: shadow,
+          opacity: covered ? 0 : 1,
         }}>
         {create ? <Icon name="createPlus" size={24} /> : <CategoryIcon value={icon ?? null} size={26} />}
         {selected && (

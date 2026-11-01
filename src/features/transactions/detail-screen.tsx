@@ -51,7 +51,7 @@ export function TransactionDetailScreen() {
   const { transaction, loaded } = useTransaction(id);
   const present = useTransactionPresenter();
   const categoryById = useCategoryMap();
-  const { bindTrigger, anchor: menuAnchor, open: openMenu, close: closeMenu, reopen: reopenMenu, isOpen: menuOpen } = usePopoverTrigger();
+  const { bindTrigger, coverStyle, anchor: menuAnchor, open: openMenu, close: closeMenu, reopen: reopenMenu, isOpen: menuOpen } = usePopoverTrigger();
   const [confirming, setConfirming] = useState(false);
   const [leaving, setLeaving] = useState(false);
 
@@ -104,7 +104,7 @@ export function TransactionDetailScreen() {
         onBack={close}
         backLabel={t('detail.back')}
         trailing={
-          <View ref={bindTrigger} collapsable={false}>
+          <View ref={bindTrigger} collapsable={false} style={coverStyle}>
             <IconButton icon="more" label={t('detail.moreActions')} expanded={menuOpen} onPress={openMenu} />
           </View>
         }

@@ -48,7 +48,7 @@ export function BudgetDetailScreen() {
   const { categoryId } = useLocalSearchParams<{ categoryId: string }>();
   const { month } = useSelectedMonth();
   const { entries } = useBudgetOverview(month);
-  const { bindTrigger, anchor: menuAnchor, open: openMenu, close: closeMenu, reopen: reopenMenu, isOpen: menuOpen } = usePopoverTrigger();
+  const { bindTrigger, coverStyle, anchor: menuAnchor, open: openMenu, close: closeMenu, reopen: reopenMenu, isOpen: menuOpen } = usePopoverTrigger();
   const [confirming, setConfirming] = useState(false);
   const [leaving, setLeaving] = useState(false);
 
@@ -106,7 +106,7 @@ export function BudgetDetailScreen() {
         onBack={close}
         backLabel={t('budget.back')}
         trailing={
-          <View ref={bindTrigger} collapsable={false}>
+          <View ref={bindTrigger} collapsable={false} style={coverStyle}>
             <IconButton icon="more" label={t('budget.moreActions')} expanded={menuOpen} onPress={openMenu} />
           </View>
         }

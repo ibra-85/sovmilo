@@ -1,4 +1,4 @@
-import { createActionGate, resolveScrimTap, shouldUnmount } from './popover-session';
+import { createActionGate, resolvePopoverBack, resolveRowPress, resolveScrimTap, shouldUnmount } from './popover-session';
 
 const anchor = { x: 300, y: 40, width: 44, height: 44 };
 const onAnchor = { x: 320, y: 60 };
@@ -88,5 +88,52 @@ describe('createActionGate (aucune action exécutée deux fois)', () => {
 
   it('flush sans action en attente ne fait rien', () => {
     expect(createActionGate().flush()).toBe(false);
+  });
+});
+
+describe('resolveRowPress (toucher sur une ligne)', () => {
+  it('choisit la ligne une fois le menu armé', () => {
+    expect(resolveRowPress({ intentOpen: true, armed: true })).toBe('select');
+  });
+
+  it('un toucher trop tôt (double toucher sur le déclencheur) ferme le menu sans rien choisir', () => {
+    expect(resolveRowPress({ intentOpen: true, armed: false })).toBe('close');
+  });
+
+  it('ignore tout toucher pendant la fermeture', () => {
+    expect(resolveRowPress({ intentOpen: false, armed: true })).toBe('ignore');
+    expect(resolveRowPress({ intentOpen: false, armed: false })).toBe('ignore');
+  });
+});
+
+describe('resolvePopoverBack (Retour d’Android)', () => {
+  it('ferme le menu ouvert', () => {
+    expect(resolvePopoverBack({ intentOpen: true })).toBe('close');
+  });
+
+  it('pendant la fermeture, le Retour est absorbé : il ne traverse pas vers l’écran', () => {
+    expect(resolvePopoverBack({ intentOpen: false })).toBe('absorb');
+  });
+});
+
+describe('scénario : ouvrir, retoucher, rouvrir (aucune action perdue ni doublée)', () => {
+  it('une action choisie ne s’exécute qu’une fois, après la fermeture, même avec des touchers rapides', () => {
+    const gate = createActionGate();
+    const run = jest.fn();
+    expect(gate.select(run)).toBe(true);
+    expect(gate.select(run)).toBe(false); // second toucher rapide
+    expect(run).not.toHaveBeenCalled(); // rien avant la fin de la fermeture
+    expect(gate.flush()).toBe(true);
+    expect(gate.flush()).toBe(false);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it('une réouverture annule l’action en attente d’un menu qui se fermait', () => {
+    const gate = createActionGate();
+    const run = jest.fn();
+    gate.select(run);
+    gate.reset();
+    expect(gate.flush()).toBe(false);
+    expect(run).not.toHaveBeenCalled();
   });
 });

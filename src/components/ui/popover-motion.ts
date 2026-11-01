@@ -4,10 +4,16 @@
  * Pourquoi un ressort écrit ici plutôt que `withSpring` : le code de Reanimated 4.7.1 (`animation/spring/spring.ts`, `onStart`)
  * remet la vitesse à zéro quand la nouvelle cible va dans le sens CONTRAIRE du mouvement en cours (« Inertia is only preserved
  * when it already points toward toValue »). Un second toucher qui inverse l'ouverture ferait donc un arrêt net avant de repartir.
- * Ici la position ET la vitesse sont l'état du système : changer la cible ne change que la force de rappel, si bien que le
- * mouvement ralentit sous l'effet du ressort, s'arrête, puis repart dans l'autre sens, sans aucune discontinuité de position
- * ni de vitesse. Un second étage (voir `stepMotion`) rend aussi l'accélération continue : l'inversion se voit comme un
- * ralentissement, pas comme un virage sec.
+ * Ici la position ET la vitesse sont l'état du système : changer la cible ne change que la force de rappel. La position et la
+ * vitesse ne sautent jamais ; mais un ressort assez raide pour s'ouvrir en 220 ms fait demi-tour en une à deux images : la
+ * « conservation de la vitesse » est exacte dans le modèle, elle est à peine perceptible à l'écran.
+ *
+ * Deux étages, mais un seul compte au départ. `position` est un ressort à amortissement critique qui poursuit `lead` ; `lead`
+ * poursuit la cible. Quand tout est au repos, `lead` est calé sur la nouvelle cible dès la première image : le départ est celui
+ * d'UN seul ressort (10 % en ~25 ms, 50 % en ~60 ms, contre 50 et 104 ms pour la cascade de la V2, qui partait toujours de zéro).
+ * `lead` ne sert donc qu'à l'INVERSION en plein mouvement : il y adoucit le changement de force, ce qui donne un demi-tour
+ * en deux ou trois images avec un peu de course encore parcourue (jusqu'à ~15 % à mi-chemin) au lieu d'un virage sec.
+ * Il faut rester lucide : à l'écran c'est un adoucissement de quelques dizaines de millisecondes, pas une vraie inertie.
  *
  * Toutes les fonctions marquées `worklet` n'utilisent que des nombres : elles tournent telles quelles sur le thread UI et en Jest.
  */
@@ -17,7 +23,7 @@ export interface MotionState {
   position: number;
   /** Vitesse de `position`, en unités d'avancement par seconde (signée). */
   velocity: number;
-  /** Premier étage : valeur qui suit la cible et que `position` poursuit (voir `stepMotion`). */
+  /** Cible adoucie que `position` poursuit (voir plus haut) ; égale à la cible tant qu'aucune inversion n'a lieu. */
   lead: number;
   leadVelocity: number;
 }
@@ -33,11 +39,11 @@ export const INITIAL_MOTION: MotionState = { position: 0, velocity: 0, lead: 0, 
 export const REST_DISTANCE = 0.004;
 export const REST_VELOCITY = 0.05;
 
-/** Temps de calage à 1 % d'un ressort critique en cascade de deux étages, en multiples de 1/ω. */
-const SETTLE_FACTOR = 6.5;
-/** Le premier étage est plus raide que le second : il arrondit les changements de force sans retarder l'ensemble. */
-export const LEAD_RATIO = 1.5;
-/** Pas interne maximal (s) : l'état est avancé par sous-pas pour que le résultat ne dépende pas de la durée de l'image. */
+/** Temps de calage à 1 % d'un ressort critique, en multiples de 1/ω : (1 + x)·e^(−x) = 0,01 → x ≈ 6,64. */
+const SETTLE_FACTOR = 6.64;
+/** Raideur du premier étage relative à la surface : plus lent qu'elle, il arrondit le demi-tour (mesuré : 0,8 donne le plus doux). */
+export const LEAD_RATIO = 0.8;
+/** Pas interne maximal (s) : le résultat ne dépend pas de la durée de l'image. */
 const MAX_SUBSTEP = 1 / 240;
 const MAX_SUBSTEPS = 24;
 
@@ -46,7 +52,7 @@ export function omegaForSettle(settleMs: number): number {
   return SETTLE_FACTOR / (Math.max(1, settleMs) / 1000);
 }
 
-/** Un étage : ressort à amortissement critique, solution exacte x(t) = (x₀ + (v₀ + ωx₀)t)·e^(−ωt). Sans rebond possible. */
+/** Un étage : ressort à amortissement critique, solution exacte x(t) = target + (x₀ + (v₀ + ωx₀)t)·e^(−ωt). Sans rebond possible. */
 function criticalStep(position: number, velocity: number, target: number, omega: number, dt: number) {
   'worklet';
   const x0 = position - target;
@@ -58,20 +64,27 @@ function criticalStep(position: number, velocity: number, target: number, omega:
 /**
  * Fait avancer le mouvement de `dt` secondes vers `target` (0 = fermé, 1 = ouvert).
  *
- * Deux ressorts à amortissement critique en cascade : `lead` suit la cible, `position` suit `lead`. Chaque étage a une
- * position ET une vitesse comme état, que rien ne remet à zéro. Un changement de cible (second toucher) ne fait que
- * déplacer ce que `lead` poursuit : la surface garde sa position et sa vitesse, ralentit sous la force de rappel
- * qui change progressivement (l'accélération est continue grâce au premier étage), s'arrête, puis repart en sens inverse.
- * Aucun rebond (tous les pôles sont réels), position bornée à [0, 1] (la vitesse est annulée contre une borne).
+ * Aucune remise à zéro de la position ni de la vitesse : un changement de cible (second toucher) ne déplace que ce que
+ * `lead` poursuit. Aucun rebond (pôles réels). Un mouvement arrivé vite contre une borne peut la dépasser une fois : la
+ * position est alors bornée à [0, 1] et la vitesse annulée.
  */
 export function stepMotion(state: MotionState, target: number, omega: number, dt: number): MotionStep {
   'worklet';
   if (!(dt > 0)) return { ...state, settled: false };
 
+  let { position, velocity, lead, leadVelocity } = state;
+  // Tout est au repos (départ depuis l'arrêt) : le premier étage est calé sur la cible, le départ est celui d'un seul ressort.
+  if (
+    Math.abs(velocity) <= REST_VELOCITY &&
+    Math.abs(leadVelocity) <= REST_VELOCITY &&
+    Math.abs(lead - position) <= REST_DISTANCE
+  ) {
+    lead = target;
+    leadVelocity = 0;
+  }
+
   const count = Math.min(MAX_SUBSTEPS, Math.max(1, Math.ceil(dt / MAX_SUBSTEP)));
   const h = Math.min(dt, MAX_SUBSTEP * MAX_SUBSTEPS) / count;
-  let { position, velocity, lead, leadVelocity } = state;
-
   for (let i = 0; i < count; i++) {
     const first = criticalStep(lead, leadVelocity, target, omega * LEAD_RATIO, h);
     lead = first.position;
@@ -125,20 +138,19 @@ export function lerp(from: number, to: number, t: number): number {
  * fermeture ou à l'inversion, ces étapes se déroulent à l'envers au même rythme que la surface, sans minuterie.
  */
 export const stages = {
-  /** Contenu du déclencheur (icône, libellé) : s'efface pendant que la surface commence à s'ouvrir. */
-  triggerFade: [0, 0.28],
+  /** Contenu et ombre du déclencheur : s'effacent pendant que la surface commence à s'ouvrir. */
+  triggerFade: [0, 0.22],
   /** Matière : fond, contour et ombre passent de ceux du déclencheur à ceux du menu. */
   material: [0, 0.5],
-  /** Surface qui apparaît quand il n'y a pas de réplique du déclencheur à fondre. */
-  surfaceFade: [0, 0.2],
   /** Première ligne du menu : début et fin du fondu ; chaque ligne suivante démarre un peu plus tard. */
-  rowStart: 0.4,
+  rowStart: 0.3,
   rowDuration: 0.4,
   rowStagger: 0.025,
   rowStaggerMax: 5,
-  /** Au-delà, les lignes reçoivent les touchers (avant : un double toucher rapide ne choisit jamais une ligne par erreur). */
-  interactiveAt: 0.55,
 } as const;
+
+/** Délai (ms) après l'ordre d'ouverture avant que les lignes acceptent un choix : un double toucher ne choisit jamais la 1ʳᵉ action. */
+export const SELECT_ARM_MS = 260;
 
 export function rowRange(index: number): readonly [number, number] {
   'worklet';
@@ -160,5 +172,28 @@ export function lerpGeometry(from: Geometry, to: Geometry, t: number): Geometry 
     top: lerp(from.top, to.top, t),
     width: lerp(from.width, to.width, t),
     height: lerp(from.height, to.height, t),
+  };
+}
+
+export interface ScaleTransform {
+  translateX: number;
+  translateY: number;
+  scaleX: number;
+  scaleY: number;
+}
+
+/**
+ * Transformation qui fait coïncider une vue posée à sa taille FINALE (`to`) avec la géométrie intermédiaire entre `from` et
+ * `to` : translation du centre puis échelle autour du centre. Sert aux couches décoratives (ombre) pour qu'elles suivent la
+ * surface sans changer de taille en mise en page : seule une transformation est animée, jamais la mise en page.
+ */
+export function scaleBetween(from: Geometry, to: Geometry, t: number): ScaleTransform {
+  'worklet';
+  const g = lerpGeometry(from, to, t);
+  return {
+    translateX: g.left + g.width / 2 - (to.left + to.width / 2),
+    translateY: g.top + g.height / 2 - (to.top + to.height / 2),
+    scaleX: to.width > 0 ? g.width / to.width : 1,
+    scaleY: to.height > 0 ? g.height / to.height : 1,
   };
 }

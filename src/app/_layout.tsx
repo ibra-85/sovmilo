@@ -17,7 +17,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 
-import { Text, ToastProvider } from "@/components/ui";
+import { PopoverHostProvider, Text, ToastProvider } from "@/components/ui";
 import { db } from "@/db/client";
 import migrations from "@/db/migrations/migrations";
 import { seedDefaultCategories } from "@/db/seed";
@@ -122,29 +122,35 @@ function AppShell() {
       <ThemeProvider value={navigationTheme}>
         <ToastProvider>
           <StatusBar style="auto" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.bg },
-            }}
-          >
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="add" options={{ presentation: "modal" }} />
-            <Stack.Screen name="transaction/[id]" />
-            <Stack.Screen name="transaction/edit/[id]" />
-            <Stack.Screen name="budget-detail/[categoryId]" />
-            <Stack.Screen
-              name="budget-new"
-              options={{ presentation: "modal" }}
-            />
-            <Stack.Screen
-              name="budget-limit/[categoryId]"
-              options={{ presentation: "modal" }}
-            />
-            <Stack.Screen name="balance" options={{ presentation: "modal" }} />
-            <Stack.Screen name="settings" />
-            <Stack.Screen name="categories" />
-          </Stack>
+          {/* Couche des menus déroulants : au-dessus de toute la navigation, dans la même fenêtre native (pas de Modal). */}
+          <PopoverHostProvider>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.bg },
+              }}
+            >
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="add" options={{ presentation: "modal" }} />
+              <Stack.Screen name="transaction/[id]" />
+              <Stack.Screen name="transaction/edit/[id]" />
+              <Stack.Screen name="budget-detail/[categoryId]" />
+              <Stack.Screen
+                name="budget-new"
+                options={{ presentation: "modal" }}
+              />
+              <Stack.Screen
+                name="budget-limit/[categoryId]"
+                options={{ presentation: "modal" }}
+              />
+              <Stack.Screen
+                name="balance"
+                options={{ presentation: "modal" }}
+              />
+              <Stack.Screen name="settings" />
+              <Stack.Screen name="categories" />
+            </Stack>
+          </PopoverHostProvider>
         </ToastProvider>
       </ThemeProvider>
     </View>

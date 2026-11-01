@@ -1,14 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  useAnimatedReaction,
-  useFrameCallback,
-  useSharedValue,
-  type FrameCallback,
-  type FrameInfo,
-} from 'react-native-reanimated';
+import { useCallback, useEffect, useRef } from 'react';
+import { useFrameCallback, useSharedValue, type FrameCallback, type FrameInfo } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { INITIAL_MOTION, omegaForSettle, stages, stepMotion } from '@/components/ui/popover-motion';
+import { INITIAL_MOTION, omegaForSettle, stepMotion } from '@/components/ui/popover-motion';
 import { shouldUnmount } from '@/components/ui/popover-session';
 import { useMotion } from '@/hooks/use-motion';
 import { durations } from '@/theme/motion';
@@ -28,11 +22,12 @@ interface PopoverEngineOptions {
  * thread UI par `stepMotion` (voir `components/ui/popover-motion.ts`), image par image, sans minuterie.
  *
  * Interruption : `setOpen` ne démarre AUCUNE nouvelle animation. Il change seulement la cible et le rythme ; position et
- * vitesse restent celles du moment, donc un second toucher en cours de route ralentit la surface, l'arrête puis
- * l'inverse (voir les tests). `epoch` numérote chaque changement de cible : un compte rendu « fermé et au repos » arrivé
+ * vitesse restent celles du moment, donc un second toucher en cours de route inverse la surface sans saut de position ni
+ * de vitesse (demi-tour en une à deux images : voir les tests et `popover-motion.ts`). `epoch` numérote chaque changement de cible : un compte rendu « fermé et au repos » arrivé
  * trop tard, après une réouverture, est reconnu périmé et ignoré.
  *
- * La boucle d'images ne tourne que pendant un mouvement : elle s'arrête quand tout est au repos.
+ * La boucle d'images ne tourne que pendant un mouvement : elle s'arrête quand tout est au repos. Aucun passage par le
+ * thread JS pendant le mouvement ; il n'y en a qu'un, à l'arrivée, pour le démontage.
  * Animations réduites : même moteur, réglé sur 100 ms ; le composant n'anime alors que l'opacité (pas de mouvement spatial).
  */
 export function usePopoverEngine({ onSettledClosed }: PopoverEngineOptions) {
@@ -54,9 +49,6 @@ export function usePopoverEngine({ onSettledClosed }: PopoverEngineOptions) {
   useEffect(() => {
     onSettledClosedRef.current = onSettledClosed;
   }, [onSettledClosed]);
-
-  // Les lignes ne reçoivent les touchers qu'une fois la surface bien ouverte (voir `stages.interactiveAt`).
-  const [interactive, setInteractive] = useState(false);
 
   // Retour du thread UI : tout est au repos. Périmé (la cible a changé depuis) → ignoré.
   const frameRef = useRef<FrameCallback | null>(null);
@@ -96,13 +88,6 @@ export function usePopoverEngine({ onSettledClosed }: PopoverEngineOptions) {
     frameRef.current = frame;
   }, [frame]);
 
-  useAnimatedReaction(
-    () => target.get() === 1 && progress.get() >= stages.interactiveAt,
-    (now, previous) => {
-      if (now !== previous) scheduleOnRN(setInteractive, now);
-    },
-  );
-
   /**
    * Demande l'ouverture ou la fermeture. Sans effet si c'est déjà le dernier ordre. Renvoie la génération courante.
    * Peut être appelé directement depuis un gestionnaire de toucher : le mouvement part à l'image suivante.
@@ -126,7 +111,6 @@ export function usePopoverEngine({ onSettledClosed }: PopoverEngineOptions) {
 
   return {
     progress,
-    interactive,
     setOpen,
     /** Dernier ordre donné (JS). */
     isOpenRequested: () => desiredRef.current,

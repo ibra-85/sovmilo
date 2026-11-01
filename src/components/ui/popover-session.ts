@@ -26,6 +26,26 @@ export function resolveScrimTap(input: {
   return pointInRect(input.point.x, input.point.y, input.anchor, input.slop) ? 'reopen' : 'ignore';
 }
 
+/** Retour d'Android pendant que la surface existe : il ferme le menu s'il est ouvert, et dans tous les cas n'atteint pas l'écran. */
+export function resolvePopoverBack(input: { intentOpen: boolean }): 'close' | 'absorb' {
+  return input.intentOpen ? 'close' : 'absorb';
+}
+
+export type RowPress = 'select' | 'close' | 'ignore';
+
+/**
+ * Toucher sur une ligne du menu :
+ *  - menu en train de se fermer : ignoré (le choix, ou la fermeture, est déjà en cours) ;
+ *  - menu ouvert depuis moins de `SELECT_ARM_MS` : c'est le second toucher d'un double toucher sur le déclencheur (en mode
+ *    `cover`, la 1ʳᵉ ligne est exactement sous le bouton) → il se comporte comme un toucher sur le déclencheur : le menu se ferme,
+ *    aucune action ne part ;
+ *  - sinon : la ligne est choisie.
+ */
+export function resolveRowPress(input: { intentOpen: boolean; armed: boolean }): RowPress {
+  if (!input.intentOpen) return 'ignore';
+  return input.armed ? 'select' : 'close';
+}
+
 /**
  * Le moteur signale « fermé et au repos » avec le numéro de génération qu'il a lu. La fenêtre n'est démontée que si ce
  * numéro est encore le dernier demandé et que l'intention est toujours « fermé » : un message en retard d'une fermeture

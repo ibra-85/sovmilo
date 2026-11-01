@@ -109,7 +109,7 @@ interface CategoryManagerRowProps {
 function CategoryManagerRow({ category, onOpenMenu }: CategoryManagerRowProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
-  const { bind, measure } = useAnchorMeasure();
+  const { bind, measure, coverStyle } = useAnchorMeasure();
   const custom = isCustomCategory(category);
   const name = categoryLabel(category, t);
 
@@ -146,7 +146,7 @@ function CategoryManagerRow({ category, onOpenMenu }: CategoryManagerRowProps) {
         </Text>
       </View>
       {custom && (
-        <View ref={bind} collapsable={false}>
+        <View ref={bind} collapsable={false} style={coverStyle}>
           <IconButton
             icon="more"
             label={t('categoryManager.moreActions', { name })}

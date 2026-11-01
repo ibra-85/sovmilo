@@ -88,7 +88,7 @@ export const motionDistances = {
  * mais avec une vitesse remise à zéro et une nouvelle durée complète. Limite réelle de Reanimated 4 : si le nouvel
  * objectif est dans le sens CONTRAIRE du mouvement en cours, la vitesse est annulée (le mouvement s'arrête net puis repart),
  * il n'y a pas d'inversion par inertie. La position, elle, ne saute jamais.
- * Le popover (`MorphingPopover`) n'utilise PAS ce mécanisme : son moteur conserve la vitesse à l'inversion
+ * Le popover (`MorphingPopover`) n'utilise PAS ce mécanisme : son moteur garde position et vitesse à l'inversion
  * (voir `components/ui/popover-motion.ts`).
  *
  * Ressort amorti critique (`dampingRatio: 1`) et `overshootClamping` : aucun rebond. `duration` de Reanimated est une
