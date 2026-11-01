@@ -251,7 +251,7 @@
     "savingsAction": "Отложить",
     "savingsHelp": "Перевод на накопления не считается расходом.",
     "languageTitle": "Язык",
-    "languageHelp": "Выберите язык приложения.",
+    "languageHelp": "Автоматически — как в телефоне; по умолчанию используется французский.",
     "toolsTitle": "Ваши инструменты",
     "categoriesTitle": "Категории",
     "categoriesText": "Создавайте, изменяйте и удаляйте свои категории",
@@ -343,7 +343,10 @@
     "themeSystem": "Системная",
     "themeSystemText": "Как в настройках Android",
     "themeLight": "Светлая",
-    "themeDark": "Тёмная"
+    "themeDark": "Тёмная",
+    "languageAuto": "Автоматически",
+    "languageAutoText": "Как язык телефона",
+    "languageAutoActive": "Как в телефоне · {{language}}"
   },
   "shopping": {
     "title": "Покупки",

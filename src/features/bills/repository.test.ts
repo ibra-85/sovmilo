@@ -239,9 +239,10 @@ describe('factures', () => {
       expect(repo.ensureOccurrences('2026-11-12', '2027-05')).toBe(0); // déjà couvert par l'horizon
       expect(rowsOf(billId)).toEqual(before);
 
-      expect(repo.ensureOccurrences('2026-11-12', '2027-09')).toBe(4); // juin, juillet, août, septembre
+      expect(repo.ensureOccurrences('2026-11-12', '2027-09')).toBe(1); // septembre seul : pas de juin, juillet ni août
       expect(repo.ensureOccurrences('2026-11-12', '2027-09')).toBe(0); // idempotent
       expect(dates(billId).slice(-1)).toEqual(['2027-09-12']);
+      expect(dates(billId)).not.toContain('2027-06-12');
       expect(new Set(dates(billId)).size).toBe(dates(billId).length);
       expect(rowsOf(billId).slice(0, before.length)).toEqual(before); // les anciennes lignes ne bougent pas
       expect(active(billId)[0]).toMatchObject({ paidOn: '2026-11-12', paidAmountCents: 3100 });
@@ -295,6 +296,188 @@ describe('factures', () => {
         expect(partitionBills(rowsOf(billId), month, later).upcoming.length + partitionBills(rowsOf(billId), month, later).overdue.length).toBeGreaterThan(0);
       }
       expect(dates(billId).slice(-1)).toEqual(['2027-06-12']);
+    });
+  });
+
+  describe('récurrence sans date de fin (base réelle)', () => {
+    const rowsOf = (billId: string) =>
+      active(billId).map((row) => ({ dueOn: row.dueOn, amountCents: row.amountCents, paidOn: row.paidOn, paidAmountCents: row.paidAmountCents }));
+    const totalRows = () => occurrences().length;
+    /** Mois `YYYY-MM` de `from` à `to` inclus. */
+    const monthsBetween = (from: string, to: string) => {
+      const list: string[] = [];
+      for (let month = from; month <= to; month = shiftMonth(month, 1)) list.push(month);
+      return list;
+    };
+
+    it.each([
+      ['1 an', 1],
+      ['5 ans', 5],
+      ['15 ans', 15],
+    ])('mensuelle : l\'application est ouverte chaque mois pendant %s, la série continue sans trou ni doublon', (_label, years) => {
+      const { billId, occurrenceId } = repo.createBill(bill(), TODAY);
+      repo.markPaid(occurrenceId, { paidOn: '2026-11-12', amountCents: 3100 }, '2026-11-12');
+      let today = '2026-12-02';
+      for (let month = 1; month <= years * 12; month += 1) {
+        today = `${shiftMonth('2026-11', month)}-02`;
+        repo.ensureOccurrences(today);
+      }
+      const lastMonth = shiftMonth(today.slice(0, 7), CONSULTABLE_MONTHS_AHEAD);
+      expect(dates(billId)).toEqual(monthsBetween('2026-11', lastMonth).map((month) => `${month}-12`));
+      expect(rowsOf(billId)[0]).toEqual({ dueOn: '2026-11-12', amountCents: 2999, paidOn: '2026-11-12', paidAmountCents: 3100 }); // l'historique
+      expect(occurrences(billId)).toHaveLength(years * 12 + CONSULTABLE_MONTHS_AHEAD + 1); // une ligne par mois : ni plus, ni moins
+      expect(repo.ensureOccurrences(today)).toBe(0); // idempotent
+    });
+
+    it.each([
+      ['1 an', '2027-11-20', 13],
+      ['5 ans', '2031-11-20', 61],
+      ['15 ans', '2041-11-20', 181],
+    ])('mensuelle : application fermée pendant %s, au retour toutes les échéances manquées sont là, impayées', (_label, back, past) => {
+      const { billId, occurrenceId } = repo.createBill(bill(), TODAY);
+      repo.markPaid(occurrenceId, { paidOn: '2026-11-12', amountCents: 2999 }, '2026-11-12');
+      expect(repo.ensureOccurrences(back)).toBeGreaterThan(0);
+      const rows = rowsOf(billId);
+      expect(rows[0]).toMatchObject({ dueOn: '2026-11-12', paidOn: '2026-11-12' });
+      const missed = rows.filter((row) => row.dueOn < back);
+      expect(missed).toHaveLength(past); // novembre 2026 jusqu'au mois du retour
+      expect(missed.slice(1).every((row) => row.paidOn === null && row.amountCents === 2999)).toBe(true);
+      expect(rows.filter((row) => row.dueOn >= back).length).toBeGreaterThan(0); // et la série continue
+      expect(totalRows()).toBe(rows.length); // aucune ligne en trop dans la base
+      expect(totalRows()).toBeLessThan(past + CONSULTABLE_MONTHS_AHEAD + 2);
+      expect(repo.ensureOccurrences(back)).toBe(0);
+    });
+
+    it('annuelle : toujours valide plusieurs décennies plus tard, une ligne par an', () => {
+      const { billId, occurrenceId } = repo.createBill(bill({ name: 'Assurance', recurrence: 'yearly', nextDueOn: '2027-03-05', expectedAmountCents: 32000 }), TODAY);
+      repo.markPaid(occurrenceId, { paidOn: '2027-03-05', amountCents: 32500 }, '2027-03-05');
+      for (let year = 2028; year <= 2066; year += 1) repo.ensureOccurrences(`${year}-04-01`);
+      const list = dates(billId);
+      expect(list).toHaveLength(2066 - 2027 + 2); // de 2027 à 2066 + la suivante (2067)
+      expect(list[0]).toBe('2027-03-05');
+      expect(list[list.length - 1]).toBe('2067-03-05');
+      expect(list.every((date, index) => date === `${2027 + index}-03-05`)).toBe(true);
+      expect(active(billId)[0]).toMatchObject({ paidOn: '2027-03-05', paidAmountCents: 32500 });
+    });
+
+    it('annuelle du 29 février : le 29 les années bissextiles, le 28 les autres', () => {
+      const { billId } = repo.createBill(bill({ recurrence: 'yearly', nextDueOn: '2028-02-29' }), '2028-02-20');
+      for (let year = 2028; year <= 2044; year += 1) repo.ensureOccurrences(`${year}-03-15`);
+      const list = dates(billId);
+      expect(list.slice(0, 5)).toEqual(['2028-02-29', '2029-02-28', '2030-02-28', '2031-02-28', '2032-02-29']);
+      expect(list).toContain('2040-02-29');
+      expect(list).toContain('2041-02-28');
+    });
+
+    it('mois lointain consulté : une seule ligne ajoutée, jamais les mois d\'entre-deux', () => {
+      const { billId } = repo.createBill(bill(), TODAY);
+      const before = totalRows();
+      expect(repo.ensureOccurrences(TODAY, '2040-01')).toBe(1);
+      expect(totalRows()).toBe(before + 1);
+      expect(repo.ensureOccurrences(TODAY, '2040-01')).toBe(0);
+      expect(repo.ensureOccurrences(TODAY, '2099-12')).toBe(1); // coût constant, même à 70 ans de distance
+      expect(totalRows()).toBe(before + 2);
+      expect(dates(billId).slice(-2)).toEqual(['2040-01-12', '2099-12-12']);
+      expect(dates(billId)).not.toContain('2035-06-12');
+    });
+
+    it('mois lointain d\'une facture annuelle : seulement si c\'est son mois', () => {
+      const { billId } = repo.createBill(bill({ recurrence: 'yearly', nextDueOn: '2027-03-05' }), TODAY);
+      const before = totalRows();
+      expect(repo.ensureOccurrences(TODAY, '2040-04')).toBe(0);
+      expect(repo.ensureOccurrences(TODAY, '2040-03')).toBe(1);
+      expect(dates(billId)).toEqual(['2027-03-05', '2040-03-05']);
+      expect(totalRows()).toBe(before + 1);
+    });
+
+    it('le mois lointain consulté suit la série : le 31 se replie en février, l\'ancrage est conservé', () => {
+      const { billId } = repo.createBill(bill({ nextDueOn: '2026-10-31' }), TODAY);
+      repo.ensureOccurrences(TODAY, '2030-02');
+      expect(dates(billId)).toContain('2030-02-28');
+      repo.ensureOccurrences(TODAY, '2030-03');
+      expect(dates(billId)).toContain('2030-03-31');
+    });
+
+    it('récurrence arrêtée : plus aucune échéance après l\'arrêt, même des années plus tard, l\'historique reste', () => {
+      const { billId, occurrenceId } = repo.createBill(bill(), TODAY);
+      repo.markPaid(occurrenceId, { paidOn: '2026-11-12', amountCents: 3100 }, '2026-11-12');
+      repo.ensureOccurrences('2027-01-20');
+      expect(repo.stopRecurrence(billId, '2027-01-20')).toBe('stopped');
+      const history = rowsOf(billId);
+      expect(history.map((row) => row.dueOn)).toEqual(['2026-11-12', '2026-12-12', '2027-01-12']);
+      expect(repo.ensureOccurrences('2036-05-10')).toBe(0);
+      expect(repo.ensureOccurrences('2036-05-10', '2040-01')).toBe(0);
+      expect(repo.ensureOccurrences('2041-11-20')).toBe(0);
+      expect(rowsOf(billId)).toEqual(history);
+      expect(rowsOf(billId)[0]).toMatchObject({ paidOn: '2026-11-12', paidAmountCents: 3100 });
+    });
+
+    it('récurrence arrêtée sur une facture oubliée : les échéances dues restent impayées', () => {
+      const { billId } = repo.createBill(bill({ nextDueOn: '2026-08-12' }), '2026-09-01');
+      repo.ensureOccurrences(TODAY);
+      repo.stopRecurrence(billId, TODAY);
+      expect(dates(billId)).toEqual(['2026-08-12', '2026-09-12', '2026-10-12']);
+      expect(active(billId).every((row) => row.paidOn === null)).toBe(true);
+    });
+
+    it('modifier les échéances futures longtemps après ne change pas les paiements historiques', () => {
+      const { billId, occurrenceId } = repo.createBill(bill(), TODAY);
+      repo.markPaid(occurrenceId, { paidOn: '2026-11-12', amountCents: 3100 }, '2026-11-12');
+      for (let month = 1; month <= 60; month += 1) repo.ensureOccurrences(`${shiftMonth('2026-11', month)}-02`); // 5 ans
+      const today = '2031-11-02';
+      repo.markPaid(active(billId)[1].id, { paidOn: '2026-12-12', amountCents: 2999 }, '2026-12-12');
+      const paidBefore = rowsOf(billId).filter((row) => row.paidOn !== null);
+      const overdueBefore = rowsOf(billId).filter((row) => row.paidOn === null && row.dueOn < today);
+      expect(paidBefore.map((row) => row.dueOn)).toEqual(['2026-11-12', '2026-12-12']);
+      expect(overdueBefore.length).toBeGreaterThan(50); // cinq ans d'échéances oubliées
+
+      repo.updateBill(billId, bill({ expectedAmountCents: 4599, nextDueOn: overdueBefore[0].dueOn }), today);
+
+      expect(rowsOf(billId).filter((row) => row.paidOn !== null)).toEqual(paidBefore); // dates et montants payés intacts
+      expect(rowsOf(billId).filter((row) => row.paidOn === null && row.dueOn < today)).toEqual(overdueBefore); // les retards gardent leur montant
+      const future = rowsOf(billId).filter((row) => row.dueOn >= today);
+      expect(future).toHaveLength(CONSULTABLE_MONTHS_AHEAD + 1);
+      expect(future.every((row) => row.amountCents === 4599 && row.paidOn === null)).toBe(true);
+      expect(new Set(dates(billId)).size).toBe(dates(billId).length);
+    });
+
+    it('les lignes déjà enregistrées ne sont jamais réécrites par une génération ultérieure', () => {
+      const { billId } = repo.createBill(bill(), TODAY);
+      const before = occurrences(billId);
+      repo.ensureOccurrences('2030-06-15');
+      repo.ensureOccurrences('2030-06-15', '2035-01');
+      const after = occurrences(billId);
+      expect(after.slice(0, before.length)).toEqual(before);
+    });
+
+    it('jours civils : mêmes dates dans tous les fuseaux, avec un parcours de 5 ans', () => {
+      const original = process.env.TZ;
+      try {
+        const results = ['UTC', 'Europe/Paris', 'America/Los_Angeles', 'Pacific/Auckland'].map((zone) => {
+          process.env.TZ = zone;
+          const local = openTestDatabase();
+          try {
+            const localRepo = loadRepository(local);
+            const { billId } = localRepo.createBill(bill({ nextDueOn: '2026-03-29' }), '2026-03-20');
+            for (let month = 1; month <= 60; month += 1) localRepo.ensureOccurrences(`${shiftMonth('2026-03', month)}-26`);
+            return local.db
+              .select()
+              .from(billOccurrences)
+              .where(eq(billOccurrences.billId, billId))
+              .orderBy(asc(billOccurrences.dueOn))
+              .all()
+              .map((row) => row.dueOn)
+              .join(',');
+          } finally {
+            local.close();
+          }
+        });
+        for (const result of results) expect(result).toEqual(results[0]);
+        expect(results[0].split(',')).toHaveLength(67);
+      } finally {
+        if (original === undefined) delete process.env.TZ;
+        else process.env.TZ = original;
+      }
     });
   });
 

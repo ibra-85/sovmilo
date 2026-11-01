@@ -247,7 +247,7 @@
     "savingsAction": "Mettre de côté",
     "savingsHelp": "Un virement vers votre épargne ne compte pas comme une dépense.",
     "languageTitle": "Langue",
-    "languageHelp": "Choisissez la langue de l’application.",
+    "languageHelp": "Automatique suit le téléphone ; le français sert de langue par défaut.",
     "toolsTitle": "Vos outils",
     "categoriesTitle": "Catégories",
     "categoriesText": "Créer, modifier ou supprimer vos catégories",
@@ -331,7 +331,10 @@
     "themeSystem": "Système",
     "themeSystemText": "Suit le réglage d’Android",
     "themeLight": "Clair",
-    "themeDark": "Sombre"
+    "themeDark": "Sombre",
+    "languageAuto": "Automatique",
+    "languageAutoText": "Suit la langue du téléphone",
+    "languageAutoActive": "Suit le téléphone · {{language}}"
   },
   "shopping": {
     "title": "Courses",

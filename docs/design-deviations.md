@@ -143,7 +143,7 @@ Limite : à la toute première ouverture après le lancement, la réserve est un
 
 **Récurrence** (testée) :
 1. Le jour est TOUJOURS recalculé depuis la date d'ancrage : 31 janv. → 28 févr. → 31 mars ; annuel 29 févr. → 28 févr. les années non bissextiles, 29 févr. les bissextiles.
-2. Les échéances sont générées jusqu'à la fin du 6e mois après aujourd'hui (`GENERATION_HORIZON_MONTHS` = `CONSULTABLE_MONTHS_AHEAD`, voir Lot 5.1 ; c'était 3 au lot 5), avec toujours au moins une échéance à venir. Génération idempotente, bornée (plafond de sécurité 1 200 dates), uniquement en dates civiles `YYYY-MM-DD` (aucun fuseau, aucun changement d'heure).
+2. Les échéances sont générées jusqu'à la fin du 6e mois après aujourd'hui (`GENERATION_HORIZON_MONTHS` = `CONSULTABLE_MONTHS_AHEAD`, voir Lot 5.1 ; c'était 3 au lot 5), avec toujours au moins une échéance à venir. La récurrence elle-même n'a pas de fin (voir Lot 5.2). Génération idempotente, bornée (`MAX_PLANNED_DATES`), uniquement en dates civiles `YYYY-MM-DD` (aucun fuseau, aucun changement d'heure).
 3. Une facture oubliée reste visible « en retard » ; chaque échéance se paie indépendamment.
 4. Modifier la série (montant, date, récurrence) ne touche QUE les échéances non payées ; un paiement passé n'est jamais réécrit. Arrêter la récurrence conserve l'historique (supprime les échéances futures non payées).
 
@@ -173,7 +173,7 @@ Limite : à la toute première ouverture après le lancement, la réserve est un
 ### Lot 5.1 : mois futurs de Factures et menus déroulants
 
 **Mois futurs sans échéances** — cause : le sélecteur proposait 6 mois à venir (jusqu'à mai 2027 en novembre 2026) mais la génération s'arrêtait à 3 mois (février 2027). Les lignes n'existaient pas, l'écran n'avait rien à afficher (la requête, elle, ne filtre pas par date).
-Correction : UNE constante `CONSULTABLE_MONTHS_AHEAD = 6` (`src/domain/bills.ts`) commande à la fois le sélecteur et l'horizon de génération (`GENERATION_HORIZON_MONTHS`), donc un mois proposé est toujours alimenté. En plus, `ensureOccurrences(today, month)` s'exécute quand on change de mois et étend l'horizon jusqu'à ce mois si un sélecteur plus libre le permet un jour (plafond 60 mois, `MAX_GENERATION_MONTHS_AHEAD`). Toujours idempotent (index unique, lignes payées jamais touchées). Les règles métier ne changent pas.
+Correction : UNE constante `CONSULTABLE_MONTHS_AHEAD = 6` (`src/domain/bills.ts`) commande à la fois le sélecteur et l'horizon de génération (`GENERATION_HORIZON_MONTHS`), donc un mois proposé est toujours alimenté. En plus, `ensureOccurrences(today, month)` s'exécute quand on change de mois (le plafond de 60 mois de ce lot a été remplacé au Lot 5.2 : seul le mois consulté est ajouté, à n'importe quelle distance). Toujours idempotent (index unique, lignes payées jamais touchées). Les règles métier ne changent pas.
 
 **Menus déroulants** (`MorphingPopover`, inchangé dans son principe : une surface, animations interruptibles, fermeture au toucher extérieur / Retour) :
 1. **Hauteur maximale** : un menu ne dépasse jamais la moitié de la zone utilisable (`menuMaxHeight`) ; au-delà il défile à l'intérieur et s'ouvre sur le choix actuel (`scrollOffsetToReveal`) tant qu'on n'a pas fait défiler soi-même. Les menus d'actions (3 lignes) ne sont pas concernés.
@@ -183,6 +183,35 @@ Correction : UNE constante `CONSULTABLE_MONTHS_AHEAD = 6` (`src/domain/bills.ts`
 Les dimensions du menu sont dans une seule table (`MENU_METRICS`) utilisée pour le dessin et pour le calcul de la largeur.
 
 **Limites** : la largeur est une estimation (le texte n'est pas mesurable avant d'être dessiné) ; les autres menus de l'application s'adaptent aussi à leurs libellés mais gardent leurs textes actuels ; le rendu réel est à vérifier sur téléphone.
+
+### Lot 5.2 : récurrences sans date de fin, langue automatique
+
+**Récurrence, horizon et fenêtre : trois notions distinctes.**
+- **Règle de récurrence** (table `bills`) : `anchor_date`, `recurrence` (`none` / `monthly` / `yearly`) et `stopped_on`. Il n'existe AUCUNE date de fin ni durée : la série vit tant que `stopped_on` est vide, et le calendrier se calcule pour n'importe quelle date future (`dueDateAt`, `dueDateInMonth`, calcul direct, sans boucle). Le jour d'origine est toujours celui de l'ancre (le 31 se replie en février puis revient, le 29 février annuel retrouve le 29 les années bissextiles).
+- **Occurrences enregistrées** (table `bill_occurrences`) : une ligne par `due_on`, créée seulement quand elle est utile, jamais deux fois (index unique `(bill_id, due_on)`), jamais réécrite si elle est payée.
+- **Fenêtre consultable** : les 6 mois du sélecteur (`CONSULTABLE_MONTHS_AHEAD`), une présentation sans effet sur la règle.
+
+**Ce que représentait la limite de 60 mois** (Lot 5.1) : ni une fin de validité ni une limite de navigation, mais une borne de génération par requête, posée par prudence. Elle avait un défaut : elle empêchait de matérialiser un mois au-delà de 5 ans. Elle est remplacée.
+
+**Règles de calcul à la demande** (`plannedDueDates`, fonction pure) :
+1. Horizon glissant : toutes les dates de l'ancre jusqu'à la fin du 6e mois après aujourd'hui (l'historique, y compris les échéances oubliées et impayées), plus la prochaine échéance si aucune n'est à venir (série annuelle). L'horizon avance avec le temps.
+2. Mois consulté (`viewedMonth`, même à 70 ans) : seule l'échéance de CE mois est ajoutée, jamais les mois d'entre-deux. Une série mensuelle ajoute au plus une ligne, une annuelle une ligne seulement si c'est son mois. Mois passé, déjà couvert ou invalide : rien.
+3. Récurrence arrêtée : rien après `stopped_on`, ni dans l'horizon ni dans un mois consulté.
+4. Borne de TRAVAIL d'une opération (`MAX_PLANNED_DATES` = 360, soit 30 ans de factures mensuelles) : elle ne joue que si l'ancre est démesurément ancienne (date saisie à la main). Ce sont alors les dates les PLUS RÉCENTES qui sont gardées : la fenêtre glisse avec le temps, la série ne s'arrête jamais. Avant, le plafond de 1 200 dates (100 ans) faisait caler la série ; il n'existe plus de limite de validité.
+
+**Garanties sur l'historique** : une génération n'insère que les lignes manquantes (elle ne supprime rien, ne modifie aucune ligne payée ni aucune ligne existante). Montants prévus et payés, dates de paiement, retards impayés, échéances d'une série oubliée pendant des années, modifications explicites et règles d'arrêt sont inchangés. Les paiements ne créent aucune opération financière.
+
+**Limites** : le sélecteur reste à 6 mois à venir (le filtre avancé viendra plus tard) ; une série consultée à un mois lointain laisse un « trou » dans la base entre l'horizon et ce mois, voulu (les mois intermédiaires sont recalculés si on les ouvre) ; un recalage de calendrier supprime logiquement les lignes non payées, y compris ces mois lointains, qui sont recréés à la demande.
+
+**Langue : Automatique, Français ou Русский** (`src/i18n/`, i18next inchangé : aucune bibliothèque ajoutée, `expo-localization` était déjà installé).
+- **Deux notions** : la *préférence* (`auto` / `fr` / `ru`), mémorisée sous `sovmilo.languagePreference`, et la *langue effective* (`fr` / `ru`), déduite et jamais mémorisée. « Automatique » et « Français choisi » restent donc distincts même quand le téléphone est en français.
+- **Résolution** (`resolve.ts`, pure) : en Automatique, on lit UNIQUEMENT la première langue du téléphone (`getLocales()[0]`) ; `fr-*` → français, `ru-*` → russe, toute autre langue, absente ou illisible → français. Une langue secondaire n'est jamais retenue (téléphone « anglais puis russe » : français). Un choix manuel l'emporte toujours.
+- **Retour au premier plan** : Android peut changer de langue pendant que l'application est en arrière-plan. Un seul écouteur `AppState` (`refreshOnForeground`) relit la langue quand l'état redevient `active`, en Automatique seulement ; rien n'est notifié, écrit ni réappliqué si la langue effective n'a pas changé. L'interface se met à jour sans redémarrage ni réinitialisation de la navigation.
+- **Anciennes préférences** : avant ce lot, `sovmilo.locale` contenait `fr` ou `ru`. S'il n'y a pas de nouvelle préférence, cette valeur est reprise comme choix manuel (écrite une fois au nouveau format, ancienne clé laissée intacte) ; sinon Automatique. **Ambiguïté assumée** : l'ancien code enregistrait aussi la langue *détectée* au premier lancement, sans pouvoir la distinguer d'un vrai choix ; cette intention n'a jamais été enregistrée et n'est pas reconstituée. Stratégie non destructive : la langue actuelle est conservée, et l'utilisatrice peut repasser en Automatique dans Paramètres.
+- **Repli français** : (1) langue du téléphone non prise en charge → français ; (2) clé absente en russe → texte français (`fallbackLng`). Une clé absente partout reste visible en développement (pour être corrigée) et s'affiche vide en production : jamais d'identifiant technique à l'écran. Le repli ne masque pas les oublis : en développement un avertissement liste les clés russes absentes, et le test de parité FR/RU échoue (`missingTranslations`).
+- **Données** : changer de langue n'écrit que la préférence ; montants, devise (euro), dates stockées et noms saisis par l'utilisatrice (catégories, factures, listes) ne sont ni modifiés ni traduits. Dates, mois, montants et pluriels suivent la langue effective (`Intl`).
+- **Paramètres** (design Precision Glass, `ChoiceGroup` comme Apparence) : Automatique (avec la langue utilisée : « Suit le téléphone · Français »), Français, Русский.
+- **À vérifier sur téléphone** (non testable en Jest) : changer la langue d'Android puis revenir dans Sovmilo ; appui sur Retour/Accueil entre-temps ; texte système agrandi dans Paramètres ; TalkBack ; thème clair/sombre.
 
 ### Avertissement Reanimated « Dependencies should only be used on the web »
 

@@ -4,6 +4,7 @@ import {
   GENERATION_HORIZON_MONTHS,
   MAX_BILL_AMOUNT_CENTS,
   MAX_BILL_NAME_LENGTH,
+  MAX_PLANNED_DATES,
   SOON_WINDOW_DAYS,
   billStatus,
   cleanBillName,
@@ -13,6 +14,7 @@ import {
   daysOverdue,
   displayAmount,
   dueDateAt,
+  dueDateInMonth,
   dueDatesThrough,
   isBillRecurrence,
   isValidBillAmount,
@@ -24,6 +26,7 @@ import {
   validateBillName,
   validateNewDueDate,
   type OccurrenceLike,
+  type PlanInput,
 } from './bills';
 
 const occ = (dueOn: string, overrides: Partial<OccurrenceLike> = {}): OccurrenceLike => ({
@@ -195,22 +198,21 @@ describe('échéances à créer (plannedDueDates)', () => {
     expect(plan('2027-03-05', 'yearly', '2026-11-01')).toEqual(['2027-03-05']);
   });
 
-  it('génération à la demande : throughMonth étend l\'horizon, jamais ne le réduit', () => {
+  it('mois consulté (viewedMonth) : son échéance s\'ajoute, sans combler les mois d\'entre-deux, et ne réduit jamais le plan', () => {
     const base = { anchor: '2026-11-12', recurrence: 'monthly' as const, stoppedOn: null, today: '2026-11-01' };
-    const far = plannedDueDates({ ...base, throughMonth: '2027-09' });
+    const far = plannedDueDates({ ...base, viewedMonth: '2027-09' });
     expect(far[far.length - 1]).toBe('2027-09-12');
-    expect(plannedDueDates({ ...base, throughMonth: '2026-12' })).toEqual(plannedDueDates(base)); // déjà couvert
-    expect(plannedDueDates({ ...base, throughMonth: '2025-01' })).toEqual(plannedDueDates(base)); // mois passé
-    expect(plannedDueDates({ ...base, throughMonth: 'pas-un-mois' })).toEqual(plannedDueDates(base));
+    expect(far).toHaveLength(plannedDueDates(base).length + 1);
+    expect(far).not.toContain('2027-06-12'); // pas de mois d'entre-deux inutile
+    expect(plannedDueDates({ ...base, viewedMonth: '2026-12' })).toEqual(plannedDueDates(base)); // déjà couvert
+    expect(plannedDueDates({ ...base, viewedMonth: '2025-01' })).toEqual(plannedDueDates(base)); // mois passé
+    expect(plannedDueDates({ ...base, viewedMonth: 'pas-un-mois' })).toEqual(plannedDueDates(base));
   });
 
-  it('génération à la demande : plafonnée à 5 ans, sans effet sur une récurrence arrêtée ou ponctuelle', () => {
+  it('mois consulté : sans effet sur une récurrence arrêtée ou ponctuelle', () => {
     const base = { anchor: '2026-11-12', recurrence: 'monthly' as const, stoppedOn: null, today: '2026-11-01' };
-    const capped = plannedDueDates({ ...base, throughMonth: '2099-12' });
-    expect(capped[capped.length - 1]).toBe('2031-11-12');
-    expect(capped).toHaveLength(61);
-    expect(plannedDueDates({ ...base, stoppedOn: '2027-01-31', throughMonth: '2027-09' })).toEqual(['2026-11-12', '2026-12-12', '2027-01-12']);
-    expect(plannedDueDates({ ...base, recurrence: 'none', throughMonth: '2027-09' })).toEqual(['2026-11-12']);
+    expect(plannedDueDates({ ...base, stoppedOn: '2027-01-31', viewedMonth: '2027-09' })).toEqual(['2026-11-12', '2026-12-12', '2027-01-12']);
+    expect(plannedDueDates({ ...base, recurrence: 'none', viewedMonth: '2027-09' })).toEqual(['2026-11-12']);
   });
 
   it('mensuelle oubliée depuis des mois : toutes les échéances passées restent présentes', () => {
@@ -240,9 +242,9 @@ describe('échéances à créer (plannedDueDates)', () => {
     expect(new Set(a).size).toBe(a.length);
   });
 
-  it('a un horizon fini : jamais d\'échéances à l\'infini', () => {
+  it('a un horizon glissant fini : jamais d\'échéances à l\'infini', () => {
     expect(plan('2026-01-31', 'monthly', '2026-11-01').length).toBeLessThan(20);
-    expect(plan('1990-01-01', 'monthly', '2026-11-01').length).toBeLessThanOrEqual(1200);
+    expect(plan('1990-01-01', 'monthly', '2026-11-01').length).toBeLessThanOrEqual(MAX_PLANNED_DATES + 1);
   });
 
   it('récurrence arrêtée : plus rien après la date d\'arrêt', () => {
@@ -261,6 +263,191 @@ describe('échéances à créer (plannedDueDates)', () => {
       '2027-05-31',
       '2027-06-30',
     ]);
+  });
+});
+
+describe('récurrence sans date de fin : règle, horizon et fenêtre consultable', () => {
+  const monthly = { anchor: '2026-11-12', recurrence: 'monthly' as const, stoppedOn: null };
+  const yearly = { anchor: '2026-11-12', recurrence: 'yearly' as const, stoppedOn: null };
+  const plan = (input: Omit<PlanInput, 'today'>, today: string, viewedMonth?: string) => plannedDueDates({ ...input, today, viewedMonth });
+
+  it('dueDateInMonth : la date de la série dans un mois donné, calculée directement', () => {
+    expect(dueDateInMonth('2026-11-12', 'monthly', '2026-11')).toBe('2026-11-12');
+    expect(dueDateInMonth('2026-11-12', 'monthly', '2040-01')).toBe('2040-01-12');
+    expect(dueDateInMonth('2026-11-12', 'monthly', '2026-10')).toBeNull(); // avant l'ancre
+    expect(dueDateInMonth('2026-11-12', 'monthly', 'pas-un-mois')).toBeNull();
+    expect(dueDateInMonth('2026-11-12', 'monthly', '2027-13')).toBeNull();
+    expect(dueDateInMonth('2026-11-12', 'yearly', '2040-11')).toBe('2040-11-12');
+    expect(dueDateInMonth('2026-11-12', 'yearly', '2040-01')).toBeNull(); // pas le bon mois
+    expect(dueDateInMonth('2026-11-12', 'yearly', '2025-11')).toBeNull();
+    expect(dueDateInMonth('2026-11-12', 'none', '2026-11')).toBe('2026-11-12');
+    expect(dueDateInMonth('2026-11-12', 'none', '2027-11')).toBeNull();
+    expect(() => dueDateInMonth('2026-02-30', 'monthly', '2027-01')).toThrow(RangeError);
+  });
+
+  it('dueDateInMonth rend la même date que l\'énumération de la série (31, 29 février, passage d\'année)', () => {
+    for (const anchor of ['2026-01-31', '2026-12-31', '2028-02-29', '2026-11-12']) {
+      for (let k = 0; k < 400; k += 7) {
+        const date = dueDateAt(anchor, 'monthly', k);
+        expect(dueDateInMonth(anchor, 'monthly', date.slice(0, 7))).toBe(date);
+      }
+      for (let k = 0; k < 120; k += 1) {
+        const date = dueDateAt(anchor, 'yearly', k);
+        expect(dueDateInMonth(anchor, 'yearly', date.slice(0, 7))).toBe(date);
+      }
+    }
+  });
+
+  it.each([
+    ['1 an', '2027-11-20', '2028-05-12'],
+    ['5 ans', '2031-11-20', '2032-05-12'],
+    ['15 ans', '2041-11-20', '2042-05-12'],
+  ])('mensuelle toujours valide après %s : chaque mois de l\'horizon a son échéance, aucune date de fin', (_label, today, lastExpected) => {
+    const dates = plan(monthly, today);
+    const month = today.slice(0, 7);
+    for (let k = 0; k <= CONSULTABLE_MONTHS_AHEAD; k += 1) {
+      expect(dates).toContain(`${shiftMonth(month, k)}-12`);
+    }
+    expect(dates[dates.length - 1]).toBe(lastExpected); // le dernier mois de l'horizon glissant
+    expect(dates[0]).toBe('2026-11-12'); // l'historique commence toujours à l'ancre
+    expect(new Set(dates).size).toBe(dates.length);
+  });
+
+  it('mensuelle : un siècle plus tard la série continue (aucune limite absolue de validité)', () => {
+    for (const today of ['2100-01-15', '2126-12-01', '2160-06-30', '2400-02-29']) {
+      const dates = plan(monthly, today);
+      expect(dates.length).toBeLessThanOrEqual(MAX_PLANNED_DATES + 2);
+      const last = dates[dates.length - 1];
+      expect(last > today).toBe(true);
+      expect(dates).toContain(`${today.slice(0, 7)}-12`);
+    }
+  });
+
+  it('annuelle toujours valide après plusieurs décennies', () => {
+    for (const years of [1, 5, 15, 40, 70]) {
+      const today = `${2026 + years}-11-20`;
+      const dates = plan(yearly, today);
+      expect(dates).toContain(`${2026 + years}-11-12`); // l'échéance de l'année, passée
+      expect(dates).toContain(`${2027 + years}-11-12`); // la suivante, toujours présente
+      expect(dates).toHaveLength(years + 2);
+    }
+  });
+
+  it('mois lointain : seule l\'échéance de ce mois s\'ajoute, jamais les mois d\'entre-deux', () => {
+    const base = plan(monthly, '2026-11-01');
+    for (const viewedMonth of ['2027-09', '2030-11', '2040-01', '2099-12']) {
+      const withView = plan(monthly, '2026-11-01', viewedMonth);
+      expect(withView).toEqual([...base, `${viewedMonth}-12`]);
+    }
+    // Un mois déjà couvert, passé ou invalide ne change rien.
+    for (const viewedMonth of ['2026-12', '2027-05', '2025-01', 'nimporte', '2027-13']) {
+      expect(plan(monthly, '2026-11-01', viewedMonth)).toEqual(base);
+    }
+  });
+
+  it('mois lointain d\'une série annuelle : uniquement si c\'est son mois', () => {
+    const base = plan(yearly, '2026-11-01');
+    expect(plan(yearly, '2026-11-01', '2040-11')).toEqual([...base, '2040-11-12']);
+    expect(plan(yearly, '2026-11-01', '2040-03')).toEqual(base);
+  });
+
+  it('mois consulté très lointain : coût constant, nombre de dates inchangé à une unité près', () => {
+    for (const viewedMonth of ['2200-06', '2500-01', '2999-12']) {
+      expect(plan(monthly, '2026-11-01', viewedMonth)).toHaveLength(plan(monthly, '2026-11-01').length + 1);
+    }
+  });
+
+  it('aucune génération infinie ni massive : le nombre de dates reste borné à toutes les époques', () => {
+    for (const anchor of ['2026-11-12', '2026-01-31', '2028-02-29']) {
+      for (const recurrence of ['monthly', 'yearly'] as const) {
+        for (const today of ['2026-11-01', '2036-02-29', '2056-12-31', '2126-06-15']) {
+          const dates = plan({ anchor, recurrence, stoppedOn: null }, today, '2999-12');
+          expect(dates.length).toBeLessThanOrEqual(MAX_PLANNED_DATES + 2);
+        }
+      }
+    }
+  });
+
+  it('ancre absurde (1900) : la matérialisation est bornée et la série garde une échéance à venir', () => {
+    const dates = plan({ anchor: '1900-01-31', recurrence: 'monthly', stoppedOn: null }, '2026-11-01');
+    expect(dates.length).toBeLessThanOrEqual(MAX_PLANNED_DATES + 1);
+    expect(dates.some((date) => date > '2026-11-01')).toBe(true);
+    expect(dates[dates.length - 1]).toBe('2027-05-31');
+    // Les plus récentes sont gardées : la fenêtre glisse, elle ne fige pas la série.
+    expect(dates[0] >= '1996-01-01').toBe(true);
+  });
+
+  it('dueDatesThrough : fenêtre bornée sur les dates les plus récentes, ordre croissant', () => {
+    const dates = dueDatesThrough('1900-01-31', 'monthly', '2026-11-30');
+    expect(dates).toHaveLength(MAX_PLANNED_DATES);
+    expect(dates[dates.length - 1]).toBe('2026-11-30');
+    expect([...dates].sort()).toEqual(dates);
+    expect(dueDatesThrough('2026-11-12', 'monthly', '2026-11-11')).toEqual([]); // avant l'ancre
+    expect(dueDatesThrough('2026-11-12', 'monthly', '2026-11-12')).toEqual(['2026-11-12']);
+    expect(dueDatesThrough('2026-11-12', 'yearly', '2029-11-11')).toEqual(['2026-11-12', '2027-11-12', '2028-11-12']);
+  });
+
+  it('seule la date d\'arrêt termine la série : rien après, même pour un mois consulté lointain', () => {
+    const stopped = { ...monthly, stoppedOn: '2027-01-31' };
+    expect(plan(stopped, '2026-11-01')).toEqual(['2026-11-12', '2026-12-12', '2027-01-12']);
+    expect(plan(stopped, '2028-06-01', '2040-01')).toEqual(['2026-11-12', '2026-12-12', '2027-01-12']);
+    expect(plan({ ...yearly, stoppedOn: '2030-12-31' }, '2040-01-01', '2040-11')).toEqual([
+      '2026-11-12', '2027-11-12', '2028-11-12', '2029-11-12', '2030-11-12',
+    ]);
+    // Arrêtée le jour de l'échéance : cette échéance reste, la suivante n'existe pas.
+    expect(plan({ ...monthly, stoppedOn: '2026-12-12' }, '2027-03-01', '2027-02')).toEqual(['2026-11-12', '2026-12-12']);
+  });
+
+  it('une série oubliée depuis des années garde toutes ses échéances impayées (jusqu\'à la fenêtre de rattrapage)', () => {
+    const dates = plan(monthly, '2031-11-01'); // l'application n'a pas servi pendant 5 ans
+    expect(dates.slice(0, 3)).toEqual(['2026-11-12', '2026-12-12', '2027-01-12']);
+    expect(dates).toContain('2030-10-12');
+    expect(dates).toContain('2032-05-12');
+    expect(dates).toHaveLength(67);
+  });
+
+  it('février et années bissextiles : le 29 février annuel revient le 29 en 2032, 2036, 2040… et le 28 sinon', () => {
+    const leap = { anchor: '2028-02-29', recurrence: 'yearly' as const, stoppedOn: null };
+    expect(dueDateInMonth(leap.anchor, 'yearly', '2032-02')).toBe('2032-02-29');
+    expect(dueDateInMonth(leap.anchor, 'yearly', '2033-02')).toBe('2033-02-28');
+    expect(dueDateInMonth(leap.anchor, 'yearly', '2100-02')).toBe('2100-02-28'); // 2100 n'est pas bissextile
+    expect(dueDateInMonth(leap.anchor, 'yearly', '2400-02')).toBe('2400-02-29'); // 2400 l'est
+    expect(plan(leap, '2040-03-01')).toContain('2040-02-29');
+    // Mensuelle du 30 : février se replie, puis le 30 revient.
+    expect(dueDateInMonth('2027-01-30', 'monthly', '2040-02')).toBe('2040-02-29');
+    expect(dueDateInMonth('2027-01-30', 'monthly', '2041-02')).toBe('2041-02-28');
+    expect(dueDateInMonth('2027-01-30', 'monthly', '2041-03')).toBe('2041-03-30');
+  });
+
+  it('passage de décembre à janvier : l\'année change sans trou, loin dans le futur aussi', () => {
+    const dates = plan({ anchor: '2026-12-31', recurrence: 'monthly', stoppedOn: null }, '2055-12-15');
+    expect(dates.slice(-7)).toEqual(['2055-12-31', '2056-01-31', '2056-02-29', '2056-03-31', '2056-04-30', '2056-05-31', '2056-06-30']);
+    expect(dueDateInMonth('2026-12-31', 'monthly', '2057-01')).toBe('2057-01-31');
+  });
+
+  it('jours civils : même résultat dans tous les fuseaux, autour des changements d\'heure, très loin dans le futur', () => {
+    const original = process.env.TZ;
+    try {
+      const results = ['UTC', 'Europe/Paris', 'Europe/Moscow', 'America/Los_Angeles', 'Pacific/Auckland', 'Asia/Kolkata'].map((zone) => {
+        process.env.TZ = zone;
+        return [
+          plan({ anchor: '2026-03-29', recurrence: 'monthly', stoppedOn: null }, '2041-10-25', '2060-10').join(','),
+          plan({ anchor: '2026-10-25', recurrence: 'yearly', stoppedOn: null }, '2056-03-29', '2070-10').join(','),
+          dueDateInMonth('2026-01-31', 'monthly', '2044-02'),
+          daysBetween('2041-03-30', '2041-03-31'),
+        ];
+      });
+      for (const result of results) expect(result).toEqual(results[0]);
+    } finally {
+      if (original === undefined) delete process.env.TZ;
+      else process.env.TZ = original;
+    }
+  });
+
+  it('est idempotente : le plan ne dépend que de ses entrées, à n\'importe quelle date', () => {
+    for (const today of ['2026-11-01', '2041-06-30', '2099-12-31']) {
+      expect(plan(monthly, today, '2150-03')).toEqual(plan(monthly, today, '2150-03'));
+    }
   });
 });
 

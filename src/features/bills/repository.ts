@@ -72,8 +72,8 @@ function findOccurrence(tx: Transaction, id: string) {
  * n'est jamais dupliquée (et l'index unique l'interdirait de toute façon) ; une échéance retirée à tort par une modification
  * de calendrier est rétablie. Ne supprime rien et ne touche jamais une échéance payée. Renvoie le nombre d'échéances ajoutées.
  */
-function syncOccurrences(tx: Transaction, bill: Bill, today: string, throughMonth?: string): number {
-  const planned = plannedDueDates({ anchor: bill.anchorDate, recurrence: bill.recurrence, stoppedOn: bill.stoppedOn, today, throughMonth });
+function syncOccurrences(tx: Transaction, bill: Bill, today: string, viewedMonth?: string): number {
+  const planned = plannedDueDates({ anchor: bill.anchorDate, recurrence: bill.recurrence, stoppedOn: bill.stoppedOn, today, viewedMonth });
   const existing = new Map(
     tx
       .select()
@@ -203,14 +203,15 @@ export function updateBill(billId: string, input: BillInput, today: string): str
 
 /**
  * Complète les échéances de toutes les factures actives (à l'ouverture de l'écran, quand le jour change, ou quand on consulte un mois).
- * `throughMonth` : le mois affiché `YYYY-MM`, pour que les échéances existent au moins jusque-là (voir `plannedDueDates`).
- * Idempotent : l'appeler deux fois de suite n'ajoute rien. Renvoie le nombre d'échéances ajoutées.
+ * `viewedMonth` : le mois affiché `YYYY-MM`, même très lointain : seule l'échéance de ce mois est ajoutée à l'horizon glissant, pas
+ * les mois d'entre-deux (voir `plannedDueDates`). Idempotent : l'appeler deux fois de suite n'ajoute rien. Renvoie le nombre
+ * d'échéances ajoutées.
  */
-export function ensureOccurrences(today: string, throughMonth?: string): number {
+export function ensureOccurrences(today: string, viewedMonth?: string): number {
   return db.transaction((tx) => {
     let added = 0;
     for (const bill of tx.select().from(bills).where(isNull(bills.deletedAt)).all()) {
-      added += syncOccurrences(tx, bill, today, throughMonth);
+      added += syncOccurrences(tx, bill, today, viewedMonth);
     }
     return added;
   });

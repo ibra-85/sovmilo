@@ -35,20 +35,23 @@ export const SOON_WINDOW_DAYS = 7;
  */
 export const CONSULTABLE_MONTHS_AHEAD = 6;
 
-/** Les échéances futures sont créées jusqu'à la fin du dernier mois consultable (plus la prochaine, voir `plannedDueDates`). */
-export const GENERATION_HORIZON_MONTHS = CONSULTABLE_MONTHS_AHEAD;
-
 /**
- * Plafond de la génération À LA DEMANDE (`throughMonth`) : 5 ans. Garde-fou si un sélecteur de mois plus libre apparaît un jour ;
- * 60 échéances par facture mensuelle au plus, donc jamais de génération démesurée.
+ * HORIZON GLISSANT de matérialisation : les échéances à venir sont enregistrées jusqu'à la fin du mois situé à ce nombre de mois
+ * d'aujourd'hui (plus la prochaine, voir `plannedDueDates`). Ce n'est PAS la durée de la récurrence : une série n'a pas de date
+ * de fin, seule `stoppedOn` l'arrête. Le calendrier reste calculable pour n'importe quelle date (`dueDateAt`, `dueDateInMonth`) ;
+ * l'horizon dit seulement combien de lignes on garde d'avance dans la base.
  */
-export const MAX_GENERATION_MONTHS_AHEAD = 60;
+export const GENERATION_HORIZON_MONTHS = CONSULTABLE_MONTHS_AHEAD;
 
 /** À la création, une première échéance peut remonter jusqu'à un an en arrière (au-delà, c'est presque sûrement une faute de frappe). */
 export const MAX_PAST_CREATION_DAYS = 366;
 
-/** Garde-fou : aucune facture ne génère plus d'échéances que cela en une fois (50 ans de factures mensuelles = 600). */
-const MAX_GENERATED_DATES = 1200;
+/**
+ * Borne de TRAVAIL d'une opération (jamais de validité) : une facture ne matérialise pas plus de dates que cela à la fois (30 ans
+ * de factures mensuelles). La fenêtre est celle des dates LES PLUS RÉCENTES : elle glisse avec le temps, la série ne s'arrête jamais.
+ * Elle ne joue que si l'ancre est démesurément ancienne (une date saisie à la main) ; les lignes déjà enregistrées ne sont pas touchées.
+ */
+export const MAX_PLANNED_DATES = 360;
 
 // ---------------------------------------------------------------------------
 // Dates civiles
@@ -100,12 +103,6 @@ export function daysBetween(from: string, to: string): number {
   return dayNumber(b) - dayNumber(a);
 }
 
-/** Dernier jour du mois `YYYY-MM`, ou `null` si ce n'est pas un mois valide. */
-function endOfMonthKey(month: string): string | null {
-  const parts = splitDate(`${month}-01`);
-  return parts ? joinDate(parts.year, parts.month, daysInMonthOf(parts.year, parts.month)) : null;
-}
-
 /** Dernier jour du mois situé `months` mois après le mois de `value`. */
 function endOfMonthAfter(value: string, months: number): string {
   const parts = splitDate(value);
@@ -144,18 +141,45 @@ export function dueDateAt(anchor: string, recurrence: BillRecurrence, k: number)
 }
 
 /**
+ * Rang de la dernière date de la série qui est ≤ `through` (−1 s'il n'y en a aucune). Calcul DIRECT, sans boucle : le coût est le
+ * même que `through` soit dans un mois ou dans cinquante ans.
+ */
+function lastRankThrough(anchor: string, recurrence: BillRecurrence, through: string): number {
+  const a = splitDate(anchor);
+  const t = splitDate(through);
+  if (!a) throw new RangeError(`Date d'ancrage invalide : ${anchor}`);
+  if (!t) throw new RangeError(`Date invalide : ${through}`);
+  if (recurrence === 'none') return anchor <= through ? 0 : -1;
+  const span = recurrence === 'yearly' ? t.year - a.year : t.year * 12 + t.month - (a.year * 12 + a.month);
+  if (span < 0) return -1;
+  return dueDateAt(anchor, recurrence, span) <= through ? span : span - 1; // `YYYY-MM-DD` se compare comme du texte
+}
+
+/**
  * Dates de la série qui sont ≤ `through`, de l'ancre à `through` (une facture ponctuelle : sa seule date, si elle n'est pas
- * postérieure). Le nombre de dates est borné (`MAX_GENERATED_DATES`).
+ * postérieure). Le nombre de dates est borné (`MAX_PLANNED_DATES`, les plus récentes).
  */
 export function dueDatesThrough(anchor: string, recurrence: BillRecurrence, through: string): string[] {
+  const last = lastRankThrough(anchor, recurrence, through);
   const dates: string[] = [];
-  for (let k = 0; k < MAX_GENERATED_DATES; k += 1) {
-    const date = dueDateAt(anchor, recurrence, k);
-    if (date > through) break; // `YYYY-MM-DD` se compare comme du texte
-    dates.push(date);
-    if (recurrence === 'none') break;
-  }
+  for (let k = Math.max(0, last - MAX_PLANNED_DATES + 1); k <= last; k += 1) dates.push(dueDateAt(anchor, recurrence, k));
   return dates;
+}
+
+/**
+ * Date de la série qui tombe dans le mois `YYYY-MM`, ou `null` (mois avant l'ancre, mois invalide, mois sans échéance d'une série
+ * annuelle). Calcul direct : fonctionne pour n'importe quel mois futur, sans énumérer les mois intermédiaires. Ne connaît pas
+ * l'arrêt de la récurrence (voir `plannedDueDates`).
+ */
+export function dueDateInMonth(anchor: string, recurrence: BillRecurrence, month: string): string | null {
+  const a = splitDate(anchor);
+  if (!a) throw new RangeError(`Date d'ancrage invalide : ${anchor}`);
+  const m = splitDate(`${month}-01`);
+  if (!m) return null;
+  if (recurrence === 'none') return anchor.startsWith(month) ? anchor : null;
+  if (recurrence === 'yearly') return m.month === a.month && m.year >= a.year ? dueDateAt(anchor, recurrence, m.year - a.year) : null;
+  const k = m.year * 12 + m.month - (a.year * 12 + a.month);
+  return k >= 0 ? dueDateAt(anchor, recurrence, k) : null;
 }
 
 export interface PlanInput {
@@ -165,38 +189,38 @@ export interface PlanInput {
   stoppedOn: string | null;
   today: string;
   /**
-   * Mois `YYYY-MM` que l'écran affiche : la génération va au moins jusqu'à sa fin (dans la limite de `MAX_GENERATION_MONTHS_AHEAD`).
-   * Filet de sécurité en plus de l'horizon fixe ; un mois passé ou déjà couvert ne change rien.
+   * Mois `YYYY-MM` consulté, quelle que soit sa distance : l'échéance de la série dans CE mois est ajoutée au plan, sans les mois
+   * intermédiaires. Un mois déjà couvert par l'horizon, passé ou invalide ne change rien.
    */
-  throughMonth?: string;
+  viewedMonth?: string;
 }
 
 /**
  * Échéances qui doivent exister pour une facture, aujourd'hui. Fonction PURE et déterministe : la base n'a qu'à insérer celles
  * qui manquent (une contrainte d'unicité interdit les doublons), d'où une génération idempotente.
  *  - ponctuelle : sa seule date ;
- *  - récurrente : toutes les dates de l'ancre jusqu'à la fin du dernier mois consultable (`GENERATION_HORIZON_MONTHS`, ou
- *    `throughMonth` s'il est plus loin) (ce qui inclut TOUTES les
- *    échéances passées, donc une facture oubliée depuis des mois reste visible comme impayée), et, s'il n'y en a aucune
- *    APRÈS aujourd'hui (facture annuelle, ou payée le jour même), la prochaine : il y a toujours une échéance à venir tant que la série continue ;
+ *  - récurrente : toutes les dates de l'ancre jusqu'à la fin du dernier mois de l'horizon glissant (`GENERATION_HORIZON_MONTHS`)
+ *    (ce qui inclut TOUTES les échéances passées, donc une facture oubliée depuis des mois reste visible comme impayée), et,
+ *    s'il n'y en a aucune APRÈS aujourd'hui (facture annuelle, ou payée le jour même), la prochaine : il y a toujours une échéance
+ *    à venir tant que la série continue. Aucune date de fin : la série dure jusqu'à `stoppedOn` ;
+ *  - mois consulté (`viewedMonth`), même très lointain : son échéance seule est ajoutée, jamais les mois d'entre-deux ;
  *  - série arrêtée : rien après `stoppedOn`.
  */
-export function plannedDueDates({ anchor, recurrence, stoppedOn, today, throughMonth }: PlanInput): string[] {
+export function plannedDueDates({ anchor, recurrence, stoppedOn, today, viewedMonth }: PlanInput): string[] {
   if (recurrence === 'none') return [anchor];
-  let horizon = endOfMonthAfter(today, GENERATION_HORIZON_MONTHS);
-  const requested = throughMonth === undefined ? null : endOfMonthKey(throughMonth);
-  if (requested !== null && requested > horizon) {
-    const limit = endOfMonthAfter(today, MAX_GENERATION_MONTHS_AHEAD);
-    horizon = requested < limit ? requested : limit;
-  }
+  const horizon = endOfMonthAfter(today, GENERATION_HORIZON_MONTHS);
   const through = stoppedOn !== null && stoppedOn < horizon ? stoppedOn : horizon;
   const dates = dueDatesThrough(anchor, recurrence, through);
-  const hasLater = dates.some((date) => date > today);
-  if (!hasLater) {
-    const next = dueDateAt(anchor, recurrence, dates.length);
-    if (stoppedOn === null || next <= stoppedOn) dates.push(next);
+  const alive = (date: string) => stoppedOn === null || date <= stoppedOn;
+  if (!dates.some((date) => date > today)) {
+    const next = dueDateAt(anchor, recurrence, lastRankThrough(anchor, recurrence, through) + 1);
+    if (alive(next)) dates.push(next);
   }
-  return dates;
+  if (viewedMonth !== undefined) {
+    const viewed = dueDateInMonth(anchor, recurrence, viewedMonth);
+    if (viewed !== null && alive(viewed) && !dates.includes(viewed)) dates.push(viewed);
+  }
+  return dates.sort();
 }
 
 // ---------------------------------------------------------------------------
