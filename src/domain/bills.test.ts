@@ -1,4 +1,6 @@
+import { shiftMonth } from './dates';
 import {
+  CONSULTABLE_MONTHS_AHEAD,
   GENERATION_HORIZON_MONTHS,
   MAX_BILL_AMOUNT_CENTS,
   MAX_BILL_NAME_LENGTH,
@@ -164,16 +166,58 @@ describe('échéances à créer (plannedDueDates)', () => {
     expect(plan('2026-09-15', 'none', '2026-11-01')).toEqual(['2026-09-15']);
   });
 
-  it('mensuelle : de l\'ancre jusqu\'à la fin du mois situé 3 mois plus tard', () => {
-    expect(GENERATION_HORIZON_MONTHS).toBe(3);
-    expect(plan('2026-11-12', 'monthly', '2026-11-01')).toEqual(['2026-11-12', '2026-12-12', '2027-01-12', '2027-02-12']);
+  it('mensuelle : de l\'ancre jusqu\'à la fin du dernier mois consultable', () => {
+    expect(GENERATION_HORIZON_MONTHS).toBe(CONSULTABLE_MONTHS_AHEAD);
+    expect(CONSULTABLE_MONTHS_AHEAD).toBe(6);
+    expect(plan('2026-11-12', 'monthly', '2026-11-01')).toEqual([
+      '2026-11-12',
+      '2026-12-12',
+      '2027-01-12',
+      '2027-02-12',
+      '2027-03-12',
+      '2027-04-12',
+      '2027-05-12',
+    ]);
+  });
+
+  it('couvre chaque mois que le sélecteur propose, du mois en cours au dernier mois consultable', () => {
+    for (const today of ['2026-11-01', '2026-11-30', '2026-12-31', '2027-02-28', '2028-02-29']) {
+      const dates = plan('2026-01-31', 'monthly', today);
+      for (let k = 0; k <= CONSULTABLE_MONTHS_AHEAD; k += 1) {
+        const month = shiftMonth(today.slice(0, 7), k);
+        expect(dates.some((date) => date.startsWith(month))).toBe(true);
+      }
+    }
+  });
+
+  it('annuelle : l\'échéance proche est générée, la suivante est toujours là', () => {
+    expect(plan('2026-05-20', 'yearly', '2026-11-01')).toEqual(['2026-05-20', '2027-05-20']);
+    expect(plan('2027-03-05', 'yearly', '2026-11-01')).toEqual(['2027-03-05']);
+  });
+
+  it('génération à la demande : throughMonth étend l\'horizon, jamais ne le réduit', () => {
+    const base = { anchor: '2026-11-12', recurrence: 'monthly' as const, stoppedOn: null, today: '2026-11-01' };
+    const far = plannedDueDates({ ...base, throughMonth: '2027-09' });
+    expect(far[far.length - 1]).toBe('2027-09-12');
+    expect(plannedDueDates({ ...base, throughMonth: '2026-12' })).toEqual(plannedDueDates(base)); // déjà couvert
+    expect(plannedDueDates({ ...base, throughMonth: '2025-01' })).toEqual(plannedDueDates(base)); // mois passé
+    expect(plannedDueDates({ ...base, throughMonth: 'pas-un-mois' })).toEqual(plannedDueDates(base));
+  });
+
+  it('génération à la demande : plafonnée à 5 ans, sans effet sur une récurrence arrêtée ou ponctuelle', () => {
+    const base = { anchor: '2026-11-12', recurrence: 'monthly' as const, stoppedOn: null, today: '2026-11-01' };
+    const capped = plannedDueDates({ ...base, throughMonth: '2099-12' });
+    expect(capped[capped.length - 1]).toBe('2031-11-12');
+    expect(capped).toHaveLength(61);
+    expect(plannedDueDates({ ...base, stoppedOn: '2027-01-31', throughMonth: '2027-09' })).toEqual(['2026-11-12', '2026-12-12', '2027-01-12']);
+    expect(plannedDueDates({ ...base, recurrence: 'none', throughMonth: '2027-09' })).toEqual(['2026-11-12']);
   });
 
   it('mensuelle oubliée depuis des mois : toutes les échéances passées restent présentes', () => {
     const dates = plan('2026-06-12', 'monthly', '2026-11-01');
     expect(dates.slice(0, 5)).toEqual(['2026-06-12', '2026-07-12', '2026-08-12', '2026-09-12', '2026-10-12']);
     expect(dates).toContain('2026-11-12');
-    expect(dates[dates.length - 1]).toBe('2027-02-12');
+    expect(dates[dates.length - 1]).toBe('2027-05-12');
   });
 
   it('annuelle : ajoute la prochaine échéance même si elle dépasse l\'horizon', () => {
@@ -208,7 +252,15 @@ describe('échéances à créer (plannedDueDates)', () => {
   });
 
   it('change d\'année en passant de décembre à janvier', () => {
-    expect(plan('2026-12-31', 'monthly', '2026-12-15')).toEqual(['2026-12-31', '2027-01-31', '2027-02-28', '2027-03-31']);
+    expect(plan('2026-12-31', 'monthly', '2026-12-15')).toEqual([
+      '2026-12-31',
+      '2027-01-31',
+      '2027-02-28',
+      '2027-03-31',
+      '2027-04-30',
+      '2027-05-31',
+      '2027-06-30',
+    ]);
   });
 });
 

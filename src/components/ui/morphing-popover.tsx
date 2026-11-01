@@ -6,13 +6,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKeyboardHeight } from '@/hooks/use-keyboard-height';
 import { usePopoverEngine } from '@/hooks/use-popover-engine';
 import { radius, sizes, space } from '@/theme/layout';
-import { typography } from '@/theme/typography';
+import { maxFontScale, typography } from '@/theme/typography';
 import { useTheme } from '@/theme/use-theme';
 
 import { GlassOverlay, useGlassLook } from './glass-surface';
 import {
   computePopoverPlacement,
   estimateMenuHeight,
+  estimateMenuWidth,
+  menuMaxHeight,
   type PopoverAlign,
   type PopoverMode,
   type PopoverPlacement,
@@ -48,6 +50,7 @@ export interface MorphingPopoverProps {
   items: readonly PopoverItem[];
   /** Nom du menu pour TalkBack (« Actions sur l'opération »). */
   accessibilityLabel: string;
+  /** Largeur imposée. Par défaut : adaptée au plus long libellé (jamais moins que `sizes.contextMenuWidth`, jamais plus que l'écran). */
   width?: number;
   /** Rayon du déclencheur : la surface part de cette forme et prend celle du menu en s'ouvrant. */
   anchorRadius?: number;
@@ -68,6 +71,19 @@ export interface MorphingPopoverProps {
 const REOPEN_SLOP = 8;
 /** Espace déclencheur ↔ menu, en mode `beside` uniquement. */
 const BESIDE_GAP = 6;
+
+/** Largeur d'un menu pour ces lignes (voir `estimateMenuWidth`) ; `maxWidth` : largeur de l'écran moins les marges. */
+function menuWidthFor(items: readonly PopoverItem[], maxWidth: number, fontScale: number): number {
+  return estimateMenuWidth({
+    labels: items.map((item) => item.label),
+    hasIcon: items.some((item) => item.icon !== undefined),
+    hasCheck: items.some((item) => item.selected),
+    minWidth: sizes.contextMenuWidth,
+    maxWidth,
+    fontScale: Math.min(fontScale, maxFontScale.bodyStrong),
+    fontSize: typography.bodyStrong.fontSize as number,
+  });
+}
 
 /**
  * Popover « le bouton se transforme en menu » : menu « ⋯ », sélecteur de mois, menu d'une catégorie, futurs menus déroulants.
@@ -143,7 +159,7 @@ function PopoverLayer({
   onMeasured,
   items,
   accessibilityLabel,
-  width = sizes.contextMenuWidth,
+  width: fixedWidth,
   anchorRadius = radius.pill,
   align = 'end',
   mode = 'cover',
@@ -155,8 +171,6 @@ function PopoverLayer({
   const window = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
-  // Hauteur d'une ligne de texte du libellé, texte agrandi compris (l'icône se centre dessus).
-  const lineHeight = Math.round((typography.body.lineHeight as number) * Math.min(window.fontScale, 1.8));
 
   const [gate] = useState(createActionGate);
   const engine = usePopoverEngine({
@@ -222,6 +236,13 @@ function PopoverLayer({
     onClose();
   }, [layoutKey, setOpen, onClose]);
 
+  // Largeur : celle qui laisse le plus long libellé sur UNE ligne (estimation généreuse, bornée par l'écran). La même fonction
+  // de ces seules entrées (libellés, taille du texte, largeur d'écran) donne la clé de mesure de `MorphingPopover`.
+  const margin = space.screen / 2;
+  const width =
+    fixedWidth ??
+    menuWidthFor(items, window.width - 2 * (margin + Math.max(insets.left, insets.right)), window.fontScale);
+
   // Hauteur réelle du contenu, MESURÉE (libellés longs sur deux lignes, russe, texte agrandi). Avant la première mesure,
   // une estimation à une ligne par entrée ; la mesure arrive dès le premier rendu, alors que la surface est minuscule.
   const contentHeight =
@@ -234,13 +255,15 @@ function PopoverLayer({
         width,
         window,
         insets,
-        margin: space.screen / 2,
+        margin,
         gap: BESIDE_GAP,
         align,
         keyboardHeight,
         mode: placementMode,
+        // Une longue liste (mois) ne prend jamais plus de la moitié de la zone utilisable : elle défile dans la surface.
+        maxHeight: menuMaxHeight(window.height, insets),
       }),
-    [trigger, contentHeight, width, window, insets, align, keyboardHeight, placementMode],
+    [trigger, contentHeight, width, window, insets, margin, align, keyboardHeight, placementMode],
   );
 
   function handleScrimPress(event: GestureResponderEvent) {
@@ -284,7 +307,6 @@ function PopoverLayer({
       triggerLook={triggerLook}
       items={items}
       accessibilityLabel={accessibilityLabel}
-      lineHeight={lineHeight}
       onScrimPress={handleScrimPress}
       onSelect={handleSelect}
       onMeasured={onMeasured}
@@ -323,7 +345,6 @@ interface PopoverOverlayProps {
   triggerLook?: PopoverTriggerLook;
   items: readonly PopoverItem[];
   accessibilityLabel: string;
-  lineHeight: number;
   onScrimPress: (event: GestureResponderEvent) => void;
   onSelect: (item: PopoverItem) => void;
   onMeasured: (height: number) => void;
@@ -352,7 +373,6 @@ function PopoverOverlay({
   triggerLook,
   items,
   accessibilityLabel,
-  lineHeight,
   onScrimPress,
   onSelect,
   onMeasured,
@@ -492,7 +512,6 @@ function PopoverOverlay({
             progress={progress}
             reduced={reduced}
             side={placement.side}
-            lineHeight={lineHeight}
             onSelect={onSelect}
             onMeasured={onMeasured}
           />

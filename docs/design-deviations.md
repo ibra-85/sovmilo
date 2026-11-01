@@ -143,7 +143,7 @@ Limite : à la toute première ouverture après le lancement, la réserve est un
 
 **Récurrence** (testée) :
 1. Le jour est TOUJOURS recalculé depuis la date d'ancrage : 31 janv. → 28 févr. → 31 mars ; annuel 29 févr. → 28 févr. les années non bissextiles, 29 févr. les bissextiles.
-2. Les échéances sont générées jusqu'à 3 mois après aujourd'hui (`GENERATION_HORIZON_MONTHS`), avec toujours au moins une échéance à venir. Génération idempotente, bornée (plafond de sécurité 1 200 dates), uniquement en dates civiles `YYYY-MM-DD` (aucun fuseau, aucun changement d'heure).
+2. Les échéances sont générées jusqu'à la fin du 6e mois après aujourd'hui (`GENERATION_HORIZON_MONTHS` = `CONSULTABLE_MONTHS_AHEAD`, voir Lot 5.1 ; c'était 3 au lot 5), avec toujours au moins une échéance à venir. Génération idempotente, bornée (plafond de sécurité 1 200 dates), uniquement en dates civiles `YYYY-MM-DD` (aucun fuseau, aucun changement d'heure).
 3. Une facture oubliée reste visible « en retard » ; chaque échéance se paie indépendamment.
 4. Modifier la série (montant, date, récurrence) ne touche QUE les échéances non payées ; un paiement passé n'est jamais réécrit. Arrêter la récurrence conserve l'historique (supprime les échéances futures non payées).
 
@@ -169,6 +169,20 @@ Limite : à la toute première ouverture après le lancement, la réserve est un
 
 **Couvert automatiquement** (Jest, vraie base SQLite) : les quatre parcours, mois à 28 / 29 / 30 / 31 jours, années bissextiles, décembre → janvier, fuseaux et changements d'heure, statuts, totaux sans double comptage, montants inconnus, très grands montants, contraintes, idempotence, redémarrage, atomicité, migration sur base existante, séparation financière, parité et pluriels FR / RU.
 **À vérifier sur téléphone** : rendu, clavier, retour Android, texte agrandi, mouvement réduit, long texte russe.
+
+### Lot 5.1 : mois futurs de Factures et menus déroulants
+
+**Mois futurs sans échéances** — cause : le sélecteur proposait 6 mois à venir (jusqu'à mai 2027 en novembre 2026) mais la génération s'arrêtait à 3 mois (février 2027). Les lignes n'existaient pas, l'écran n'avait rien à afficher (la requête, elle, ne filtre pas par date).
+Correction : UNE constante `CONSULTABLE_MONTHS_AHEAD = 6` (`src/domain/bills.ts`) commande à la fois le sélecteur et l'horizon de génération (`GENERATION_HORIZON_MONTHS`), donc un mois proposé est toujours alimenté. En plus, `ensureOccurrences(today, month)` s'exécute quand on change de mois et étend l'horizon jusqu'à ce mois si un sélecteur plus libre le permet un jour (plafond 60 mois, `MAX_GENERATION_MONTHS_AHEAD`). Toujours idempotent (index unique, lignes payées jamais touchées). Les règles métier ne changent pas.
+
+**Menus déroulants** (`MorphingPopover`, inchangé dans son principe : une surface, animations interruptibles, fermeture au toucher extérieur / Retour) :
+1. **Hauteur maximale** : un menu ne dépasse jamais la moitié de la zone utilisable (`menuMaxHeight`) ; au-delà il défile à l'intérieur et s'ouvre sur le choix actuel (`scrollOffsetToReveal`) tant qu'on n'a pas fait défiler soi-même. Les menus d'actions (3 lignes) ne sont pas concernés.
+2. **Largeur** : calculée d'après le plus long libellé (`estimateMenuWidth`, estimation volontairement généreuse, jamais moins de 232 dp, bornée par l'écran). Cause du retour à la ligne de « Arrêter la récurrence » : 160 dp utiles pour ~195 dp de texte. Si le texte est très agrandi, le libellé peut quand même passer sur deux lignes : la hauteur mesurée s'adapte.
+3. **Lignes** : icône, libellé et coche sont centrés sur la hauteur de la ligne, marges haute et basse égales. Avant, l'icône était alignée sur la première ligne : un libellé sur deux lignes laissait un vide sous l'icône et le filet semblait trop bas. Plus de hauteur de ligne estimée.
+4. **Libellés** : dans le menu d'une facture, « Modifier » et « Supprimer » (le contexte est la facture) ; les noms lus par TalkBack restent explicites (« Supprimer la facture Internet »).
+Les dimensions du menu sont dans une seule table (`MENU_METRICS`) utilisée pour le dessin et pour le calcul de la largeur.
+
+**Limites** : la largeur est une estimation (le texte n'est pas mesurable avant d'être dessiné) ; les autres menus de l'application s'adaptent aussi à leurs libellés mais gardent leurs textes actuels ; le rendu réel est à vérifier sur téléphone.
 
 ### Avertissement Reanimated « Dependencies should only be used on the web »
 

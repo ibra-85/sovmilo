@@ -162,6 +162,7 @@ export function BillDetailScreen() {
       key: 'edit',
       icon: 'note' as const,
       label: t('bills.edit'),
+      accessibilityLabel: t('bills.editA11y', { name: current.name }),
       onPress: () => {
         closeMenu();
         router.push({ pathname: '/bill-form', params: { id: current.id } });
@@ -173,6 +174,7 @@ export function BillDetailScreen() {
             key: 'stop',
             icon: 'close' as const,
             label: t('bills.stop'),
+            accessibilityLabel: t('bills.stopA11y', { name: current.name }),
             onPress: () => {
               closeMenu();
               setFailed(false);
@@ -185,6 +187,7 @@ export function BillDetailScreen() {
       key: 'delete',
       icon: 'trash' as const,
       label: t('bills.delete'),
+      accessibilityLabel: t('bills.deleteA11y', { name: current.name }),
       destructive: true,
       onPress: () => {
         closeMenu();

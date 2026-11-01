@@ -7,7 +7,14 @@ import { asc, eq } from 'drizzle-orm';
 
 import { applyMigrations, openTestDatabase } from '@/db/test-support';
 import { billOccurrences, bills, budgets, transactions } from '@/db/schema';
-import { MAX_BILL_AMOUNT_CENTS, MAX_BILL_NAME_LENGTH } from '@/domain/bills';
+import {
+  CONSULTABLE_MONTHS_AHEAD,
+  MAX_BILL_AMOUNT_CENTS,
+  MAX_BILL_NAME_LENGTH,
+  partitionBills,
+  summarizePeriod,
+} from '@/domain/bills';
+import { shiftMonth } from '@/domain/dates';
 
 import type * as RepositoryModule from './repository';
 
@@ -90,17 +97,17 @@ describe('factures', () => {
   describe('parcours 2 : facture mensuelle', () => {
     it('crée les échéances jusqu\'à l\'horizon et paie novembre sans toucher à décembre', () => {
       const { billId, occurrenceId } = repo.createBill(bill(), TODAY);
-      expect(dates(billId)).toEqual(['2026-11-12', '2026-12-12', '2027-01-12', '2027-02-12']);
+      expect(dates(billId)).toEqual(['2026-11-12', '2026-12-12', '2027-01-12', '2027-02-12', '2027-03-12', '2027-04-12', '2027-05-12']);
 
       repo.markPaid(occurrenceId, { paidOn: '2026-11-12', amountCents: 2999 }, '2026-11-12');
       const rows = active(billId);
-      expect(rows.map((row) => row.paidOn)).toEqual(['2026-11-12', null, null, null]);
+      expect(rows.map((row) => row.paidOn)).toEqual(['2026-11-12', null, null, null, null, null, null]);
       expect(rows[1]).toMatchObject({ dueOn: '2026-12-12', paidOn: null, paidAmountCents: null, amountCents: 2999 });
     });
 
     it('conserve le jour d\'origine 31 sur toute la série', () => {
       const { billId } = repo.createBill(bill({ nextDueOn: '2026-12-31' }), '2026-12-15');
-      expect(dates(billId)).toEqual(['2026-12-31', '2027-01-31', '2027-02-28', '2027-03-31']);
+      expect(dates(billId)).toEqual(['2026-12-31', '2027-01-31', '2027-02-28', '2027-03-31', '2027-04-30', '2027-05-31', '2027-06-30']);
     });
 
     it('reconstitue une facture oubliée : toutes les échéances passées sont là, impayées', () => {
@@ -108,7 +115,9 @@ describe('factures', () => {
       expect(dates(billId).slice(0, 2)).toEqual(['2026-08-12', '2026-09-12']);
       // l'application reste fermée jusqu'en novembre, puis s'ouvre : les mois manquants apparaissent, impayés
       repo.ensureOccurrences(TODAY);
-      expect(dates(billId)).toEqual(['2026-08-12', '2026-09-12', '2026-10-12', '2026-11-12', '2026-12-12', '2027-01-12', '2027-02-12']);
+      expect(dates(billId)).toEqual([
+        '2026-08-12', '2026-09-12', '2026-10-12', '2026-11-12', '2026-12-12', '2027-01-12', '2027-02-12', '2027-03-12', '2027-04-12', '2027-05-12',
+      ]);
       expect(active(billId).every((row) => row.paidOn === null)).toBe(true);
     });
   });
@@ -188,6 +197,107 @@ describe('factures', () => {
     });
   });
 
+  describe('mois futurs consultables', () => {
+    /** Les mois que le sélecteur de Factures propose à partir d'aujourd'hui : du mois en cours au dernier mois consultable. */
+    const selectable = (today: string) =>
+      Array.from({ length: CONSULTABLE_MONTHS_AHEAD + 1 }, (_, k) => shiftMonth(today.slice(0, 7), k));
+    const rowsOf = (billId: string) =>
+      active(billId).map((row) => ({ dueOn: row.dueOn, amountCents: row.amountCents, paidOn: row.paidOn, paidAmountCents: row.paidAmountCents }));
+
+    it('une facture mensuelle apparaît dans CHAQUE mois du sélecteur (février 2027 comme mai 2027)', () => {
+      const { billId } = repo.createBill(bill(), TODAY);
+      for (const month of selectable(TODAY)) {
+        const { upcoming } = partitionBills(rowsOf(billId), month, TODAY);
+        expect(upcoming).toHaveLength(1);
+        expect(upcoming[0].dueOn).toBe(`${month}-12`);
+      }
+      expect(selectable(TODAY).slice(-1)).toEqual(['2027-05']);
+    });
+
+    it('le total du mois affiché suit le mois choisi, sans rien perdre ni compter deux fois', () => {
+      const { billId } = repo.createBill(bill(), TODAY);
+      repo.createBill(bill({ name: 'Électricité', expectedAmountCents: null, recurrence: 'monthly', nextDueOn: '2026-11-20' }), TODAY);
+      const all = [...rowsOf(billId), ...active(allBills().find((b) => b.name === 'Électricité')!.id).map((row) => ({ dueOn: row.dueOn, amountCents: row.amountCents, paidOn: row.paidOn, paidAmountCents: row.paidAmountCents }))];
+      for (const month of selectable(TODAY)) {
+        const summary = summarizePeriod(all, month, TODAY);
+        expect(summary.remaining).toMatchObject({ count: 2, knownCents: 2999, unknownCount: 1, partial: true });
+      }
+    });
+
+    it('une facture annuelle tombe dans son mois, y compris le dernier mois consultable', () => {
+      const march = repo.createBill(bill({ name: 'Assurance habitation', expectedAmountCents: 32000, recurrence: 'yearly', nextDueOn: '2027-03-05' }), TODAY);
+      const may = repo.createBill(bill({ name: 'Taxe', expectedAmountCents: 10000, recurrence: 'yearly', nextDueOn: '2027-05-31' }), TODAY);
+      expect(partitionBills(rowsOf(march.billId), '2027-03', TODAY).upcoming.map((row) => row.dueOn)).toEqual(['2027-03-05']);
+      expect(partitionBills(rowsOf(may.billId), '2027-05', TODAY).upcoming.map((row) => row.dueOn)).toEqual(['2027-05-31']);
+      expect(partitionBills(rowsOf(may.billId), '2027-04', TODAY).upcoming).toEqual([]);
+    });
+
+    it('consulter un mois lointain complète les échéances, sans rien perdre et sans doublon', () => {
+      const { billId, occurrenceId } = repo.createBill(bill(), TODAY);
+      repo.markPaid(occurrenceId, { paidOn: '2026-11-12', amountCents: 3100 }, '2026-11-12');
+      const before = rowsOf(billId);
+      expect(repo.ensureOccurrences('2026-11-12', '2027-05')).toBe(0); // déjà couvert par l'horizon
+      expect(rowsOf(billId)).toEqual(before);
+
+      expect(repo.ensureOccurrences('2026-11-12', '2027-09')).toBe(4); // juin, juillet, août, septembre
+      expect(repo.ensureOccurrences('2026-11-12', '2027-09')).toBe(0); // idempotent
+      expect(dates(billId).slice(-1)).toEqual(['2027-09-12']);
+      expect(new Set(dates(billId)).size).toBe(dates(billId).length);
+      expect(rowsOf(billId).slice(0, before.length)).toEqual(before); // les anciennes lignes ne bougent pas
+      expect(active(billId)[0]).toMatchObject({ paidOn: '2026-11-12', paidAmountCents: 3100 });
+    });
+
+    it('un mois passé, invalide ou absent ne change rien', () => {
+      const { billId } = repo.createBill(bill(), TODAY);
+      const before = dates(billId);
+      expect(repo.ensureOccurrences(TODAY, '2025-01')).toBe(0);
+      expect(repo.ensureOccurrences(TODAY, 'nimporte')).toBe(0);
+      expect(repo.ensureOccurrences(TODAY)).toBe(0);
+      expect(dates(billId)).toEqual(before);
+    });
+
+    it('génération répétée, mois après mois : jamais deux échéances à la même date', () => {
+      const { billId } = repo.createBill(bill({ nextDueOn: '2026-10-31' }), TODAY);
+      for (let round = 0; round < 3; round += 1) {
+        for (const month of selectable(TODAY)) repo.ensureOccurrences(TODAY, month);
+        repo.ensureOccurrences('2026-12-31', '2027-12');
+        repo.ensureOccurrences(TODAY);
+      }
+      const list = occurrences(billId);
+      expect(new Set(list.map((row) => row.dueOn)).size).toBe(list.length);
+      expect(list.filter((row) => row.deletedAt === null).map((row) => row.dueOn)).toContain('2027-02-28'); // le jour d'origine 31 est conservé
+    });
+
+    it('payer à l\'avance une échéance lointaine ne touche pas aux autres', () => {
+      const { billId } = repo.createBill(bill(), TODAY);
+      const may = active(billId).find((row) => row.dueOn === '2027-05-12')!;
+      repo.markPaid(may.id, { paidOn: TODAY, amountCents: 2999 }, TODAY);
+      expect(active(billId).filter((row) => row.paidOn !== null).map((row) => row.dueOn)).toEqual(['2027-05-12']);
+      expect(partitionBills(rowsOf(billId), '2027-05', TODAY).paid).toHaveLength(1);
+      expect(partitionBills(rowsOf(billId), '2027-05', TODAY).upcoming).toHaveLength(0);
+    });
+
+    it('modifier la facture garde chaque mois du sélecteur alimenté', () => {
+      const { billId } = repo.createBill(bill(), TODAY);
+      repo.updateBill(billId, bill({ nextDueOn: '2026-11-15', expectedAmountCents: 3499 }), TODAY);
+      for (const month of selectable(TODAY)) {
+        const { upcoming } = partitionBills(rowsOf(billId), month, TODAY);
+        expect(upcoming).toHaveLength(1);
+        expect(upcoming[0]).toMatchObject({ dueOn: `${month}-15`, amountCents: 3499 });
+      }
+    });
+
+    it('le changement de jour fait avancer l\'horizon : le nouveau dernier mois est alimenté', () => {
+      const { billId } = repo.createBill(bill(), TODAY);
+      const later = '2026-12-02';
+      repo.ensureOccurrences(later);
+      for (const month of selectable(later)) {
+        expect(partitionBills(rowsOf(billId), month, later).upcoming.length + partitionBills(rowsOf(billId), month, later).overdue.length).toBeGreaterThan(0);
+      }
+      expect(dates(billId).slice(-1)).toEqual(['2027-06-12']);
+    });
+  });
+
   describe('génération idempotente', () => {
     it('ne duplique rien quand on la relance, ni après un redémarrage', () => {
       const { billId } = repo.createBill(bill(), TODAY);
@@ -204,7 +314,7 @@ describe('factures', () => {
       repo.markPaid(occurrenceId, { paidOn: '2026-11-12', amountCents: 2999 }, '2026-11-12');
       const added = repo.ensureOccurrences('2026-12-20');
       expect(added).toBe(1);
-      expect(dates(billId)).toEqual(['2026-11-12', '2026-12-12', '2027-01-12', '2027-02-12', '2027-03-12']);
+      expect(dates(billId)).toEqual(['2026-11-12', '2026-12-12', '2027-01-12', '2027-02-12', '2027-03-12', '2027-04-12', '2027-05-12', '2027-06-12']);
       expect(active(billId)[0].paidOn).toBe('2026-11-12');
     });
 
@@ -234,7 +344,7 @@ describe('factures', () => {
       repo.markPaid(occurrenceId, { paidOn: '2026-11-12', amountCents: 2999 }, '2026-11-12');
       repo.markPaid(occurrenceId, { paidOn: '2026-11-11', amountCents: 3100 }, '2026-11-11');
       expect(active(billId)[0]).toMatchObject({ paidOn: '2026-11-11', paidAmountCents: 3100 });
-      expect(active(billId)).toHaveLength(4);
+      expect(active(billId)).toHaveLength(7);
     });
 
     it('rouvre une échéance payée par erreur sans perdre la facture', () => {
@@ -290,12 +400,12 @@ describe('factures', () => {
     it('changer la date reconstruit le calendrier non payé sans doublon', () => {
       const { billId } = repo.createBill(bill(), TODAY);
       const returned = repo.updateBill(billId, bill({ nextDueOn: '2026-11-15' }), TODAY);
-      expect(dates(billId)).toEqual(['2026-11-15', '2026-12-15', '2027-01-15', '2027-02-15']);
+      expect(dates(billId)).toEqual(['2026-11-15', '2026-12-15', '2027-01-15', '2027-02-15', '2027-03-15', '2027-04-15', '2027-05-15']);
       expect(active(billId)[0].id).toBe(returned);
       expect(allBills()[0].anchorDate).toBe('2026-11-15');
       // le même calendrier plus tard : les échéances retirées sont rétablies, jamais dupliquées
       repo.updateBill(billId, bill({ nextDueOn: '2026-11-12' }), TODAY);
-      expect(dates(billId)).toEqual(['2026-11-12', '2026-12-12', '2027-01-12', '2027-02-12']);
+      expect(dates(billId)).toEqual(['2026-11-12', '2026-12-12', '2027-01-12', '2027-02-12', '2027-03-12', '2027-04-12', '2027-05-12']);
       expect(occurrences(billId).filter((row) => row.dueOn === '2026-11-12')).toHaveLength(1);
     });
 
@@ -379,7 +489,7 @@ describe('factures', () => {
       repo.deleteBill(billId);
       expect(allBills()[0].deletedAt).not.toBeNull();
       expect(active(billId)).toEqual([]);
-      expect(occurrences(billId)).toHaveLength(4); // suppression logique : les lignes restent
+      expect(occurrences(billId)).toHaveLength(7); // suppression logique : les lignes restent
       expect(repo.ensureOccurrences('2027-06-01')).toBe(0); // une facture supprimée ne se régénère pas
       expect(active(billId)).toEqual([]);
     });
@@ -455,7 +565,7 @@ describe('factures', () => {
       database.sqlite.exec("CREATE TRIGGER fail_bill_update BEFORE UPDATE ON bills BEGIN SELECT RAISE(ABORT, 'panne'); END;");
       expect(() => repo.deleteBill(billId)).toThrow();
       expect(allBills()[0].deletedAt).toBeNull();
-      expect(active(billId)).toHaveLength(4); // les échéances n'ont pas été supprimées à moitié
+      expect(active(billId)).toHaveLength(7); // les échéances n'ont pas été supprimées à moitié
     });
   });
 });
@@ -482,7 +592,7 @@ describe('persistance et migration', () => {
     const rows = second.db.select().from(billOccurrences).orderBy(asc(billOccurrences.dueOn)).all();
     expect(rows.find((row) => row.id === internet.occurrenceId)).toMatchObject({ paidOn: '2026-11-12', paidAmountCents: 3150, amountCents: 2999 });
     expect(rows.find((row) => row.billId === power.billId)).toMatchObject({ amountCents: null, paidOn: null });
-    expect(rows).toHaveLength(5);
+    expect(rows).toHaveLength(8);
 
     const again = loadRepository(second);
     expect(again.ensureOccurrences(TODAY)).toBe(0); // rien de dupliqué après redémarrage

@@ -29,8 +29,20 @@ export const MAX_BILL_AMOUNT_CENTS = MAX_AMOUNT_CENTS;
  */
 export const SOON_WINDOW_DAYS = 7;
 
-/** Les échéances futures sont créées jusqu'à la fin du mois situé 3 mois après aujourd'hui (plus la prochaine, voir `plannedDueDates`). */
-export const GENERATION_HORIZON_MONTHS = 3;
+/**
+ * Combien de mois À VENIR l'écran Factures permet de consulter (sélecteur de période). UNE seule valeur pour l'écran ET pour la
+ * génération : un mois qu'on peut choisir a toujours ses échéances.
+ */
+export const CONSULTABLE_MONTHS_AHEAD = 6;
+
+/** Les échéances futures sont créées jusqu'à la fin du dernier mois consultable (plus la prochaine, voir `plannedDueDates`). */
+export const GENERATION_HORIZON_MONTHS = CONSULTABLE_MONTHS_AHEAD;
+
+/**
+ * Plafond de la génération À LA DEMANDE (`throughMonth`) : 5 ans. Garde-fou si un sélecteur de mois plus libre apparaît un jour ;
+ * 60 échéances par facture mensuelle au plus, donc jamais de génération démesurée.
+ */
+export const MAX_GENERATION_MONTHS_AHEAD = 60;
 
 /** À la création, une première échéance peut remonter jusqu'à un an en arrière (au-delà, c'est presque sûrement une faute de frappe). */
 export const MAX_PAST_CREATION_DAYS = 366;
@@ -86,6 +98,12 @@ export function daysBetween(from: string, to: string): number {
   const b = splitDate(to);
   if (!a || !b) throw new RangeError(`Date invalide : ${a ? to : from}`);
   return dayNumber(b) - dayNumber(a);
+}
+
+/** Dernier jour du mois `YYYY-MM`, ou `null` si ce n'est pas un mois valide. */
+function endOfMonthKey(month: string): string | null {
+  const parts = splitDate(`${month}-01`);
+  return parts ? joinDate(parts.year, parts.month, daysInMonthOf(parts.year, parts.month)) : null;
 }
 
 /** Dernier jour du mois situé `months` mois après le mois de `value`. */
@@ -146,20 +164,31 @@ export interface PlanInput {
   /** Dernier jour où une échéance peut exister (récurrence arrêtée), ou `null` : la série continue. */
   stoppedOn: string | null;
   today: string;
+  /**
+   * Mois `YYYY-MM` que l'écran affiche : la génération va au moins jusqu'à sa fin (dans la limite de `MAX_GENERATION_MONTHS_AHEAD`).
+   * Filet de sécurité en plus de l'horizon fixe ; un mois passé ou déjà couvert ne change rien.
+   */
+  throughMonth?: string;
 }
 
 /**
  * Échéances qui doivent exister pour une facture, aujourd'hui. Fonction PURE et déterministe : la base n'a qu'à insérer celles
  * qui manquent (une contrainte d'unicité interdit les doublons), d'où une génération idempotente.
  *  - ponctuelle : sa seule date ;
- *  - récurrente : toutes les dates de l'ancre jusqu'à la fin du mois situé 3 mois plus tard (ce qui inclut TOUTES les
+ *  - récurrente : toutes les dates de l'ancre jusqu'à la fin du dernier mois consultable (`GENERATION_HORIZON_MONTHS`, ou
+ *    `throughMonth` s'il est plus loin) (ce qui inclut TOUTES les
  *    échéances passées, donc une facture oubliée depuis des mois reste visible comme impayée), et, s'il n'y en a aucune
  *    APRÈS aujourd'hui (facture annuelle, ou payée le jour même), la prochaine : il y a toujours une échéance à venir tant que la série continue ;
  *  - série arrêtée : rien après `stoppedOn`.
  */
-export function plannedDueDates({ anchor, recurrence, stoppedOn, today }: PlanInput): string[] {
+export function plannedDueDates({ anchor, recurrence, stoppedOn, today, throughMonth }: PlanInput): string[] {
   if (recurrence === 'none') return [anchor];
-  const horizon = endOfMonthAfter(today, GENERATION_HORIZON_MONTHS);
+  let horizon = endOfMonthAfter(today, GENERATION_HORIZON_MONTHS);
+  const requested = throughMonth === undefined ? null : endOfMonthKey(throughMonth);
+  if (requested !== null && requested > horizon) {
+    const limit = endOfMonthAfter(today, MAX_GENERATION_MONTHS_AHEAD);
+    horizon = requested < limit ? requested : limit;
+  }
   const through = stoppedOn !== null && stoppedOn < horizon ? stoppedOn : horizon;
   const dates = dueDatesThrough(anchor, recurrence, through);
   const hasLater = dates.some((date) => date > today);

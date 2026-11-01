@@ -18,7 +18,7 @@ import {
   Text,
   useToast,
 } from '@/components/ui';
-import { partitionBills, summarizePeriod, type AmountTotal } from '@/domain/bills';
+import { CONSULTABLE_MONTHS_AHEAD, partitionBills, summarizePeriod, type AmountTotal } from '@/domain/bills';
 import { formatMoney } from '@/domain/money';
 import { useToday } from '@/hooks/use-today';
 import { useLocale } from '@/i18n/use-locale';
@@ -32,8 +32,6 @@ import { useBillRows, type BillRow } from './use-bills';
 
 /** Une notification qui propose « Annuler » doit rester assez longtemps pour qu'on ait le temps de la lire et de la toucher. */
 const UNDO_DURATION_MS = 6000;
-/** Mois à venir proposés dans le sélecteur de période. */
-const FUTURE_MONTHS = 6;
 
 /**
  * Services → Factures : ce qu'il reste à payer ce mois-ci, ce qui est en retard (TOUJOURS visible, quel que soit le mois
@@ -58,14 +56,15 @@ export function BillsScreen() {
   const [paying, setPaying] = useState<BillRow | null>(null);
   const [paidOpen, setPaidOpen] = useState<boolean | null>(null);
 
-  // Complète les échéances manquantes à l'ouverture et quand le jour change (idempotent : aucun doublon).
+  // Complète les échéances manquantes à l'ouverture, quand le jour change et quand on change de mois : elles existent toujours
+  // au moins jusqu'au mois affiché (idempotent : aucun doublon). L'horizon de génération couvre déjà tout le sélecteur.
   useEffect(() => {
     try {
-      ensureOccurrences(today);
+      ensureOccurrences(today, month);
     } catch {
       // L'écran reste utilisable avec ce qui existe déjà.
     }
-  }, [today]);
+  }, [today, month]);
 
   const partition = useMemo(() => partitionBills(rows, month, today), [rows, month, today]);
   const summary = useMemo(() => summarizePeriod(rows, month, today), [rows, month, today]);
@@ -120,7 +119,7 @@ export function BillsScreen() {
         {hasBills && (
           <>
             <View style={{ alignItems: 'flex-start' }}>
-              <PeriodSelector futureMonths={FUTURE_MONTHS} value={{ month, onChange: (next) => setPickedMonth(next === currentMonth ? null : next) }} />
+              <PeriodSelector futureMonths={CONSULTABLE_MONTHS_AHEAD} value={{ month, onChange: (next) => setPickedMonth(next === currentMonth ? null : next) }} />
             </View>
 
             <Surface radiusToken="group" style={{ padding: 16, gap: 6 }}>
