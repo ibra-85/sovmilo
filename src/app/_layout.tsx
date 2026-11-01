@@ -153,6 +153,9 @@ function AppShell() {
               <Stack.Screen name="shopping/[id]" />
               <Stack.Screen name="bills" />
               <Stack.Screen name="bills/[id]" />
+              <Stack.Screen name="savings" />
+              <Stack.Screen name="savings/[id]" />
+              <Stack.Screen name="savings/archive" />
               <Stack.Screen name="bill-form" options={{ presentation: "modal" }} />
             </Stack>
           </PopoverHostProvider>

@@ -36,7 +36,7 @@ export function MoreScreen() {
               icon="savings"
               title={t('services.savingsTitle')}
               text={t('services.savingsHelp')}
-              onPress={() => router.push({ pathname: '/add', params: { type: 'transfer' } })}
+              onPress={() => router.push('/savings')}
             />
             <ServiceRow
               icon="tag"

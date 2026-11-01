@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 import { BILL_RECURRENCES } from '@/domain/bills';
+import { MOVEMENT_KINDS } from '@/domain/savings';
 import { SHOPPING_UNITS } from '@/domain/shopping';
 import { APP_LOCALES, CATEGORY_KINDS, DEFAULT_CURRENCY, PAYMENT_METHODS, TRANSACTION_TYPES } from '@/domain/types';
 
@@ -203,6 +204,58 @@ export const billOccurrences = sqliteTable(
   ],
 );
 
+/**
+ * Objectifs d'épargne. L'épargne est DÉCLARATIVE : rien ici ne touche à `transactions`, aux budgets, aux factures ni au solde.
+ * Le montant épargné n'est pas stocké : c'est la somme des mouvements actifs (`savings_movements`).
+ */
+export const savingsGoals = sqliteTable(
+  'savings_goals',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    name: text('name').notNull(),
+    /** Montant cible en centimes, strictement positif. Le modifier ne touche jamais aux mouvements. */
+    targetCents: integer('target_cents').notNull(),
+    /** Emoji (ou identifiant `icon:…` du catalogue), comme les catégories personnalisées. */
+    icon: text('icon').notNull().default('🎯'),
+    /** Date cible INDICATIVE `YYYY-MM-DD` (aucun versement automatique, aucune échéance). */
+    targetDate: text('target_date'),
+    note: text('note'),
+    /** Position d'affichage parmi les objectifs actifs ; réécrite seulement quand l'utilisatrice réorganise. */
+    sortOrder: integer('sort_order').notNull().default(0),
+    /** Archivé : masqué de la liste, historique conservé, restaurable. NULL = actif. */
+    archivedAt: text('archived_at'),
+    ...timestamps,
+  },
+  (table) => [
+    check('savings_goals_target_positive', sql`${table.targetCents} > 0`),
+    index('savings_goals_order_idx').on(table.archivedAt, table.sortOrder),
+  ],
+);
+
+/** Versements et retraits déclarés d'un objectif. Annuler un mouvement le supprime LOGIQUEMENT (`deleted_at`) : rien n'est effacé. */
+export const savingsMovements = sqliteTable(
+  'savings_movements',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    goalId: text('goal_id')
+      .notNull()
+      .references(() => savingsGoals.id),
+    kind: text('kind', { enum: MOVEMENT_KINDS }).notNull(),
+    amountCents: integer('amount_cents').notNull(),
+    /** Date civile `YYYY-MM-DD` du mouvement (pas d'heure, pas de fuseau). */
+    occurredOn: text('occurred_on').notNull(),
+    note: text('note'),
+    ...timestamps,
+  },
+  (table) => [
+    check('savings_movements_amount_positive', sql`${table.amountCents} > 0`),
+    check('savings_movements_kind_known', sql`${table.kind} IN ('deposit', 'withdrawal')`),
+    index('savings_movements_goal_idx').on(table.goalId, table.occurredOn),
+  ],
+);
+
 export type Profile = typeof profiles.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type NewCategory = typeof categories.$inferInsert;
@@ -214,3 +267,5 @@ export type ShoppingList = typeof shoppingLists.$inferSelect;
 export type ShoppingItem = typeof shoppingItems.$inferSelect;
 export type Bill = typeof bills.$inferSelect;
 export type BillOccurrence = typeof billOccurrences.$inferSelect;
+export type SavingsGoal = typeof savingsGoals.$inferSelect;
+export type SavingsMovement = typeof savingsMovements.$inferSelect;
