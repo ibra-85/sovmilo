@@ -23,7 +23,7 @@ export function applyMigrations(sqlite: DatabaseSync, count = journal.entries.le
 }
 
 /** Fait ressembler un `DatabaseSync` de Node à l'objet que le pilote Drizzle d'Expo attend de `expo-sqlite`. */
-function asExpoClient(sqlite: DatabaseSync) {
+export function asExpoClient(sqlite: DatabaseSync) {
   return {
     prepareSync(sql: string) {
       const objects = sqlite.prepare(sql);
