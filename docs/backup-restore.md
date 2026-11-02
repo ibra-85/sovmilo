@@ -102,6 +102,19 @@ Compatibilité Expo Go : `expo-sqlite` et `expo-file-system` (sélecteur de fich
 
 ## 9. Ce qui est validé, ce qui ne l'est pas
 
-Validé automatiquement (base SQLite réelle de Node, vraies migrations) : création, vérification, ouverture isolée, refus des fichiers invalides, aller-retour complet avec comparaison des données, migration d'anciens schémas, retour arrière automatique, absence de modification de la base source.
+Légende : ✅ implémenté · 🧪 validé automatiquement · 📱 à valider sur un téléphone · 🔗 dépend d'une build autonome.
 
-**Non validé** (nécessite un téléphone) : le comportement réel de `serializeAsync`, `deserializeDatabaseAsync` et `backupDatabaseAsync` sur Android ; le sélecteur de dossier et de fichier d'Android ; la persistance des permissions ; la restauration dans la connexion ouverte de l'application ; la mémoire sur un très gros fichier. Le protocole est dans `docs/android-distribution.md`.
+**Implémenté et validé automatiquement** (base SQLite réelle de Node, vraies migrations, `src/features/backup/*.test.ts`) : création et vérification de la sauvegarde ; ouverture isolée ; refus des fichiers invalides (vides, tronqués, corrompus, SQLite étrangers, identité ou version inconnues, schéma futur, objets inattendus, clés étrangères invalides) ; aller-retour complet avec comparaison des données (opérations, catégories personnalisées, budgets, soldes déclarés, listes et articles cochés, factures mensuelles/annuelles avec échéances payées ou non, objectifs d'épargne avec versements, objectifs archivés, ordre personnalisé, accents, cyrillique, grands montants) ; migration d'anciens schémas 1 à 4 ; retour arrière automatique depuis la copie de sécurité (échec injecté avant, pendant la copie, pendant une migration) ; base source jamais modifiée ; verrou de maintenance ; parcours de l'interface (machine d'états avec couche plateforme simulée : annulation, refus, retour arrière, double appui, fichier refermé) ; messages FR/RU pour chaque code d'erreur.
+
+**Implémenté mais non exécuté hors de Node** (📱) : la couche `src/features/backup/platform.ts` et l'interface de Paramètres. Compilent (`tsc`, ESLint) mais n'ont jamais tourné sur Android :
+
+- le comportement réel de `serializeAsync`, `deserializeDatabaseAsync` et `backupDatabaseAsync` (copie *dans* la connexion ouverte) sur Android ; l'essai Node utilise une copie émulée par `ATTACH` ;
+- le sélecteur de dossier (`Directory.pickDirectoryAsync`) et de fichier (`File.pickFileAsync`) : sémantique de l'annulation non documentée (l'annulation est reconnue par le texte de l'erreur : `annul|cancel|dismiss`, à confirmer), conservation de l'extension `.db` ;
+- l'écriture puis la relecture d'un fichier dans « Téléchargements » ou un dossier Drive ;
+- la mémoire sur un très gros fichier (limite posée à 100 Mo) ;
+- l'absence d'écriture en arrière-plan pendant une restauration : garantie par l'interface bloquante et le verrou de maintenance, pas par le pilote SQLite ;
+- le rafraîchissement de tous les écrans après une restauration (testé avec les hooks de données et une base Node, pas avec le natif).
+
+**Expo Go → application autonome** (📱 🔗) : jamais essayé (§ 8). Protocole : `docs/android-distribution.md` § 10 et liste de contrôle § 11.
+
+**Limites assumées** : sauvegarde **non chiffrée** (dite clairement à l'utilisatrice avant l'enregistrement) ; pas de chiffrement maison ; pas de sauvegarde automatique ; pas de sauvegarde automatique avant une migration ; les préférences prises en compte sont la langue et le thème (les autres réglages locaux ne sont ni sauvegardés ni supprimés).

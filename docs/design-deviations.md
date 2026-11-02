@@ -335,6 +335,17 @@ Audit complet dans `docs/ux-audit.md`. Ce qui concerne le design :
 
 Voir `docs/ux-audit.md` § 14. Aucun composant partagé n'a été remplacé.
 
+## 5 undecies. Lot 7 : sauvegarde, restauration, distribution autonome, mises à jour
+
+Aucune règle financière, aucun schéma, aucune migration n'a changé. Détails : `docs/backup-restore.md`, `docs/android-distribution.md`, `docs/eas-updates.md`.
+
+- **Paramètres** : deux sections ajoutées après la Langue, « Données et sauvegardes » (deux lignes de service avec les icônes `backup` et `restoreData`, date de la dernière sauvegarde *enregistrée*) et « Mises à jour » (version, build, canal, état, action). Mêmes composants que le reste : `FieldGroup`, `ServiceRow`, `InfoRow`, `ConfirmDialog`, `BottomSheet`, `Spinner`, Inter, Hugeicons. Trois icônes ajoutées au catalogue : `backup`, `restoreData`, `refresh`.
+- **Confirmation de restauration distincte des suppressions habituelles** : même panneau que `ConfirmDialog` mais avec le contenu du fichier (compteurs lus dans la copie validée), la phrase de remplacement dans un encadré d'alerte et le bouton « Remplacer mes données » en rouge. Les panneaux de progression et de résultat ne se ferment ni par le voile ni par Retour pendant l'opération. Jamais un `Toast` seul.
+- **Écart vis-à-vis du design** : le design ne prévoit ni sauvegarde ni mise à jour ; ces écrans sont une composition des composants existants, à faire valider sur téléphone (lisibilité en grande police, TalkBack, russe).
+- **Distribution** : `app.config.ts` (variante preview, `runtimeVersion` par empreinte, `updates.url` seulement si un `projectId` existe), `eas.json` (APK, canaux séparés). Le paquet familial `app.sovmilo` n'a pas changé.
+- **Dépendance ajoutée** : `expo-updates` (`~58.0.20`, via `npx expo install`).
+- **Textes** : les chaînes russes sont de l'assistant (comme les précédentes, décision ouverte n° 7) ; elles décrivent des opérations sensibles (remplacement de données) et méritent une relecture par un locuteur avant la distribution.
+
 ## 5 ter. Règle : ne jamais utiliser `ImageBackground`
 
 React Native 0.88 a déprécié `ImageBackground` (avertissement « ImageBackground is deprecated and will be removed in a future release »).
