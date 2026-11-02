@@ -8,7 +8,6 @@ import {
   AmountText,
   AppScreen,
   Button,
-  DataRefreshControl,
   Divider,
   EmptyState,
   Icon,
@@ -71,7 +70,7 @@ export function BillsScreen() {
   // Tirer pour actualiser : relit la date du jour (l'écran peut être resté ouvert pendant la nuit), complète les échéances manquantes
   // jusqu'au mois affiché (idempotent, borné), puis relit toutes les requêtes. Le mois consulté et les groupes ouverts ne changent
   // pas ; aucun paiement n'est touché.
-  const { refreshing, onRefresh } = useDataRefresh({
+  const { refreshControl } = useDataRefresh({
     before: useCallback(() => {
       const fresh = refreshToday();
       ensureOccurrences(fresh, pickedMonth ?? fresh.slice(0, 7));
@@ -121,7 +120,7 @@ export function BillsScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        refreshControl={<DataRefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={refreshControl}
         contentContainerStyle={{ paddingHorizontal: space.screen, paddingTop: 8, paddingBottom: 24, gap: 20, flexGrow: 1 }}>
         {loaded && !hasBills ? (
           <View style={{ flex: 1, justifyContent: 'center' }}>

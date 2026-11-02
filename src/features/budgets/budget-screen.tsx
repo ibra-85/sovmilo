@@ -8,7 +8,6 @@ import {
   AmountText,
   AppScreen,
   Button,
-  DataRefreshControl,
   EmptyState,
   PeriodSelector,
   ProgressBar,
@@ -34,7 +33,7 @@ import { useBudgetOverview } from './use-budget-overview';
  */
 export function BudgetScreen() {
   // Tirer pour actualiser : relit budgets et opérations du mois ; les montants consommés sont recalculés, aucun budget n'est touché.
-  const { refreshing, onRefresh } = useDataRefresh();
+  const { refreshControl } = useDataRefresh();
   const { t } = useTranslation();
   const contentWidth = useContentWidth();
   const locale = useLocale();
@@ -52,7 +51,7 @@ export function BudgetScreen() {
       <ScreenHeader title={t('budget.title')} trailing={<PeriodSelector />} />
 
       <ScrollView
-        refreshControl={<DataRefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={refreshControl}
         contentContainerStyle={[{ paddingHorizontal: space.screen, paddingTop: 14 }, tabContentStyle]}
         showsVerticalScrollIndicator={false}>
         {entries.length === 0 ? (

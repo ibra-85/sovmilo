@@ -9,7 +9,6 @@ export { CategoryIcon } from './category-icon';
 export { ChoiceGroup, type ChoiceOption } from './choice-group';
 export { CategoryTile } from './category-tile';
 export { ConfirmDialog } from './confirm-dialog';
-export { DataRefreshControl } from './data-refresh-control';
 export { Divider } from './divider';
 export { PopoverHostProvider } from './popover-host';
 export { MorphingPopover, useAnchorMeasure, usePopoverTrigger, type PopoverAlign, type PopoverAnchor, type PopoverItem } from './morphing-popover';

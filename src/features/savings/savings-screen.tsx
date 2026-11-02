@@ -8,7 +8,6 @@ import {
   AppScreen,
   Button,
   ConfirmDialog,
-  DataRefreshControl,
   EmptyState,
   Icon,
   IconButton,
@@ -80,7 +79,7 @@ export function SavingsScreen() {
   const modeKey = reorderMode ? 'reorder' : 'normal';
   // Tirer pour actualiser : relit objectifs, mouvements et montants. Désactivé pendant la réorganisation (le glissement a la priorité,
   // et l'ordre provisoire ne doit pas être touché).
-  const { refreshing, onRefresh } = useDataRefresh({ enabled: !reorderMode });
+  const { refreshControl } = useDataRefresh({ enabled: !reorderMode });
   // Verrou de sortie : « Terminé » / « Annuler » touchés deux fois de suite pendant la transition n'enregistrent ni n'abandonnent deux fois.
   const leaving = useRef(false);
 
@@ -244,7 +243,7 @@ export function SavingsScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        refreshControl={<DataRefreshControl refreshing={refreshing} onRefresh={onRefresh} enabled={!reorderMode} />}
+        refreshControl={refreshControl}
         contentContainerStyle={{ paddingHorizontal: space.screen, paddingTop: 8, paddingBottom: 24, gap: 16, flexGrow: 1 }}>
         {loaded && !hasGoals ? (
           <View style={{ flex: 1, justifyContent: 'center' }}>

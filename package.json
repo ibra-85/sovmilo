@@ -51,6 +51,7 @@
     "eslint-config-expo": "~58.0.4",
     "jest": "~30.5.2",
     "jest-expo": "~58.0.13",
+    "test-renderer": "1.3.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -65,12 +66,31 @@
   },
   "private": true,
   "jest": {
-    "preset": "jest-expo",
-    "testMatch": [
-      "**/?(*.)+(test).[jt]s?(x)"
-    ],
-    "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/src/$1"
-    }
+    "projects": [
+      {
+        "displayName": "app",
+        "preset": "jest-expo",
+        "testMatch": [
+          "**/?(*.)+(test).[jt]s?(x)"
+        ],
+        "testPathIgnorePatterns": [
+          "/node_modules/",
+          "\\.android\\.test\\."
+        ],
+        "moduleNameMapper": {
+          "^@/(.*)$": "<rootDir>/src/$1"
+        }
+      },
+      {
+        "displayName": "android",
+        "preset": "jest-expo/android",
+        "testMatch": [
+          "**/?(*.)+(android.test).[jt]s?(x)"
+        ],
+        "moduleNameMapper": {
+          "^@/(.*)$": "<rootDir>/src/$1"
+        }
+      }
+    ]
   }
 }

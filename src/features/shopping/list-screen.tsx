@@ -19,7 +19,6 @@ import {
   Text,
   useToast,
   usePopoverTrigger,
-  DataRefreshControl,
 } from '@/components/ui';
 import type { ShoppingItem } from '@/db/schema';
 import { formatMoney } from '@/domain/money';
@@ -46,7 +45,7 @@ const UNDO_DURATION_MS = 6000;
  */
 export function ShoppingListScreen() {
   // Tirer pour actualiser : relit la liste et ses articles ; les articles cochés et les données saisies restent tels quels.
-  const { refreshing, onRefresh } = useDataRefresh();
+  const { refreshControl } = useDataRefresh();
   const { t } = useTranslation();
   const router = useRouter();
   const toast = useToast();
@@ -161,7 +160,7 @@ export function ShoppingListScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        refreshControl={<DataRefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={refreshControl}
         contentContainerStyle={{ paddingHorizontal: space.screen, paddingTop: 8, paddingBottom: 24, gap: 20 }}>
         {allDone ? (
           // Tout est pris : une seule ligne compacte et positive (pas de grande zone vide), les articles pris juste en dessous.

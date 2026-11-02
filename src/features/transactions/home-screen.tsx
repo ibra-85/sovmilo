@@ -17,7 +17,6 @@ import {
   Text,
   TransactionRow,
   WeeklyChart,
-  DataRefreshControl,
 } from '@/components/ui';
 import { computeMonthTotals } from '@/domain/budget';
 import { formatMonthLabel, formatMonthName, formatMonthShort } from '@/domain/dates';
@@ -54,7 +53,7 @@ export function HomeScreen() {
   const { colors } = useTheme();
   const { today, refresh: refreshToday } = useTodayClock();
   // Tirer pour actualiser : relit la date du jour et toutes les requêtes (montants, budgets, dernières opérations). Rien n'est écrit.
-  const { refreshing, onRefresh } = useDataRefresh({ before: useCallback(() => void refreshToday(), [refreshToday]) });
+  const { refreshControl } = useDataRefresh({ before: useCallback(() => void refreshToday(), [refreshToday]) });
   const { month } = useSelectedMonth();
   const present = useTransactionPresenter();
   const contentWidth = useContentWidth();
@@ -87,7 +86,7 @@ export function HomeScreen() {
       <ScreenHeader title="Sovmilo" logotype trailing={<PeriodSelector />} />
 
       <ScrollView
-        refreshControl={<DataRefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={refreshControl}
         contentContainerStyle={[{ paddingHorizontal: space.screen, paddingTop: 18 }, tabContentStyle]}
         showsVerticalScrollIndicator={false}>
         {/* Résultat du mois : posé sur le fond, sans carte */}

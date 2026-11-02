@@ -14,7 +14,6 @@ import {
   Text,
   TransactionGroupHeader,
   TransactionRow,
-  DataRefreshControl,
 } from '@/components/ui';
 import type { Transaction } from '@/db/schema';
 import { computeMonthTotals } from '@/domain/budget';
@@ -50,7 +49,7 @@ export function HistoryScreen() {
   const router = useRouter();
   const { today, refresh: refreshToday } = useTodayClock();
   // Tirer pour actualiser : relit la date et la liste. Filtre, recherche et mois consulté sont dans l'état de l'écran : ils restent.
-  const { refreshing, onRefresh } = useDataRefresh({ before: useCallback(() => void refreshToday(), [refreshToday]) });
+  const { refreshControl } = useDataRefresh({ before: useCallback(() => void refreshToday(), [refreshToday]) });
   const { month } = useSelectedMonth();
   const present = useTransactionPresenter();
   const categoryById = useCategoryMap();
@@ -92,7 +91,7 @@ export function HistoryScreen() {
 
       <FlatList
         data={rows}
-        refreshControl={<DataRefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={refreshControl}
         keyExtractor={(row) => row.key}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}

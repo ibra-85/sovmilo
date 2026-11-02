@@ -320,8 +320,16 @@ Audit complet dans `docs/ux-audit.md`. Ce qui concerne le design :
   - Courses : listes ET articles d'une liste ; articles cochés et saisies conservés.
   - Factures : date, échéances manquantes jusqu'au mois affiché (idempotent), puis relecture ; paiements intacts.
   - Épargne : objectifs, mouvements, totaux ; **désactivé pendant Réorganiser**.
-- **Non couverts** : Paramètres et Services (statiques) ; formulaires, panneaux, menus, confirmations (exclus par la demande) ; Solde, Catégories, détails d'opération, de budget, de facture et d'objectif, Archives : écrans secondaires, extension simple (`useDataRefresh` + `DataRefreshControl`) à décider ; aucune contrainte technique.
+- **Non couverts** : Paramètres et Services (statiques) ; formulaires, panneaux, menus, confirmations (exclus par la demande) ; Solde, Catégories, détails d'opération, de budget, de facture et d'objectif, Archives : écrans secondaires, extension simple (`useDataRefresh`, qui fournit le `refreshControl`) à décider ; aucune contrainte technique.
 - **Limite connue** : l'actualisation d'un écran relit aussi les écrans d'onglets restés montés derrière lui (une seule époque pour tous). C'est voulu et sans effet visible.
+
+### Hotfix 6.2.1 : écrans vides après le Lot 6.2 (régression du 6.2B)
+
+- **Constat** (essai sur Android) : Accueil, Opérations, Budgets et Épargne n'affichaient que leur en-tête ; Courses et Factures avaient le même défaut. Services, qui n'a pas de « tirer pour actualiser », était intact.
+- **Cause** : au Lot 6.2B, la prop `refreshControl` recevait un composant maison (`DataRefreshControl`) qui enveloppait un `RefreshControl` mais n'affichait pas ses enfants. Sur Android, React Native fait `cloneElement(refreshControl, { style }, <ScrollView/>)` : le défilement est l'ENFANT du contrôle. Le composant maison l'ignorait, donc tout le contenu du défilement disparaissait ; l'en-tête, hors du défilement, restait. Sur iOS le contrôle est un enfant du défilement : le défaut n'y aurait pas existé.
+- **Correction** : le composant est supprimé. `useDataRefresh` renvoie `refreshControl`, un VRAI `RefreshControl` de React Native, à passer tel quel à `ScrollView` / `FlatList`. Même mécanique de relecture (`useLive`, époque des données), mêmes écrans, mêmes règles.
+- **Garde-fous** : `src/hooks/data-screens.android.test.tsx` (projet Jest « android », vraie `Platform.OS === 'android'`, vrais `ScrollView` et `RefreshControl`, vraie base SQLite, vrais hooks de données) vérifie que les éléments apparaissent réellement ; la même suite échoue sur 13 tests sur 14 avec l'ancien composant. `src/hooks/refresh-control-usage.test.ts` interdit tout composant intermédiaire. Les maquettes de `ScrollView` et `RefreshControl` du préréglage de test ne reproduisent pas le défaut (la seconde n'affiche jamais d'enfants) : c'est pourquoi les tests précédents ne l'avaient pas vu.
+- **Données** : aucun schéma, migration, client SQLite, dépôt d'écriture ni identifiant d'application n'a changé depuis le Lot 6B ; les données n'étaient pas touchées, seulement non affichées.
 
 ### Composants de référence (6.2C)
 
