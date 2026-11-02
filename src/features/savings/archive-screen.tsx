@@ -3,7 +3,7 @@ import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, View } from 'react-native';
 
-import { AppScreen, Divider, EmptyState, ScreenHeader, Surface, useToast } from '@/components/ui';
+import { AppScreen, EmptyState, ScreenHeader, Surface, useToast } from '@/components/ui';
 import { space } from '@/theme/layout';
 
 import { GoalRowView } from './goal-row';
@@ -53,14 +53,13 @@ export function ArchiveScreen() {
           </View>
         ) : null}
         {goals.length > 0 ? (
-          <Surface radiusToken="group" style={{ overflow: 'hidden' }}>
-            {goals.map((goal, index) => (
-              <View key={goal.id}>
-                {index > 0 && <Divider inset={space.fieldDividerInset} />}
+          <View style={{ gap: 10 }}>
+            {goals.map((goal) => (
+              <Surface key={goal.id} radiusToken="group" style={{ overflow: 'hidden' }}>
                 <GoalRowView goal={goal} onOpen={open} action={restore} />
-              </View>
+              </Surface>
             ))}
-          </Surface>
+          </View>
         ) : null}
       </ScrollView>
     </AppScreen>

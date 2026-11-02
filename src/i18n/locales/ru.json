@@ -596,7 +596,6 @@
     "rowA11y": "{{name}}. Отложено {{saved}} из {{target}}, {{percent}} %. {{status}}",
     "rowHint": "Открывает цель",
     "quickAdd": "Пополнить цель «{{name}}»",
-    "savedOf": "{{saved}} из {{target}}",
     "remaining": "Осталось {{amount}}",
     "reached": "Цель достигнута",
     "exceeded": "Превышено на {{amount}}",
@@ -729,6 +728,8 @@
       "saveFailed": "Не удалось сохранить. Повторите попытку."
     },
     "menu": "Действия с целью",
-    "rowHintMenu": "Открывает цель. Долгое нажатие: другие действия."
+    "rowHintMenu": "Открывает цель. Долгое нажатие: другие действия.",
+    "ofTarget": "из {{target}}",
+    "percentShort": "{{percent}} %"
   }
 }

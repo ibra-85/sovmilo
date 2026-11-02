@@ -188,7 +188,7 @@ export function GoalDetailScreen() {
     },
     {
       key: 'archive',
-      icon: 'savings' as const,
+      icon: 'archive' as const,
       label: t('savings.detail.archive'),
       accessibilityLabel: t('savings.detail.archiveA11y', { name: goal.name }),
       onPress: () => {
@@ -309,7 +309,7 @@ export function GoalDetailScreen() {
       <View style={{ paddingHorizontal: space.screen, paddingTop: 12, paddingBottom: 12, flexDirection: 'row', gap: 8 }}>
         {isArchived ? (
           <View style={{ flex: 1 }}>
-            <Button label={t('savings.detail.restore')} icon="check" onPress={restore} />
+            <Button label={t('savings.detail.restore')} icon="restore" onPress={restore} />
           </View>
         ) : (
           <>
@@ -363,9 +363,9 @@ export function GoalDetailScreen() {
 
       <ConfirmDialog
         visible={confirming === 'archive'}
+        tone="neutral"
         title={t('savings.detail.archiveTitle')}
-        icon="savings"
-        confirmIcon="check"
+        confirmIcon="archive"
         cancelLabel={t('common.cancel')}
         confirmLabel={t('savings.detail.archiveConfirm')}
         onCancel={() => setConfirming(null)}

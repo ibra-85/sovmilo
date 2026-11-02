@@ -14,10 +14,10 @@ const babel = require('@babel/core') as typeof import('@babel/core');
  * remplace pas un essai sur appareil ; il empêche seulement de réintroduire CETTE erreur.
  */
 
-const FILES = ['src/components/ui/bottom-sheet.tsx', 'src/features/savings/reorder-list.tsx'];
+const FILES = ['src/components/ui/bottom-sheet.tsx', 'src/features/savings/reorder-list.tsx', 'src/features/savings/mode-transition.tsx'];
 
 /** Fonctions JavaScript ordinaires du projet qui ne doivent jamais être capturées par un worklet. */
-const FORBIDDEN = new Set(['spring', 'timing', 'delay', 't', 'setMode', 'setSheetHeight', 'setContentHeight', 'setFooterHeight', 'commit', 'moveBy']);
+const FORBIDDEN = new Set(['spring', 'timing', 'delay', 't', 'setMode', 'setSheetHeight', 'setContentHeight', 'setFooterHeight', 'commit', 'moveBy', 'setShown']);
 
 function closures(file: string): { worklet: string; captured: string[] }[] {
   const result = babel.transformFileSync(path.join(process.cwd(), file), {

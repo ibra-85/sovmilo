@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BackHandler, ScrollView, View, useWindowDimensions } from 'react-native';
 
@@ -29,6 +29,7 @@ import { useTheme } from '@/theme/use-theme';
 import { ConfirmNote } from './confirm-note';
 import { GoalRowView } from './goal-row';
 import { GoalSheet } from './goal-sheet';
+import { ModeTransition } from './mode-transition';
 import { MovementSheet, type MovementSaved } from './movement-sheet';
 import { ReorderList } from './reorder-list';
 import { archiveGoal, cancelMovement, reorderGoals } from './repository';
@@ -74,6 +75,9 @@ export function SavingsScreen() {
   const [draftOrder, setDraftOrder] = useState<string[]>([]);
   const [discarding, setDiscarding] = useState(false);
   const reorderMode = reordering && canReorder(goals.length);
+  const modeKey = reorderMode ? 'reorder' : 'normal';
+  // Verrou de sortie : « Terminé » / « Annuler » touchés deux fois de suite pendant la transition n'enregistrent ni n'abandonnent deux fois.
+  const leaving = useRef(false);
 
   const close = useCallback(() => {
     if (router.canGoBack()) router.back();
@@ -122,11 +126,13 @@ export function SavingsScreen() {
     setInitialOrder(ids);
     setDraftOrder(ids);
     setDiscarding(false);
+    leaving.current = false;
     setReordering(true);
   }
 
   /** « Terminé » : l'ordre provisoire est enregistré en UNE écriture ; sans changement, rien n'est écrit. */
   function finishReorder() {
+    if (!reorderMode || leaving.current) return;
     if (!isSameOrder(initialOrder, draftOrder)) {
       try {
         reorderGoals(draftOrder);
@@ -135,19 +141,27 @@ export function SavingsScreen() {
         return;
       }
     }
+    leaving.current = true;
     setReordering(false);
   }
 
   /** « Annuler » : l'ordre d'origine revient (la liste est reconstruite depuis la base, que rien n'a modifiée). */
   function cancelReorder() {
+    if (!reorderMode || leaving.current) return;
+    leaving.current = true;
     setDiscarding(false);
     setReordering(false);
   }
 
   /** « Retour » (flèche de l'en-tête ou Android) pendant la réorganisation : quitte, ou demande si un changement n'est pas validé. */
   const leaveReorder = useCallback(() => {
-    if (reorderBackAction(initialOrder, draftOrder) === 'leave') setReordering(false);
-    else setDiscarding(true);
+    if (leaving.current) return;
+    if (reorderBackAction(initialOrder, draftOrder) === 'leave') {
+      leaving.current = true;
+      setReordering(false);
+    } else {
+      setDiscarding(true);
+    }
   }, [initialOrder, draftOrder]);
 
   useEffect(() => {
@@ -194,7 +208,7 @@ export function SavingsScreen() {
       : []),
     {
       key: 'archive',
-      icon: 'savings' as const,
+      icon: 'archive' as const,
       label: t('savings.detail.archive'),
       accessibilityLabel: t('savings.detail.archiveA11y', { name: menuGoal?.name ?? '' }),
       onPress: () => {
@@ -212,9 +226,13 @@ export function SavingsScreen() {
         onBack={reorderMode ? leaveReorder : close}
         backLabel={t('common.back')}
         trailing={
-          canReorder(goals.length) && !reorderMode ? (
-            <IconButton icon="grip" label={t('savings.reorder.start')} onPress={startReorder} />
-          ) : undefined
+          <ModeTransition mode={modeKey}>
+            {(shown, changing) =>
+              shown === 'normal' && canReorder(goals.length) ? (
+                <IconButton icon="grip" label={t('savings.reorder.start')} onPress={startReorder} disabled={changing} />
+              ) : null
+            }
+          </ModeTransition>
         }
       />
 
@@ -243,49 +261,58 @@ export function SavingsScreen() {
           </Surface>
         ) : null}
 
-        {hasGoals && reorderMode ? (
-          <>
-            <Text variant="secondary" tone="muted">
-              {t('savings.reorder.help')}
-            </Text>
-            <ReorderList goals={goals} onChange={setDraftOrder} />
-          </>
-        ) : null}
-
-        {hasGoals && !reorderMode ? (
-          <View style={{ gap: 10 }}>
-            {goals.map((goal) => (
-              <Surface key={goal.id} radiusToken="group" style={{ overflow: 'hidden' }}>
-                <GoalRowView goal={goal} onOpen={open} action={quickAdd} onMenu={openMenu} />
-              </Surface>
-            ))}
-          </View>
-        ) : null}
-
-        {archived.goals.length > 0 && !reorderMode ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('savings.archivesLink', { count: archived.goals.length })}
-            pressTranslate={0}
-            onPress={() => router.push('/savings/archive')}
-            style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text variant="bodyStrong" tone="muted" style={{ flex: 1 }}>
-              {t('savings.archivesLink', { count: archived.goals.length })}
-            </Text>
-            <Icon name="chevronRight" size={18} color={colors.textMuted} />
-          </Pressable>
+        {hasGoals ? (
+          <ModeTransition mode={modeKey} style={{ gap: 16 }}>
+            {(shown) =>
+              shown === 'reorder' ? (
+                <>
+                  <Text variant="secondary" tone="muted">
+                    {t('savings.reorder.help')}
+                  </Text>
+                  <ReorderList goals={goals} onChange={setDraftOrder} />
+                </>
+              ) : (
+                <>
+                  <View style={{ gap: 10 }}>
+                    {goals.map((goal) => (
+                      <Surface key={goal.id} radiusToken="group" style={{ overflow: 'hidden' }}>
+                        <GoalRowView goal={goal} onOpen={open} action={quickAdd} onMenu={openMenu} />
+                      </Surface>
+                    ))}
+                  </View>
+                  {archived.goals.length > 0 ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t('savings.archivesLink', { count: archived.goals.length })}
+                      pressTranslate={0}
+                      onPress={() => router.push('/savings/archive')}
+                      style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text variant="bodyStrong" tone="muted" style={{ flex: 1 }}>
+                        {t('savings.archivesLink', { count: archived.goals.length })}
+                      </Text>
+                      <Icon name="chevronRight" size={18} color={colors.textMuted} />
+                    </Pressable>
+                  ) : null}
+                </>
+              )
+            }
+          </ModeTransition>
         ) : null}
       </ScrollView>
 
       <View style={{ paddingHorizontal: space.screen, paddingTop: 12, paddingBottom: 12 }}>
-        {reorderMode ? (
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <Button label={t('common.cancel')} variant="secondary" onPress={cancelReorder} style={{ flex: 1 }} />
-            <Button label={t('savings.reorder.done')} icon="check" onPress={finishReorder} style={{ flex: 1 }} />
-          </View>
-        ) : (
-          <Button label={t('savings.create')} icon="createPlus" onPress={() => setCreating(true)} />
-        )}
+        <ModeTransition mode={modeKey}>
+          {(shown, changing) =>
+            shown === 'reorder' ? (
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <Button label={t('common.cancel')} variant="secondary" disabled={changing} onPress={cancelReorder} style={{ flex: 1 }} />
+                <Button label={t('savings.reorder.done')} icon="check" disabled={changing} onPress={finishReorder} style={{ flex: 1 }} />
+              </View>
+            ) : (
+              <Button label={t('savings.create')} icon="createPlus" disabled={changing} onPress={() => setCreating(true)} />
+            )
+          }
+        </ModeTransition>
       </View>
 
       <GoalSheet
@@ -329,9 +356,9 @@ export function SavingsScreen() {
 
       <ConfirmDialog
         visible={archiving !== null}
+        tone="neutral"
         title={t('savings.detail.archiveTitle')}
-        icon="savings"
-        confirmIcon="check"
+        confirmIcon="archive"
         cancelLabel={t('common.cancel')}
         confirmLabel={t('savings.detail.archiveConfirm')}
         onCancel={() => setArchiving(null)}

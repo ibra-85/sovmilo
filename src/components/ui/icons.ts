@@ -3,6 +3,8 @@ import MinusSignIcon from '@hugeicons/core-free-icons/MinusSignIcon';
 import Airplane01Icon from '@hugeicons/core-free-icons/Airplane01Icon';
 import Alert02Icon from '@hugeicons/core-free-icons/Alert02Icon';
 import AlertCircleIcon from '@hugeicons/core-free-icons/AlertCircleIcon';
+import Archive02Icon from '@hugeicons/core-free-icons/Archive02Icon';
+import ArchiveRestoreIcon from '@hugeicons/core-free-icons/ArchiveRestoreIcon';
 import ArrowDataTransferVerticalIcon from '@hugeicons/core-free-icons/ArrowDataTransferVerticalIcon';
 import ArrowDown01Icon from '@hugeicons/core-free-icons/ArrowDown01Icon';
 import ArrowDownLeft01Icon from '@hugeicons/core-free-icons/ArrowDownLeft01Icon';
@@ -89,6 +91,9 @@ const interfaceIcons = {
   chevronUp: ArrowUp01Icon,
   arrowIncome: ArrowUpRight01Icon,
   arrowExpense: ArrowDownLeft01Icon,
+
+  archive: Archive02Icon, // archiver : réversible, jamais en rouge
+  restore: ArchiveRestoreIcon, // restaurer un élément archivé (distinct de la flèche « Retour »)
 
   // États
   nearLimit: AlertCircleIcon,

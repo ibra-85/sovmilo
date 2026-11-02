@@ -568,7 +568,6 @@
     "rowA11y": "{{name}}. {{saved}} mis de côté sur {{target}}, {{percent}} %. {{status}}",
     "rowHint": "Ouvre l’objectif",
     "quickAdd": "Ajouter de l’argent à « {{name}} »",
-    "savedOf": "{{saved}} sur {{target}}",
     "remaining": "Reste {{amount}}",
     "reached": "Objectif atteint",
     "exceeded": "Dépassé de {{amount}}",
@@ -701,6 +700,8 @@
       "saveFailed": "L’enregistrement a échoué. Réessayez."
     },
     "menu": "Actions sur l’objectif",
-    "rowHintMenu": "Ouvre l’objectif. Appui long : plus d’actions."
+    "rowHintMenu": "Ouvre l’objectif. Appui long : plus d’actions.",
+    "ofTarget": "sur {{target}}",
+    "percentShort": "{{percent}} %"
   }
 }

@@ -1,7 +1,7 @@
 import { createI18n, resources } from '@/i18n/config';
 import { goalProgress } from '@/domain/savings';
 
-import { goalStatusText } from './format';
+import { goalCardText, goalStatusText } from './format';
 
 const NBSP_PERCENT = /\d[  ]%/;
 
@@ -90,5 +90,61 @@ describe('traductions de l\'épargne', () => {
     const fr = flatten(resources.fr.translation.savings).map((key) => key.replace(/_(one|few|many|other)$/, ''));
     const ru = flatten(resources.ru.translation.savings).map((key) => key.replace(/_(one|few|many|other)$/, ''));
     expect(new Set(ru)).toEqual(new Set(fr));
+  });
+});
+
+describe.each(['fr', 'ru'] as const)('texte des cartes d\'objectif — %s', (locale) => {
+  const i18n = createI18n(locale);
+  const t = i18n.t.bind(i18n);
+  const card = (savedCents: number, targetCents: number) =>
+    goalCardText({ savedCents, targetCents, progress: goalProgress(savedCents, targetCents) }, locale, t);
+
+  // [épargné, cible] en centimes : les cas demandés, du plus petit au plus grand montant métier.
+  const CASES: [number, number][] = [
+    [0, 20_000],
+    [15_000, 100_000],
+    [100_000, 100_000],
+    [1_250_000, 5_000_000],
+    [12_500_000, 100_000_000],
+    [99_999_999_998, 99_999_999_999],
+  ];
+
+  it.each(CASES)('%i / %i centimes : montants entiers, aucun texte vide ni jeton non remplacé', (saved, target) => {
+    const text = card(saved, target);
+    for (const value of [text.saved, text.ofTarget, text.status]) {
+      expect(value).not.toMatch(/NaN|undefined|\{\{|…/);
+      expect(value.length).toBeGreaterThan(0);
+    }
+    // Aucun montant ne contient une espace ordinaire : la carte ne peut revenir à la ligne qu'ENTRE les montants.
+    expect(text.saved).not.toMatch(/ /);
+    expect(text.ofTarget.replace(/^\S+ /, '')).not.toMatch(/ /);
+  });
+
+  it('objectif atteint : badge d\'état, pas de pourcentage redondant, reste nul jamais affiché comme « Reste 0 € »', () => {
+    const reached = card(100_000, 100_000);
+    expect(reached.done).toBe(true);
+    expect(reached.percent).toBe('');
+    expect(reached.status).toBe(t('savings.reached'));
+    expect(reached.status).not.toMatch(/Reste|Осталось/);
+  });
+
+  it('objectif dépassé : l\'écart exact est écrit', () => {
+    const over = card(130_000, 100_000);
+    expect(over.done).toBe(true);
+    expect(over.status).toContain('300');
+  });
+
+  it('objectif en cours : reste à épargner et pourcentage court', () => {
+    const going = card(15_000, 100_000);
+    expect(going.done).toBe(false);
+    expect(going.status).toContain('850');
+    expect(going.percent).toMatch(/^15[   ]%$/);
+    expect(card(0, 20_000).percent).toMatch(/^0[   ]%$/);
+  });
+
+  it('les montants ne sont jamais abrégés quelle que soit leur taille', () => {
+    const text = card(99_999_999_998, 99_999_999_999);
+    expect(text.saved.replace(/\D/g, '')).toBe('99999999998');
+    expect(text.ofTarget.replace(/\D/g, '')).toBe('99999999999');
   });
 });

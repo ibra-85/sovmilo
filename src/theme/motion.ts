@@ -57,6 +57,9 @@ export const durations = {
   skeletonFadeIn: 150,
   /** Fondu court conservé quand les animations sont réduites (≤ 100 ms). */
   reducedFade: 100,
+  /** Changement de mode d'un écran (Épargne ↔ Réorganiser) : le contenu sort (100 ms), puis le nouveau entre (160 ms). */
+  modeOut: 100,
+  modeIn: 160,
 } as const satisfies Record<string, number>;
 
 export type DurationName = keyof typeof durations;
@@ -72,6 +75,8 @@ export const motionDistances = {
   dropdownScaleFrom: 0.95,
   /** Notification : translation de départ. */
   toastTranslateY: 8,
+  /** Changement de mode d'un écran : léger déplacement vertical du contenu qui entre / sort. */
+  modeTranslateY: 6,
   /** Bouton pressé : enfoncement. */
   pressTranslateY: 1,
   /** Rotation de l'icône + vers ×. */
