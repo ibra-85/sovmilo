@@ -1,13 +1,13 @@
 import { and, desc, eq, isNull, like } from 'drizzle-orm';
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 
 import { db } from '@/db/client';
+import { useLive } from '@/db/live';
 import { transactions, type Transaction } from '@/db/schema';
 import type { CategorizedTransactionLike } from '@/domain/budget';
 
 /** Les champs nécessaires aux totaux et aux plafonds d'un mois (`YYYY-MM`), hors opérations supprimées. */
 export function useMonthTransactions(month: string): CategorizedTransactionLike[] {
-  const { data } = useLiveQuery(
+  const { data } = useLive(
     db
       .select({
         type: transactions.type,
@@ -24,7 +24,7 @@ export function useMonthTransactions(month: string): CategorizedTransactionLike[
 
 /** Dernières opérations, de la plus récente à la plus ancienne (à date égale : la dernière saisie d'abord). */
 export function useRecentTransactions(limit: number): Transaction[] {
-  const { data } = useLiveQuery(
+  const { data } = useLive(
     db
       .select()
       .from(transactions)
@@ -38,7 +38,7 @@ export function useRecentTransactions(limit: number): Transaction[] {
 
 /** Les opérations d'un mois (`YYYY-MM`), de la plus récente à la plus ancienne. */
 export function useMonthOperations(month: string): Transaction[] {
-  const { data } = useLiveQuery(
+  const { data } = useLive(
     db
       .select()
       .from(transactions)
@@ -51,7 +51,7 @@ export function useMonthOperations(month: string): Transaction[] {
 
 /** Toutes les opérations non supprimées, de la plus récente à la plus ancienne. Le tri et les filtres se font ensuite en mémoire. */
 export function useAllTransactions(): Transaction[] {
-  const { data } = useLiveQuery(
+  const { data } = useLive(
     db
       .select()
       .from(transactions)
@@ -66,7 +66,7 @@ export function useAllTransactions(): Transaction[] {
  * `loaded` reste faux jusqu'à la première réponse de la base, pour ne pas afficher « introuvable » pendant le chargement.
  */
 export function useTransaction(id: string): { transaction: Transaction | undefined; loaded: boolean } {
-  const { data, updatedAt } = useLiveQuery(
+  const { data, updatedAt } = useLive(
     db
       .select()
       .from(transactions)

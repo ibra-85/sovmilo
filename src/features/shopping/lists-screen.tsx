@@ -3,10 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, View } from 'react-native';
 import { useState } from 'react';
 
-import { AppScreen, Button, Divider, EmptyState, Icon, Pressable, ScreenHeader, Surface, Text } from '@/components/ui';
+import { AppScreen, Button, DataRefreshControl, Divider, EmptyState, Icon, Pressable, ScreenHeader, Surface, Text } from '@/components/ui';
 import type { ShoppingList } from '@/db/schema';
 import { space, sizes, radius } from '@/theme/layout';
 import { useTheme } from '@/theme/use-theme';
+import { useDataRefresh } from '@/hooks/use-data-refresh';
 
 import { ListNameSheet } from './list-name-sheet';
 import { useListCounts, useShoppingLists } from './use-shopping';
@@ -17,6 +18,8 @@ import { useListCounts, useShoppingLists } from './use-shopping';
  * n'ont aucun lien avec les opérations, le solde ou les budgets.
  */
 export function ShoppingListsScreen() {
+  // Tirer pour actualiser : relit les listes et leurs compteurs depuis SQLite (aucune liste ni article créé ou modifié).
+  const { refreshing, onRefresh } = useDataRefresh();
   const { t } = useTranslation();
   const router = useRouter();
   const lists = useShoppingLists();
@@ -38,6 +41,7 @@ export function ShoppingListsScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        refreshControl={<DataRefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={{ paddingHorizontal: space.screen, paddingTop: 14, paddingBottom: 24, gap: 16, flexGrow: 1 }}>
         {lists.length === 0 ? (
           <View style={{ flex: 1, justifyContent: 'center' }}>

@@ -1,20 +1,20 @@
 import { and, asc, eq, isNull } from 'drizzle-orm';
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useMemo } from 'react';
 
 import { db } from '@/db/client';
+import { useLive } from '@/db/live';
 import { shoppingItems, shoppingLists, type ShoppingItem, type ShoppingList } from '@/db/schema';
 import { summarizeItems, type ShoppingSummary } from '@/domain/shopping';
 
 /** Listes de courses actives, dans l'ordre de création. Se met à jour toute seule. */
 export function useShoppingLists(): ShoppingList[] {
-  const { data } = useLiveQuery(db.select().from(shoppingLists).where(isNull(shoppingLists.deletedAt)).orderBy(asc(shoppingLists.createdAt)));
+  const { data } = useLive(db.select().from(shoppingLists).where(isNull(shoppingLists.deletedAt)).orderBy(asc(shoppingLists.createdAt)));
   return data;
 }
 
 /** Une liste, ou `undefined` si elle n'existe pas (ou plus). */
 export function useShoppingList(id: string): ShoppingList | undefined {
-  const { data } = useLiveQuery(
+  const { data } = useLive(
     db
       .select()
       .from(shoppingLists)
@@ -26,7 +26,7 @@ export function useShoppingList(id: string): ShoppingList | undefined {
 
 /** Articles actifs d'une liste, répartis en « à acheter » / « déjà pris », avec l'estimation du reste à acheter. */
 export function useShoppingItems(listId: string): ShoppingSummary<ShoppingItem> {
-  const { data } = useLiveQuery(
+  const { data } = useLive(
     db
       .select()
       .from(shoppingItems)
@@ -38,7 +38,7 @@ export function useShoppingItems(listId: string): ShoppingSummary<ShoppingItem> 
 
 /** Nombre d'articles par liste, au total et restant à acheter (écran d'ensemble). */
 export function useListCounts(): { remaining: Map<string, number>; total: Map<string, number> } {
-  const { data } = useLiveQuery(db.select().from(shoppingItems).where(isNull(shoppingItems.deletedAt)));
+  const { data } = useLive(db.select().from(shoppingItems).where(isNull(shoppingItems.deletedAt)));
   return useMemo(() => {
     const remaining = new Map<string, number>();
     const total = new Map<string, number>();

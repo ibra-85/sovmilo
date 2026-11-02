@@ -8,6 +8,7 @@ import {
   AmountText,
   AppScreen,
   Button,
+  DataRefreshControl,
   EmptyState,
   PeriodSelector,
   ProgressBar,
@@ -18,6 +19,7 @@ import {
 import { formatMonthRange } from '@/domain/dates';
 import { formatMoneyAuto } from '@/domain/money';
 import { useContentWidth } from '@/hooks/use-content-width';
+import { useDataRefresh } from '@/hooks/use-data-refresh';
 import { useSelectedMonth } from '@/hooks/use-selected-month';
 import { useLocale } from '@/i18n/use-locale';
 import { space } from '@/theme/layout';
@@ -31,6 +33,8 @@ import { useBudgetOverview } from './use-budget-overview';
  * Une ligne ouvre le détail du budget. Les catégories sans plafond n'apparaissent pas : on leur donne un budget avec « Créer ».
  */
 export function BudgetScreen() {
+  // Tirer pour actualiser : relit budgets et opérations du mois ; les montants consommés sont recalculés, aucun budget n'est touché.
+  const { refreshing, onRefresh } = useDataRefresh();
   const { t } = useTranslation();
   const contentWidth = useContentWidth();
   const locale = useLocale();
@@ -48,6 +52,7 @@ export function BudgetScreen() {
       <ScreenHeader title={t('budget.title')} trailing={<PeriodSelector />} />
 
       <ScrollView
+        refreshControl={<DataRefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={[{ paddingHorizontal: space.screen, paddingTop: 14 }, tabContentStyle]}
         showsVerticalScrollIndicator={false}>
         {entries.length === 0 ? (

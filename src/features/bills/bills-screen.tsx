@@ -2,12 +2,13 @@ import type { TFunction } from 'i18next';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshControl, ScrollView, View, useWindowDimensions } from 'react-native';
+import { ScrollView, View, useWindowDimensions } from 'react-native';
 
 import {
   AmountText,
   AppScreen,
   Button,
+  DataRefreshControl,
   Divider,
   EmptyState,
   Icon,
@@ -20,7 +21,7 @@ import {
 } from '@/components/ui';
 import { CONSULTABLE_MONTHS_AHEAD, partitionBills, summarizePeriod, type AmountTotal } from '@/domain/bills';
 import { formatMoney } from '@/domain/money';
-import { usePullRefresh } from '@/hooks/use-pull-refresh';
+import { useDataRefresh } from '@/hooks/use-data-refresh';
 import { useTodayClock } from '@/hooks/use-today';
 import { useLocale } from '@/i18n/use-locale';
 import { space } from '@/theme/layout';
@@ -67,15 +68,15 @@ export function BillsScreen() {
     }
   }, [today, month]);
 
-  // Tirer pour actualiser : relit la date du jour (l'écran peut être resté ouvert pendant la nuit) et complète les échéances
-  // manquantes jusqu'au mois affiché. Le mois consulté et les groupes ouverts ne changent pas ; aucun paiement n'est touché.
-  const { refreshing, onRefresh } = usePullRefresh(
-    useCallback(() => {
+  // Tirer pour actualiser : relit la date du jour (l'écran peut être resté ouvert pendant la nuit), complète les échéances manquantes
+  // jusqu'au mois affiché (idempotent, borné), puis relit toutes les requêtes. Le mois consulté et les groupes ouverts ne changent
+  // pas ; aucun paiement n'est touché.
+  const { refreshing, onRefresh } = useDataRefresh({
+    before: useCallback(() => {
       const fresh = refreshToday();
       ensureOccurrences(fresh, pickedMonth ?? fresh.slice(0, 7));
     }, [refreshToday, pickedMonth]),
-    { onError: useCallback(() => toast.show({ message: t('bills.errors.refreshFailed') }), [toast, t]) },
-  );
+  });
 
   const partition = useMemo(() => partitionBills(rows, month, today), [rows, month, today]);
   const summary = useMemo(() => summarizePeriod(rows, month, today), [rows, month, today]);
@@ -120,9 +121,7 @@ export function BillsScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.ink]} tintColor={colors.ink} progressBackgroundColor={colors.surface} />
-        }
+        refreshControl={<DataRefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={{ paddingHorizontal: space.screen, paddingTop: 8, paddingBottom: 24, gap: 20, flexGrow: 1 }}>
         {loaded && !hasBills ? (
           <View style={{ flex: 1, justifyContent: 'center' }}>

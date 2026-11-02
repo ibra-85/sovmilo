@@ -1,8 +1,8 @@
 import { desc, gt, and, isNull } from 'drizzle-orm';
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useMemo } from 'react';
 
 import { db } from '@/db/client';
+import { useLive } from '@/db/live';
 import { accountSnapshots, transactions, type AccountSnapshot } from '@/db/schema';
 import { estimateBalance, snapshotDay } from '@/domain/balance';
 
@@ -15,7 +15,7 @@ export interface BalanceInfo {
 
 /** Dernier solde réel saisi, et solde estimé en y ajoutant les opérations enregistrées depuis. Se met à jour toute seule. */
 export function useBalance(): BalanceInfo {
-  const { data: snapshots } = useLiveQuery(
+  const { data: snapshots } = useLive(
     db
       .select()
       .from(accountSnapshots)
@@ -27,7 +27,7 @@ export function useBalance(): BalanceInfo {
   // Sans saisie, on cherche après une date impossible : la requête ne renvoie rien.
   const since = snapshot ? snapshotDay(snapshot.recordedAt) : '9999-12-31';
 
-  const { data: later } = useLiveQuery(
+  const { data: later } = useLive(
     db
       .select({ type: transactions.type, amountCents: transactions.amountCents, occurredOn: transactions.occurredOn })
       .from(transactions)

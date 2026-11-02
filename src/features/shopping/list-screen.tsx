@@ -19,6 +19,7 @@ import {
   Text,
   useToast,
   usePopoverTrigger,
+  DataRefreshControl,
 } from '@/components/ui';
 import type { ShoppingItem } from '@/db/schema';
 import { formatMoney } from '@/domain/money';
@@ -26,6 +27,7 @@ import { useMotion } from '@/hooks/use-motion';
 import { useLocale } from '@/i18n/use-locale';
 import { radius, space } from '@/theme/layout';
 import { useTheme } from '@/theme/use-theme';
+import { useDataRefresh } from '@/hooks/use-data-refresh';
 
 import { ItemSheet } from './item-sheet';
 import { ShoppingItemRow } from './item-row';
@@ -43,6 +45,8 @@ const UNDO_DURATION_MS = 6000;
  * d'opération et ne touche au solde ni aux budgets.
  */
 export function ShoppingListScreen() {
+  // Tirer pour actualiser : relit la liste et ses articles ; les articles cochés et les données saisies restent tels quels.
+  const { refreshing, onRefresh } = useDataRefresh();
   const { t } = useTranslation();
   const router = useRouter();
   const toast = useToast();
@@ -157,6 +161,7 @@ export function ShoppingListScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        refreshControl={<DataRefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={{ paddingHorizontal: space.screen, paddingTop: 8, paddingBottom: 24, gap: 20 }}>
         {allDone ? (
           // Tout est pris : une seule ligne compacte et positive (pas de grande zone vide), les articles pris juste en dessous.

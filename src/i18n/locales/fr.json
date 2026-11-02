@@ -8,7 +8,8 @@
     "all": "Tous",
     "today": "Aujourd’hui",
     "yesterday": "Hier",
-    "back": "Retour"
+    "back": "Retour",
+    "refreshFailed": "Actualisation impossible. Réessayez."
   },
   "tabs": {
     "home": "Accueil",
@@ -548,8 +549,7 @@
       "dateFuture": "La date de paiement ne peut pas être dans le futur.",
       "saveFailed": "Impossible d’enregistrer. Réessayez.",
       "deleteFailed": "Impossible de supprimer. Réessayez.",
-      "actionFailed": "Impossible de terminer l’action. Réessayez.",
-      "refreshFailed": "Actualisation impossible. Réessayez."
+      "actionFailed": "Impossible de terminer l’action. Réessayez."
     }
   },
   "savings": {

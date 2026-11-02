@@ -1,7 +1,7 @@
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useMemo } from 'react';
 
 import { db } from '@/db/client';
+import { useLive } from '@/db/live';
 import { budgets } from '@/db/schema';
 import type { BudgetRow } from '@/domain/budget';
 
@@ -10,7 +10,7 @@ import type { BudgetRow } from '@/domain/budget';
  * à partir de quel mois un plafond a été retiré.
  */
 export function useBudgetRows(): BudgetRow[] {
-  const { data } = useLiveQuery(db.select().from(budgets));
+  const { data } = useLive(db.select().from(budgets));
   return useMemo(
     () =>
       data.map((row) => ({

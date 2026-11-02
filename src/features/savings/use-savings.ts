@@ -1,8 +1,8 @@
 import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useMemo } from 'react';
 
 import { db } from '@/db/client';
+import { useLive } from '@/db/live';
 import { savingsGoals, savingsMovements, type SavingsGoal, type SavingsMovement } from '@/db/schema';
 import { goalProgress, newestFirst, summarizeGoals, type GoalProgress, type MovementLike, type SavingsSummary } from '@/domain/savings';
 
@@ -31,7 +31,7 @@ interface Totals {
  * ne charge jamais l'historique, donc elle reste rapide avec des dizaines d'objectifs et des milliers de mouvements.
  */
 function useTotals(): { totals: Map<string, Totals>; loaded: boolean } {
-  const rows = useLiveQuery(
+  const rows = useLive(
     db
       .select({
         goalId: savingsMovements.goalId,
@@ -65,7 +65,7 @@ function toRow(goal: SavingsGoal, totals: Map<string, Totals>): GoalRow {
 
 /** Objectifs ACTIFS dans l'ordre choisi par l'utilisatrice (jamais réordonnés par un versement), avec le résumé global. */
 export function useActiveGoals(): { goals: GoalRow[]; summary: SavingsSummary; loaded: boolean } {
-  const goals = useLiveQuery(
+  const goals = useLive(
     db
       .select()
       .from(savingsGoals)
@@ -80,7 +80,7 @@ export function useActiveGoals(): { goals: GoalRow[]; summary: SavingsSummary; l
 
 /** Objectifs ARCHIVÉS, le plus récemment archivé d'abord. */
 export function useArchivedGoals(): { goals: GoalRow[]; loaded: boolean } {
-  const goals = useLiveQuery(
+  const goals = useLive(
     db
       .select()
       .from(savingsGoals)
@@ -116,8 +116,8 @@ export interface GoalDetail {
 
 /** Détail d'un objectif (actif ou archivé) et de son historique, en direct. `detail` est `null` si l'objectif n'existe plus. */
 export function useGoalDetail(id: string): { detail: GoalDetail | null; loaded: boolean } {
-  const goals = useLiveQuery(db.select().from(savingsGoals).where(and(eq(savingsGoals.id, id), isNull(savingsGoals.deletedAt))), [id]);
-  const movements = useLiveQuery(
+  const goals = useLive(db.select().from(savingsGoals).where(and(eq(savingsGoals.id, id), isNull(savingsGoals.deletedAt))), [id]);
+  const movements = useLive(
     db
       .select()
       .from(savingsMovements)

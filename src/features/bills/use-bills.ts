@@ -1,8 +1,8 @@
 import { asc, eq, isNull } from 'drizzle-orm';
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useMemo } from 'react';
 
 import { db } from '@/db/client';
+import { useLive } from '@/db/live';
 import { billOccurrences, bills, type Bill, type BillOccurrence } from '@/db/schema';
 import type { OccurrenceLike } from '@/domain/bills';
 
@@ -43,8 +43,8 @@ function toRow(occurrence: BillOccurrence, bill: Bill): BillRow {
  * suivie par son propre abonnement, donc renommer une facture comme payer une échéance rafraîchissent l'écran.
  */
 export function useBillRows(): { rows: BillRow[]; loaded: boolean } {
-  const occurrences = useLiveQuery(db.select().from(billOccurrences).where(isNull(billOccurrences.deletedAt)).orderBy(asc(billOccurrences.dueOn)));
-  const definitions = useLiveQuery(db.select().from(bills).where(isNull(bills.deletedAt)));
+  const occurrences = useLive(db.select().from(billOccurrences).where(isNull(billOccurrences.deletedAt)).orderBy(asc(billOccurrences.dueOn)));
+  const definitions = useLive(db.select().from(bills).where(isNull(bills.deletedAt)));
   const rows = useMemo(() => {
     const byId = new Map(definitions.data.map((bill) => [bill.id, bill] as const));
     const result: BillRow[] = [];
@@ -75,7 +75,7 @@ export interface BillDetail {
 export function useBillDetail(id: string): { detail: BillDetail | null; loaded: boolean } {
   const { rows, loaded } = useBillRows();
   // Même si l'échéance n'est plus active, la ligne garde l'identifiant de sa facture.
-  const trace = useLiveQuery(db.select().from(billOccurrences).where(eq(billOccurrences.id, id)), [id]);
+  const trace = useLive(db.select().from(billOccurrences).where(eq(billOccurrences.id, id)), [id]);
   const billId = trace.data[0]?.billId;
 
   const detail = useMemo(() => {
