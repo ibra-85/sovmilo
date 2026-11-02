@@ -166,5 +166,56 @@ Intégration prévue dans les autres modules : **Courses** (réorganiser les lis
 | Panneau : glisser la poignée | **Deux états** pour « Nouvel objectif » seulement (compact ↔ déployé) ; les autres panneaux inchangés | Fermeture jamais déclenchée depuis le déployé. Voir `design-deviations.md` § 5 nonies. |
 | Appui long sur une carte d'objectif | **Implémenté** : menu Modifier / Réorganiser / Archiver | Le conflit avec le glisser-déposer n'existe plus : le glisser ne démarre que depuis la poignée du mode Réorganiser. Jamais le seul accès (icône ≡, détail). |
 | Réorganiser | **Session provisoire** : Terminé / Annuler / Retour confirmé | L'ordre n'est plus écrit à chaque déplacement. |
-| Tirer pour actualiser | **Retenu pour Factures seulement** (révise le § 12) | Date du jour et échéances générées : seul cas où un tirage relit réellement quelque chose. Autres écrans : déjà en direct. |
+| Tirer pour actualiser | **Retenu pour Factures seulement** (révise le § 12) ; **étendu aux écrans de données principaux au Lot 6.2B** (`design-deviations.md` § 5 decies) | Date du jour et échéances générées : seul cas où un tirage relit réellement quelque chose. Autres écrans : déjà en direct. |
 | Lien « Noter un virement » | **Retiré** | Ambigu, sans lien avec les objectifs. |
+
+## 14. Comparaison avec trois composants d'Essavio (Lot 6.2C, révision `9e00abf`)
+
+Source : dépôt `ibra-85/essavio`, accessible, lu en entier : `mobile/src/components/design-system/sheet.tsx`, `context-menu.tsx`, `select-field.tsx`, plus `lib/sheet-motion.ts`. Rien n'est supposé. Principe : une architecture différente n'est pas meilleure par principe ; le BottomSheet de Sovmilo vient d'être validé sur téléphone et ne change pas dans cette passe.
+
+### 14.1 Sheet
+
+| Point | Essavio `Sheet` | Sovmilo `BottomSheet` |
+| --- | --- | --- |
+| Fenêtre | `Modal` + `GestureHandlerRootView` | **Identique** (`Modal`, `statusBarTranslucent`, `navigationBarTranslucent`) |
+| Hauteur | Celle du contenu, `maxHeight` 90 %, `ScrollView` interne | Naturelle pour les panneaux simples ; **deux états** compact / déployé calculés depuis la fenêtre, les marges, le clavier et le contenu MESURÉ (`sheet-snap.ts`), pied fixe |
+| Mouvement | Valeurs partagées Reanimated, aucun rendu React pendant le glissement ; fermeture qui garde la vitesse du doigt (`sheetCloseDuration`) ; voile dérivé de la position | Idem (ressorts, voile estompé au glissement) ; fermeture au seuil de 30 % de la hauteur ou 900 px/s |
+| Geste | Glisser depuis la poignée **et le titre** (zone plus grande), `activeOffsetY(8)`, `failOffsetX` | Poignée seule (28 dp), sans seuils d'activation |
+| Clavier | `KeyboardAvoidingView` sur iOS seulement ; sur Android, rien : le panneau n'est pas garanti au-dessus du clavier | Panneau détaché au-dessus du clavier, champ et bouton toujours visibles |
+| Accessibilité | **Poignée accessible** : rôle bouton, « Fermer {titre} », action `activate` ; `onAccessibilityEscape` (iOS) | Poignée masquée à TalkBack ; le voile est un bouton nommé d'après le titre ; Retour Android → `onRequestClose` |
+| Animations réduites | Durée 0 | Ressorts à durée 0, fondu de 100 ms au plus (`useMotion`) |
+
+- **À reprendre** (valeur démontrée, risque faible, **non intégré** car cela ne s'observe que sur appareil avec TalkBack) : rendre la poignée accessible avec l'action « Fermer {titre} » ; le voile actuel s'annonce du nom du panneau, pas de « fermer ».
+- **À étudier plus tard** : zone de glissement élargie au titre (suppose un prop `title`, car le titre est aujourd'hui dans le contenu) ; fermeture à vitesse continue.
+- **À ne pas reprendre** : hauteur « contenu, 90 % » (moins précise que la nôtre), absence de gestion du clavier sur Android.
+
+### 14.2 ContextMenu
+
+| Point | Essavio `ContextMenu` | Sovmilo `MorphingPopover` V3 |
+| --- | --- | --- |
+| Couche | **Un `Modal` par menu** (seconde fenêtre native) | Hôte dans la MÊME hiérarchie native (`popover-host.tsx`), sans `Modal` |
+| Placement | Sous le déclencheur ; au-dessus si la hauteur mesurée ne tient pas ; largeur imposée ou adaptée ; hauteur maximale avec défilement | Idem en fonctions pures testées (`popover-layout.ts`) : côté, ancrage `end` / `center`, modes `cover` / `beside`, clavier, hauteur maximale, largeur estimée selon les libellés (russe) |
+| Animation | `animationType="fade"` du Modal (pilotée par Android) | Un seul moteur interruptible : surface qui se transforme, fondu, inversion au toucher pendant la fermeture |
+| Libellés | `numberOfLines={1}` : un libellé russe long est tronqué | Largeur adaptée au plus long libellé |
+| Accessibilité | `menu` / `menuitem`, fond « Fermer le menu » | `menu` / `menuitem`, libellé complet par ligne, reste de l'application masqué |
+| Animations réduites | Aucune gestion propre | Mode `beside`, fondu de 100 ms au plus |
+
+- **Risques Android d'un Modal pour un menu** : création d'une fenêtre à chaque ouverture (coût, clignotement possible de la barre d'état), coordonnées qui peuvent différer de celles du déclencheur, deux Modales superposées (menu depuis un panneau) à l'ordre fragile.
+- **Atout réel de la référence** : un menu en `Modal` s'affiche **au-dessus d'un panneau** (notre hôte est sous les `Modal` des panneaux). Aucun écran de Sovmilo n'ouvre aujourd'hui un menu depuis un panneau. Si le besoin apparaît, la réponse est une variante `host: 'modal'` de l'hôte, pas le remplacement du moteur.
+- **Idée utile** : le rappel `onHidden` pour enchaîner « menu fermé, puis panneau ». Chez nous le menu n'est pas une fenêtre : l'enchaînement actuel (fermer, puis ouvrir le panneau) est déjà sûr.
+
+### 14.3 SelectField
+
+Un champ qui ouvre un `Sheet` de choix (radio), avec saisie personnalisée optionnelle. Adapté aux **longues listes** (langues, catégories, devises), pas aux petits menus d'actions. Sovmilo fait déjà : petits choix en `MorphingPopover` (sélecteur de période), listes dans un panneau (réaffectation de catégorie : `ChoiceGroup` dans un `ScrollView` borné). Rien à changer maintenant ; extraire un `SelectSheet` n'aurait de sens qu'avec un deuxième usage identique. Reprise possible : le champ personnalisé qui passe à la ligne sous le bouton quand la place manque (`flexWrap`, `flexBasis`), déjà notre pratique pour les montants.
+
+### 14.4 Retenu, non retenu
+
+- **Retenu dans ce lot** : aucun code copié. La lecture confirme trois choix de Sovmilo (même `Modal` + `GestureHandlerRootView`, geste sur le thread UI, placement au-dessus si la place manque) et donne deux pistes datées : poignée accessible, variante `modal` de l'hôte.
+- **Non retenu** : remplacer `BottomSheet`, réécrire `MorphingPopover`, changer les menus déroulants.
+
+### 14.5 Prototype A/B proposé : menu « fondu » (à NE PAS activer sans validation)
+
+- **Constat** : le moteur gère déjà un chemin `reduced` (placement `beside`, surface directement à sa place, fondu seul). Le menu sobre est donc presque là.
+- **Variante B « fade »** : prop `variant?: 'morph' | 'fade'` de `MorphingPopover` (défaut `morph`, V3 inchangée). En `fade` : placement `beside` ; opacité de 0 à 1 en 140 ms ; déplacement de 6 dp depuis le côté du déclencheur, jamais de mise à l'échelle ; fermeture en 100 ms ; mêmes règles d'interruption (le moteur inverse déjà à partir de la position courante) et de réouverture (`onReopen`) ; le déclencheur reste visible (pas de `cover`).
+- **Mise en œuvre prudente** : variante lue depuis un réglage de développement masqué (ou `EXPO_PUBLIC_MENU_VARIANT`), jamais exposée dans les Paramètres tant que la décision n'est pas prise ; tests purs sur les étapes de mouvement de la variante et l'inversion à mi-course (la géométrie ne change pas).
+- **Protocole de comparaison sur Android** : mêmes menus (appui long d'une carte d'Épargne, « ⋯ » des Opérations, sélecteur de période) ; 10 ouvertures lentes et 10 rapides (double toucher, toucher pendant la fermeture) par variante ; observer le temps avant la première image, les images perdues (moniteur de performance), les touchers manqués, la lisibilité en mode sombre et avec animations réduites. La décision revient au propriétaire.

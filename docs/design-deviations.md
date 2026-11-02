@@ -285,14 +285,47 @@ Audit complet dans `docs/ux-audit.md`. Ce qui concerne le design :
 - Le mode s'ouvre **sur place** (même écran, même en-tête, résumé conservé). L'ordre modifié est **provisoire** : « Terminé » l'enregistre en une écriture (`reorderGoals`), sans écriture si rien n'a changé ; « Annuler » rend l'ordre d'origine. « Retour » (flèche ou Android) : sans changement on quitte, avec un changement non validé on demande « Abandonner le nouvel ordre ? ». Aucun montant, aucune archive n'est touché. Poignée avec appui long de 220 ms et flèches conservées ; le mode a la priorité (aucune carte n'est touchable pendant la session).
 - **Limite connue** : pas de défilement automatique pendant le glissement (les flèches franchissent les grandes distances).
 
-### Tirer pour actualiser (6.1C)
+### Tirer pour actualiser (6.1C, révisé au Lot 6.2B)
 
-- **Retenu : Factures seulement.** C'est le seul écran dont une partie n'est pas en direct : la date du jour (relue seulement au retour au premier plan) et la génération des échéances (`ensureOccurrences`). Le geste relit la date, régénère les échéances manquantes jusqu'au mois affiché (idempotent), garde le mois et les groupes ouverts, ne touche à aucun paiement, ignore un second tirage pendant l'exécution et affiche un message en cas d'échec. Aucun délai artificiel.
-- **Exclus (données locales déjà en direct, un spinner serait faux)** : Accueil, Opérations, Budgets, Courses, Épargne, détails, Catégories, Solde, Services, Paramètres. Chaque requête SQLite se met à jour dès qu'une écriture a lieu ; il n'y a pas de serveur à relire avant la synchronisation Supabase. À réévaluer à ce moment-là (la synchronisation donnera un vrai sens au geste).
+- Le Lot 6.1C ne l'avait retenu que pour Factures ; le Lot 6.2B l'étend (voir § 5 decies).
 
 ### Bouton rond en forme d'engrenage (constaté sur des captures)
 
 - Aucun code de Sovmilo ne dessine un engrenage flottant, et `expo-dev-client` / `expo-dev-menu` ne sont pas installés. L'origine la plus probable est l'outil de développement flottant d'**Expo Go** (ou du lanceur de développement), qui n'existe pas dans un APK de production : à confirmer en installant l'APK final. Rien n'a été supprimé.
+
+## 5 decies. Lot 6.2 : finition d'Épargne, actualisation transversale
+
+### Cartes d'objectif (6.2A)
+
+- **Cause du défaut** : montant épargné, « sur » cible et état écrit tenaient dans une colonne d'environ 250 dp (la pastille et le bouton rond prenaient 110 dp) ; « Objectif atteint » et « 1 000 € sur 1 000 € » n'y tenaient pas ensemble.
+- **Nouvelle disposition**, en colonne à droite de la pastille (environ 290 dp, soit 40 dp de plus) :
+  1. le nom, deux lignes au plus, avec l'action rapide dans le coin ;
+  2. « **1 000 €** sur 1 000 € » dans UN SEUL texte (chiffres tabulaires) : si la place manque, il passe à la ligne ENTRE les montants, jamais au milieu d'un montant, jamais de « … » ;
+  3. la barre de progression ;
+  4. « Reste X » et « 15 % » sur une ligne (ils s'empilent si besoin), ou un **badge** « Objectif atteint » / « Dépassé de X » (fond de réussite, coche) sans pourcentage redondant.
+  Aucune réduction de police.
+- **Action rapide** : « + » sans cercle : tuile de 36 dp à fond discret (`surfaceMuted`, fond plus marqué quand elle est pressée) dans une zone tactile de 48 dp, posée en superposition (jamais imbriquée dans la zone de la carte, donc aucun conflit avec l'ouverture du détail). L'état désactivé est prévu (opacité 40 %) mais n'est pas atteignable : pendant la réorganisation les cartes ne sont pas montées. Ce n'est pas un bouton plein : il ne ressemble pas à « Nouvel objectif ».
+- **Archivage** : `ConfirmDialog` reçoit `tone="neutral"` : tuile grise, icône `archive` (nouvelle, Hugeicons `Archive02`), bouton principal (graphite en clair, citron en sombre), plus aucun rouge. Les autres confirmations gardent le ton `destructive` par défaut (suppression) et sont inchangées. Le menu d'actions et l'écran de détail utilisent la même icône.
+- **Restaurer** (Archives) : icône `restore` (Hugeicons `ArchiveRestore`, distincte de la flèche « Retour »), seule, sans contour ni fond au repos ; libellé TalkBack « Restaurer « {nom} » ». Le bouton « Restaurer » du détail utilise la même icône. Les archives s'affichent en cartes, comme la liste principale.
+- **Transition Réorganiser** : `ModeTransition` (Reanimated, séquentielle). Le contenu sortant s'estompe et descend de 6 dp (100 ms, courbe `exit`), il est remplacé une fois invisible, puis le nouveau entre de la même façon (160 ms, courbe `enter`) : environ 260 ms au total, jamais deux contenus visibles. Elle s'applique à la liste (cartes ↔ poignées et flèches), à l'action d'en-tête et à la barre du bas (« Nouvel objectif » ↔ « Annuler / Terminé »). Pendant le changement, les boutons sont inactifs et un verrou empêche de valider ou d'abandonner deux fois (aucune double écriture). La transition est inversable en route. Animations réduites : remplacement immédiat. Le résumé et le défilement ne bougent pas. Les configurations d'animation sont calculées côté JavaScript ; le seul retour du thread UI est `scheduleOnRN` (garde-fou `worklet-safety.test.ts`, qui couvre aussi ce fichier).
+
+### Tirer pour actualiser (6.2B)
+
+- **Mécanisme** : `useLive` (`src/db/live.ts`) enveloppe `useLiveQuery`. L'« époque des données » fait partie de ses dépendances ; `refreshLiveData()` l'incrémente, ce qui RE-EXÉCUTE chaque requête SQLite des écrans montés et repose leur abonnement aux changements (cela récupère aussi un écran resté désynchronisé). Une requête qui échoue est mémorisée (Drizzle renvoie l'erreur, mais personne ne la lisait). `useDataRefresh` ajoute, avant la relecture, le travail propre à l'écran, attend le rendu (deux images : aucun délai fixe), signale un échec par une notification et ignore un second tirage pendant l'exécution.
+- **Pas de course avec une mutation** : SQLite est synchrone, donc une relecture lit l'état de la base au moment où elle s'exécute et ne peut pas remettre une ancienne valeur par-dessus une écriture. Le geste lui-même n'écrit rien.
+- **Écrans** :
+  - Accueil : date du jour, puis tous les montants, budgets et dernières opérations.
+  - Opérations : date et liste ; filtre, recherche et mois consulté restent.
+  - Budgets : budgets et opérations du mois relus, montants consommés recalculés ; aucun budget recréé.
+  - Courses : listes ET articles d'une liste ; articles cochés et saisies conservés.
+  - Factures : date, échéances manquantes jusqu'au mois affiché (idempotent), puis relecture ; paiements intacts.
+  - Épargne : objectifs, mouvements, totaux ; **désactivé pendant Réorganiser**.
+- **Non couverts** : Paramètres et Services (statiques) ; formulaires, panneaux, menus, confirmations (exclus par la demande) ; Solde, Catégories, détails d'opération, de budget, de facture et d'objectif, Archives : écrans secondaires, extension simple (`useDataRefresh` + `DataRefreshControl`) à décider ; aucune contrainte technique.
+- **Limite connue** : l'actualisation d'un écran relit aussi les écrans d'onglets restés montés derrière lui (une seule époque pour tous). C'est voulu et sans effet visible.
+
+### Composants de référence (6.2C)
+
+Voir `docs/ux-audit.md` § 14. Aucun composant partagé n'a été remplacé.
 
 ## 5 ter. Règle : ne jamais utiliser `ImageBackground`
 
