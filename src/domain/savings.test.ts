@@ -1,4 +1,6 @@
 import {
+  canReorder,
+  isSameOrder,
   DEFAULT_GOAL_ICON,
   GOAL_EMOJIS,
   MAX_GOAL_NAME_LENGTH,
@@ -14,7 +16,7 @@ import {
   maxWithdrawalCents,
   moveItem,
   newestFirst,
-  overallPercent,
+  reorderBackAction,
   runningBalances,
   savedCents,
   shiftSlots,
@@ -139,34 +141,25 @@ describe('progression', () => {
   });
 });
 
-describe('progression d\'ensemble', () => {
-  it('n\'a de sens qu\'à partir de deux objectifs', () => {
-    expect(overallPercent([])).toBeNull();
-    expect(overallPercent([{ savedCents: 100, targetCents: 200 }])).toBeNull();
+describe('session de réorganisation', () => {
+  it('ne propose de réorganiser qu\'à partir de deux objectifs', () => {
+    expect(canReorder(0)).toBe(false);
+    expect(canReorder(1)).toBe(false);
+    expect(canReorder(2)).toBe(true);
   });
 
-  it('plafonne chaque objectif à sa cible : un objectif dépassé ne compense pas un objectif en retard', () => {
-    expect(
-      overallPercent([
-        { savedCents: 500_000, targetCents: 100_000 },
-        { savedCents: 0, targetCents: 100_000 },
-      ]),
-    ).toBe(50);
-    expect(
-      overallPercent([
-        { savedCents: 100_000, targetCents: 200_000 },
-        { savedCents: 50_000, targetCents: 100_000 },
-      ]),
-    ).toBe(50);
+  it('compare deux ordres (même contenu, même séquence)', () => {
+    expect(isSameOrder(['a', 'b', 'c'], ['a', 'b', 'c'])).toBe(true);
+    expect(isSameOrder(['a', 'b', 'c'], ['a', 'c', 'b'])).toBe(false);
+    expect(isSameOrder(['a', 'b'], ['a', 'b', 'c'])).toBe(false);
+    expect(isSameOrder([], [])).toBe(true);
   });
 
-  it('arrondit vers le bas', () => {
-    expect(
-      overallPercent([
-        { savedCents: 1, targetCents: 3 },
-        { savedCents: 1, targetCents: 3 },
-      ]),
-    ).toBe(33);
+  it('Retour : sans changement on quitte le mode, avec un changement non validé on demande', () => {
+    expect(reorderBackAction(['a', 'b'], ['a', 'b'])).toBe('leave');
+    expect(reorderBackAction(['a', 'b'], ['b', 'a'])).toBe('ask');
+    // Un aller-retour qui retombe sur l'ordre de départ n'est pas un changement.
+    expect(reorderBackAction(['a', 'b', 'c'], slotsToOrder(['a', 'b', 'c'], shiftSlots(shiftSlots([0, 1, 2], 0, 2), 0, 0)))).toBe('leave');
   });
 });
 

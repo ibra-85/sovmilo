@@ -17,8 +17,11 @@ import type { GoalRow } from './use-savings';
 interface ReorderListProps {
   /** Objectifs dans l'ordre actuel. Photographiés à l'entrée dans le mode : la liste ne se resynchronise pas pendant le glissement. */
   goals: readonly GoalRow[];
-  /** Appelée UNE fois par déplacement terminé (au relâchement ou après un toucher de flèche), jamais pendant le glissement. */
-  onCommit: (orderedIds: string[]) => void;
+  /**
+   * Appelée UNE fois par déplacement terminé (au relâchement ou après un toucher de flèche), jamais pendant le glissement, avec
+   * l'ordre COMPLET provisoire. La liste n'enregistre rien : c'est l'écran qui décide (« Terminé » enregistre, « Annuler » abandonne).
+   */
+  onChange: (orderedIds: string[]) => void;
 }
 
 /** Appui long sur la poignée avant que le glissement ne démarre : un défilement qui l'effleure ne déplace rien. */
@@ -30,12 +33,12 @@ const ARROW_ZONE = 48;
 /**
  * Liste réorganisable (mode « Réorganiser » d'Épargne). Les lignes ont toutes la même hauteur et sont posées par leur place
  * (`positions`, une valeur partagée) : pendant le glissement, seules des valeurs animées changent, sans rendu React ni accès à la
- * base ; les voisines se décalent d'une place avec le mouvement standard. L'ordre n'est enregistré qu'au relâchement.
+ * base ; les voisines se décalent d'une place avec le mouvement standard. L'ordre provisoire est signalé à l'écran au relâchement.
  *
  * Alternative sans glissement (accessibilité, grandes listes) : une flèche « monter » et une flèche « descendre » par ligne,
  * annoncées avec le nom et la nouvelle position. Le glissement ne démarre que depuis la poignée et après un appui long.
  */
-export function ReorderList({ goals, onCommit }: ReorderListProps) {
+export function ReorderList({ goals, onChange }: ReorderListProps) {
   const { t } = useTranslation();
   const window = useWindowDimensions();
   const { colors } = useTheme();
@@ -46,9 +49,9 @@ export function ReorderList({ goals, onCommit }: ReorderListProps) {
 
   const commit = useCallback(
     (slots: number[]) => {
-      onCommit(slotsToOrder(items.map((item) => item.id), slots));
+      onChange(slotsToOrder(items.map((item) => item.id), slots));
     },
-    [items, onCommit],
+    [items, onChange],
   );
 
   const moveBy = useCallback(

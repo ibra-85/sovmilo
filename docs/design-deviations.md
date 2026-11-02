@@ -232,13 +232,13 @@ Audit complet dans `docs/ux-audit.md`. Ce qui concerne le design :
 - **Double toucher** : l'identifiant du mouvement est choisi à l'ouverture du panneau ; l'enregistrer deux fois n'ajoute qu'un mouvement. Le panneau ajoute en plus un verrou de 600 ms.
 - **Progression** : pourcentage entier arrondi vers le bas (jamais 100 % avant la cible), barre plafonnée à 100 %, montants exacts conservés, état « atteint » ou « dépassé de X » écrit (la coche et la couleur « réussite » ne font qu'accompagner le texte). Un retrait qui repasse sous la cible recalcule l'état ; aucun objectif n'est archivé automatiquement.
 - **Écarts avec le design** : le design ne dessine pas Épargne. L'écran est composé avec les éléments existants (`Surface`, `FieldGroup`, `ProgressBar`, panneaux du Lot 5). Nouveautés de composants : `ProgressBar` accepte `complete` ; `DateRow` accepte une valeur vide et des bornes ; icône `grip` (poignée de réorganisation).
-- **Services → Épargne** ouvre maintenant l'écran Épargne. Le virement vers l'épargne (type `transfer`) reste accessible par le lien « Noter un virement dans les opérations » ; il n'est pas relié aux objectifs.
+- **Services → Épargne** ouvre maintenant l'écran Épargne. Le virement vers l'épargne (type `transfer`) n'est pas relié aux objectifs ; le lien dédié a été retiré au Lot 6.1 (voir § 5 nonies).
 - **Pas de premier versement à la création** : la création demande nom et montant à atteindre seulement (cf. audit § 4).
 - **Annuler un archivage** : pas de bouton « Annuler » dans la notification (restaurer remettrait l'objectif en fin de liste, un changement d'ordre silencieux). La restauration se fait depuis « Objectifs archivés ».
 
 ### Interactions (Lot 6C)
 
-- **Réorganiser** (mode ≡ dans l'en-tête, visible à partir de deux objectifs) : glisser depuis la poignée après un appui long de 220 ms, ou flèches monter / descendre. Les lignes ont toutes la même hauteur (72 dp × échelle du texte, plafonnée à 160 %). Les voisines se décalent avec le mouvement standard (jeton `menuItemIn`, instantané si les animations sont réduites). L'ordre est écrit **une fois**, au relâchement ; un geste interrompu restaure l'état de départ sans rien écrire.
+- **Réorganiser** (mode ≡ dans l'en-tête, visible à partir de deux objectifs) : glisser depuis la poignée après un appui long de 220 ms, ou flèches monter / descendre. Les lignes ont toutes la même hauteur (72 dp × échelle du texte, plafonnée à 160 %). Les voisines se décalent avec le mouvement standard (jeton `menuItemIn`, instantané si les animations sont réduites). Un geste interrompu restaure l'état de départ. (Depuis le Lot 6.1, l'ordre est provisoire et écrit une seule fois par « Terminé ».)
 - **Limite connue** : pas de défilement automatique pendant le glissement ; sur une longue liste, les flèches permettent de franchir de grandes distances.
 - **Panneaux** : le glissement de fermeture existant est conservé tel quel. Seules ses règles (seuil de 30 %, vitesse de 900 px/s, résistance de 12 % vers le haut) ont été extraites dans `src/components/ui/sheet-dismiss.ts` pour être testées.
 - **Non retenus ou reportés** (raisons dans `docs/ux-audit.md` § 12) : tirer pour actualiser, appui long avec aperçu, balayage de ligne, interception du retour par le bord.
@@ -250,6 +250,49 @@ Audit complet dans `docs/ux-audit.md`. Ce qui concerne le design :
 - **Correction** : appel sans tableau de dépendances (le compilateur worklets suit les valeurs capturées). Aucun `LogBox.ignoreLogs`, aucune mise à jour de bibliothèque, `node_modules` intact.
 - **Garde-fou** : `src/hooks/reanimated-deps.test.ts` analyse le code source et échoue si un `useAnimatedStyle`, `useDerivedValue`, `useAnimatedReaction`, `useAnimatedProps` ou `useAnimatedScrollHandler` reçoit un tableau de dépendances. Les hooks React ordinaires (`useEffect`, `useMemo`, `useCallback`) gardent les leurs.
 - **Non vérifié sur appareil** : la disparition du message à l'exécution n'a pas été constatée (l'application n'est pas lancée dans ce lot).
+
+## 5 nonies. Lot 6.1 : panneaux stabilisés et refonte d'Épargne
+
+### Plantage Android des panneaux (6.1A)
+
+- **Cause la plus probable, appuyée par le code compilé mais NON confirmée par un journal d'appareil** : le geste de fermeture (`onEnd` du `Pan`) appelait `spring('sheetResize')`, une fonction JavaScript ordinaire, depuis le thread UI. Reanimated / Worklets remplace une telle fonction par un « Remote Function Guard » qui **lève** `[Worklets] Tried to synchronously call a Remote Function` : arrêt fatal. Le chemin ne s'exécute que lorsque le panneau n'est pas fermé (tirer vers le haut, ou un petit tirage vers le bas), ce qui correspond au scénario signalé (Services → Épargne → Nouvel objectif, tirer vers le haut). Preuve : la fermeture du worklet, transpilée avec la configuration Babel du projet, capturait bien `spring` ; l'ancienne version du fichier échoue au garde-fou ajouté.
+- **Correction** : les configurations de ressort sont calculées sur le thread JS (`useMemo`) ; les gestes n'appellent que des fonctions `'worklet'` (`sheet-snap.ts`) ou `scheduleOnRN`. Garde-fou : `src/components/ui/worklet-safety.test.ts` compile `bottom-sheet.tsx` et `reorder-list.tsx` et échoue si un worklet capture `spring`, `timing`, `delay`, `t`, un setter d'état ou un rappel JS. **Un test unitaire ne prouve pas l'absence de plantage natif** : à confirmer sur le téléphone.
+- **Pour obtenir un journal si le plantage persiste** (téléphone relié en USB, débogage activé) :
+
+  ```powershell
+  adb logcat -c
+  adb logcat *:E ReactNativeJS:V ReactNative:V AndroidRuntime:E | Select-String -Pattern "Worklets|Remote Function|FATAL EXCEPTION|ReactNativeJS"
+  ```
+
+  Reproduire le geste, puis copier les lignes autour de `FATAL EXCEPTION`.
+
+### Panneaux à deux états (6.1A)
+
+- **Panneau extensible** (`<BottomSheet expandable footer={…}>`, utilisé seulement par « Nouvel objectif / Modifier l'objectif ») : état **compact** (≈ 55 % de la place utilisable, ou la hauteur naturelle si le contenu est plus court) et état **déployé** (toute la place sous la zone système du haut, contenu défilant). Le bouton de validation est dans un pied fixe, toujours visible. Les autres panneaux gardent leur hauteur naturelle et leur ancien comportement.
+- **Aucune hauteur en pixels écrite en dur** : `computeSheetHeights` (`sheet-snap.ts`) déduit tout de la fenêtre, des marges système, du clavier et de la hauteur MESURÉE du contenu et du pied. Avec le clavier ouvert, le panneau prend la place disponible au-dessus de lui (le champ et le bouton restent visibles) ; à la fermeture du clavier, il revient à l'état choisi par ressort, sans saut.
+- **Tirer la poignée** : vers le haut depuis le compact : déploie ; vers le bas depuis le déployé : revient au compact, **sans jamais fermer** ; vers le bas depuis le compact : ferme seulement au-delà du seuil (30 % de la hauteur) ou d'une vraie vitesse ; un petit mouvement revient en place. Retour Android et fond assombri ferment comme avant. Chaque ouverture repart du compact.
+- **Écart émulateur / téléphone** : l'ancienne hauteur dépendait d'une réserve de clavier estimée (`max(clavier, dernier clavier connu || 40 % de la fenêtre)`), donc différente selon le premier affichage ; elle est remplacée par la mesure réelle.
+
+### Épargne : formulaire et écran (6.1B)
+
+- **Formulaire** : nom et montant à atteindre d'abord ; icône (5 emojis + tuile « plus d'icônes » qui déplie les 16 sur place, l'icône choisie reste visible) ; date visée facultative (`DateRow`, effaçable) ; note cachée derrière « Ajouter une note » (visible d'emblée si l'objectif en a une). Les données saisies restent quand on déploie ou réduit.
+- **Écran** : résumé compact (total en grand, « N objectifs actifs · M atteints », mention « ce n'est pas le solde de votre banque »), puis **une carte par objectif** (icône, nom, barre, « X sur Y » à gauche et état écrit « Reste Z / atteint / dépassé » à droite). La progression globale est supprimée (redondante avec les cartes ; fonction `overallPercent` retirée). Le total à zéro n'est plus répété.
+- **Toucher** : carte = détail ; « + » = versement ; **appui long** = menu d'actions (Modifier, Réorganiser, Archiver) via `MorphingPopover` en mode `beside` (aucun nouveau système de menu). Réorganiser reste aussi accessible par l'icône ≡ de l'en-tête (l'appui long n'est jamais le seul chemin) ; il n'est proposé qu'à partir de deux objectifs.
+- **« Noter un virement dans les opérations » retiré** de l'écran : lien ambigu, jamais relié aux objectifs. Le type `transfer` reste disponible dans l'ajout d'une opération ; l'épargne reste déclarative et ne crée toujours aucune opération.
+
+### Réorganiser : session provisoire (6.1B)
+
+- Le mode s'ouvre **sur place** (même écran, même en-tête, résumé conservé). L'ordre modifié est **provisoire** : « Terminé » l'enregistre en une écriture (`reorderGoals`), sans écriture si rien n'a changé ; « Annuler » rend l'ordre d'origine. « Retour » (flèche ou Android) : sans changement on quitte, avec un changement non validé on demande « Abandonner le nouvel ordre ? ». Aucun montant, aucune archive n'est touché. Poignée avec appui long de 220 ms et flèches conservées ; le mode a la priorité (aucune carte n'est touchable pendant la session).
+- **Limite connue** : pas de défilement automatique pendant le glissement (les flèches franchissent les grandes distances).
+
+### Tirer pour actualiser (6.1C)
+
+- **Retenu : Factures seulement.** C'est le seul écran dont une partie n'est pas en direct : la date du jour (relue seulement au retour au premier plan) et la génération des échéances (`ensureOccurrences`). Le geste relit la date, régénère les échéances manquantes jusqu'au mois affiché (idempotent), garde le mois et les groupes ouverts, ne touche à aucun paiement, ignore un second tirage pendant l'exécution et affiche un message en cas d'échec. Aucun délai artificiel.
+- **Exclus (données locales déjà en direct, un spinner serait faux)** : Accueil, Opérations, Budgets, Courses, Épargne, détails, Catégories, Solde, Services, Paramètres. Chaque requête SQLite se met à jour dès qu'une écriture a lieu ; il n'y a pas de serveur à relire avant la synchronisation Supabase. À réévaluer à ce moment-là (la synchronisation donnera un vrai sens au geste).
+
+### Bouton rond en forme d'engrenage (constaté sur des captures)
+
+- Aucun code de Sovmilo ne dessine un engrenage flottant, et `expo-dev-client` / `expo-dev-menu` ne sont pas installés. L'origine la plus probable est l'outil de développement flottant d'**Expo Go** (ou du lanceur de développement), qui n'existe pas dans un APK de production : à confirmer en installant l'APK final. Rien n'a été supprimé.
 
 ## 5 ter. Règle : ne jamais utiliser `ImageBackground`
 

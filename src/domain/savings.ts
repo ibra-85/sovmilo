@@ -178,22 +178,6 @@ export function summarizeGoals(goals: readonly { savedCents: number; targetCents
   return { totalSavedCents: total, goalCount: goals.length, reachedCount: reached };
 }
 
-/**
- * Progression d'ensemble des objectifs actifs, en pourcentage entier (vers le bas) : montants épargnés plafonnés à leur cible,
- * divisés par la somme des cibles. Un objectif dépassé ne « compense » donc jamais un objectif en retard. N'a de sens qu'à partir
- * de deux objectifs : en dessous (ou sans cible), renvoie `null` pour que l'écran n'affiche rien.
- */
-export function overallPercent(goals: readonly { savedCents: number; targetCents: number }[]): number | null {
-  if (goals.length < 2) return null;
-  let saved = 0;
-  let target = 0;
-  for (const goal of goals) {
-    saved += Math.min(Math.max(0, goal.savedCents), goal.targetCents);
-    target += goal.targetCents;
-  }
-  return target > 0 ? Math.floor((saved * 100) / target) : null;
-}
-
 // ---------------------------------------------------------------------------
 // Validation
 // ---------------------------------------------------------------------------
@@ -296,4 +280,26 @@ export function dragTargetIndex(from: number, translationY: number, rowHeight: n
   if (rowHeight <= 0 || count <= 0) return from;
   const target = Math.round(from + translationY / rowHeight);
   return Math.min(Math.max(target, 0), count - 1);
+}
+
+// ---------------------------------------------------------------------------
+// Session de réorganisation (mode « Réorganiser » d'Épargne)
+// ---------------------------------------------------------------------------
+
+/** Réorganiser n'a de sens qu'à partir de deux objectifs actifs. */
+export function canReorder(goalCount: number): boolean {
+  return goalCount >= 2;
+}
+
+/** Deux listes d'identifiants dans le même ordre exactement. */
+export function isSameOrder(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((id, index) => id === b[index]);
+}
+
+/**
+ * Que fait « Retour » (bouton Android, flèche de l'en-tête) pendant la réorganisation ? Sans changement : on quitte le mode.
+ * Avec un ordre modifié et non validé : on demande avant de l'abandonner (rien n'est enregistré avant « Terminé »).
+ */
+export function reorderBackAction(initial: readonly string[], draft: readonly string[]): 'leave' | 'ask' {
+  return isSameOrder(initial, draft) ? 'leave' : 'ask';
 }

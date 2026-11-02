@@ -158,3 +158,13 @@ Le MorphingPopover V3 (le panneau part de son bouton déclencheur et s'y replie)
 | Graphiques | **Barre de progression seulement** | Voir section 10 pour la suite. |
 
 Intégration prévue dans les autres modules : **Courses** (réorganiser les listes avec `ReorderList`), **Factures** (balayage « marquer payée » avec le bouton existant), **Budgets** (aucun geste ajouté), **Opérations** (aucun : liste triée par date).
+
+## 13. Révisions du Lot 6.1
+
+| Interaction | Décision révisée | Où / pourquoi |
+| --- | --- | --- |
+| Panneau : glisser la poignée | **Deux états** pour « Nouvel objectif » seulement (compact ↔ déployé) ; les autres panneaux inchangés | Fermeture jamais déclenchée depuis le déployé. Voir `design-deviations.md` § 5 nonies. |
+| Appui long sur une carte d'objectif | **Implémenté** : menu Modifier / Réorganiser / Archiver | Le conflit avec le glisser-déposer n'existe plus : le glisser ne démarre que depuis la poignée du mode Réorganiser. Jamais le seul accès (icône ≡, détail). |
+| Réorganiser | **Session provisoire** : Terminé / Annuler / Retour confirmé | L'ordre n'est plus écrit à chaque déplacement. |
+| Tirer pour actualiser | **Retenu pour Factures seulement** (révise le § 12) | Date du jour et échéances générées : seul cas où un tirage relit réellement quelque chose. Autres écrans : déjà en direct. |
+| Lien « Noter un virement » | **Retiré** | Ambigu, sans lien avec les objectifs. |

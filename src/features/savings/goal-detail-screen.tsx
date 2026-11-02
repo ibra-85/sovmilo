@@ -30,6 +30,7 @@ import { useLocale } from '@/i18n/use-locale';
 import { radius, space } from '@/theme/layout';
 import { useTheme } from '@/theme/use-theme';
 
+import { ConfirmNote } from './confirm-note';
 import { goalStatusText } from './format';
 import { GoalIcon } from './goal-row';
 import { GoalSheet } from './goal-sheet';
@@ -382,21 +383,6 @@ export function GoalDetailScreen() {
         <ConfirmNote name={goal.name} text={failed ? t('savings.detail.actionFailed') : t('savings.detail.deleteText')} failed={failed} />
       </ConfirmDialog>
     </AppScreen>
-  );
-}
-
-/** Rappel de l'objectif concerné dans une confirmation, avec la conséquence de l'action. */
-function ConfirmNote({ name, text, failed }: { name: string; text: string; failed: boolean }) {
-  const { colors } = useTheme();
-  return (
-    <View style={{ padding: 12, borderRadius: radius.group, backgroundColor: colors.surfaceMuted, gap: 2 }}>
-      <Text variant="body" numberOfLines={3}>
-        {name}
-      </Text>
-      <Text variant="caption" tone={failed ? 'danger' : 'muted'} accessibilityLiveRegion="polite">
-        {text}
-      </Text>
-    </View>
   );
 }
 

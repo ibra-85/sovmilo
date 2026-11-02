@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 
-import { Icon, Pressable, ProgressBar, Text } from '@/components/ui';
+import { Icon, Pressable, ProgressBar, Text, useAnchorMeasure, type PopoverAnchor } from '@/components/ui';
 import { formatMoney, formatMoneyAuto } from '@/domain/money';
 import { useLocale } from '@/i18n/use-locale';
 import { radius, sizes, space } from '@/theme/layout';
@@ -19,20 +19,24 @@ interface GoalRowViewProps {
    * Absent : aucune action rapide.
    */
   action?: { kind: 'add' | 'restore'; onPress: (goal: GoalRow) => void };
+  /** Appui long : reçoit l'emplacement de la ligne pour y ancrer le menu d'actions. Absent : pas d'appui long. */
+  onMenu?: (goal: GoalRow, anchor: PopoverAnchor) => void;
 }
 
 const ACTION_ZONE = 56;
 const ACTION_SIZE = 28;
 
 /**
- * Ligne d'objectif, compacte : pastille d'emoji, nom (deux lignes au plus), « montant mis de côté sur cible », barre de
- * progression et état ÉCRIT (reste à épargner, atteint, dépassé : la couleur ne fait qu'accompagner le texte et la coche).
- * Toucher la ligne ouvre l'objectif ; le bouton rond de droite ajoute de l'argent (ou restaure un objectif archivé).
+ * Contenu d'une carte d'objectif : pastille d'emoji, nom (deux lignes au plus), barre de progression, puis sur une ligne « montant
+ * mis de côté sur cible » et l'état ÉCRIT à droite (reste à épargner, atteint, dépassé : la couleur ne fait qu'accompagner le texte
+ * et la coche). Toucher la carte ouvre l'objectif ; le bouton rond de droite ajoute de l'argent (ou restaure un objectif archivé) ;
+ * l'appui long ouvre le menu d'actions quand `onMenu` est fourni.
  */
-function GoalRowBase({ goal, onOpen, action }: GoalRowViewProps) {
+function GoalRowBase({ goal, onOpen, action, onMenu }: GoalRowViewProps) {
   const { t } = useTranslation();
   const locale = useLocale();
   const { colors } = useTheme();
+  const { bind, measure } = useAnchorMeasure();
 
   const { progress } = goal;
   const done = progress.state === 'reached' || progress.state === 'exceeded';
@@ -48,13 +52,14 @@ function GoalRowBase({ goal, onOpen, action }: GoalRowViewProps) {
   });
 
   return (
-    <View style={{ minHeight: sizes.minTouch + 24, flexDirection: 'row', alignItems: 'center' }}>
+    <View ref={bind} collapsable={false} style={{ minHeight: sizes.minTouch + 24, flexDirection: 'row', alignItems: 'center' }}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={exact}
-        accessibilityHint={t('savings.rowHint')}
+        accessibilityHint={t(onMenu ? 'savings.rowHintMenu' : 'savings.rowHint')}
         pressTranslate={0}
         onPress={() => onOpen(goal)}
+        onLongPress={onMenu ? () => measure((anchor) => onMenu(goal, anchor)) : undefined}
         style={({ pressed }) => ({
           flex: 1,
           flexDirection: 'row',
@@ -78,21 +83,21 @@ function GoalRowBase({ goal, onOpen, action }: GoalRowViewProps) {
           <GoalIcon icon={goal.icon} size={22} />
         </View>
 
-        <View style={{ flex: 1, gap: 2 }}>
+        <View style={{ flex: 1, gap: 6 }}>
           <Text variant="bodyStrong" numberOfLines={2}>
             {goal.name}
           </Text>
-          <Text variant="caption" tone="muted" numberOfLines={2}>
-            {t('savings.savedOf', { saved, target })}
-          </Text>
-          <View style={{ marginVertical: 4 }}>
-            <ProgressBar percent={progress.barPercent} complete={done} />
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            {done ? <Icon name="check" size={14} color={colors.successIcon} weight="strong" /> : null}
-            <Text variant="captionMedium" tone={done ? 'default' : 'muted'} numberOfLines={2} style={{ flexShrink: 1 }}>
-              {status}
+          <ProgressBar percent={progress.barPercent} complete={done} />
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+            <Text variant="caption" tone="muted" numberOfLines={2} style={{ flexShrink: 1 }}>
+              {t('savings.savedOf', { saved, target })}
             </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 }}>
+              {done ? <Icon name="check" size={14} color={colors.successIcon} weight="strong" /> : null}
+              <Text variant="captionMedium" tone={done ? 'default' : 'muted'} numberOfLines={2} style={{ flexShrink: 1, textAlign: 'right' }}>
+                {status}
+              </Text>
+            </View>
           </View>
         </View>
       </Pressable>
@@ -142,6 +147,7 @@ export const GoalRowView = memo(
   GoalRowBase,
   (previous, next) =>
     previous.onOpen === next.onOpen &&
+    previous.onMenu === next.onMenu &&
     previous.action?.kind === next.action?.kind &&
     previous.action?.onPress === next.action?.onPress &&
     previous.goal.id === next.goal.id &&

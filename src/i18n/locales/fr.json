@@ -548,7 +548,8 @@
       "dateFuture": "La date de paiement ne peut pas être dans le futur.",
       "saveFailed": "Impossible d’enregistrer. Réessayez.",
       "deleteFailed": "Impossible de supprimer. Réessayez.",
-      "actionFailed": "Impossible de terminer l’action. Réessayez."
+      "actionFailed": "Impossible de terminer l’action. Réessayez.",
+      "refreshFailed": "Actualisation impossible. Réessayez."
     }
   },
   "savings": {
@@ -560,13 +561,10 @@
     "goalCount_other": "{{count}} objectifs actifs",
     "reachedCount_one": "{{count}} atteint",
     "reachedCount_other": "{{count}} atteints",
-    "globalProgress": "Progression globale : {{percent}} %",
     "emptyTitle": "Aucun objectif d’épargne",
     "emptyText": "Créez un objectif (vacances, imprévus…) puis notez ce que vous mettez de côté. Rien n’est relié à votre banque.",
     "create": "Nouvel objectif",
     "archivesLink": "Objectifs archivés ({{count}})",
-    "transferLink": "Noter un virement dans les opérations",
-    "transferHelp": "Un virement vers l’épargne ne compte pas comme une dépense. Il n’est pas relié aux objectifs.",
     "rowA11y": "{{name}}. {{saved}} mis de côté sur {{target}}, {{percent}} %. {{status}}",
     "rowHint": "Ouvre l’objectif",
     "quickAdd": "Ajouter de l’argent à « {{name}} »",
@@ -683,12 +681,16 @@
     "reorder": {
       "start": "Réorganiser",
       "done": "Terminé",
-      "help": "Maintenez la poignée puis glissez, ou utilisez les flèches.",
+      "help": "Maintenez la poignée puis glissez, ou utilisez les flèches. L’ordre n’est enregistré que par « Terminé ».",
       "moveUp": "Monter « {{name}} »",
       "moveDown": "Descendre « {{name}} »",
       "handle": "Déplacer « {{name}} » : maintenez puis glissez",
       "position": "{{name}} : position {{position}} sur {{total}}",
-      "failed": "L’ordre n’a pas pu être enregistré."
+      "failed": "L’ordre n’a pas pu être enregistré.",
+      "discardTitle": "Abandonner le nouvel ordre ?",
+      "discardText": "Le nouvel ordre n’est pas enregistré. Vous retrouverez l’ordre d’origine.",
+      "discardKeep": "Continuer",
+      "discardConfirm": "Abandonner"
     },
     "errors": {
       "nameTooLong": "Le nom est trop long ({{max}} caractères au plus).",
@@ -697,6 +699,8 @@
       "dateInvalid": "Cette date n’existe pas.",
       "noteTooLong": "La note est trop longue ({{max}} caractères au plus).",
       "saveFailed": "L’enregistrement a échoué. Réessayez."
-    }
+    },
+    "menu": "Actions sur l’objectif",
+    "rowHintMenu": "Ouvre l’objectif. Appui long : plus d’actions."
   }
 }
