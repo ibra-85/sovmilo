@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, View } from 'react-native';
 
 import { AppScreen, ChoiceGroup, ScreenHeader, Text } from '@/components/ui';
+import { BackupSection } from '@/features/backup/backup-section';
+import { UpdatesSection } from '@/features/updates/updates-section';
 import { setLanguagePreference } from '@/i18n';
 import { LANGUAGE_PREFERENCES } from '@/i18n/resolve';
 import { useLanguageState } from '@/i18n/use-language';
@@ -86,6 +88,10 @@ export function SettingsScreen() {
             options={LANGUAGE_PREFERENCES.map((value) => ({ value, ...languageLabels[value] }))}
           />
         </View>
+
+        <BackupSection />
+
+        <UpdatesSection />
       </ScrollView>
     </AppScreen>
   );

@@ -12,5 +12,8 @@ const expoDb = openDatabaseSync('sovmilo.db', { enableChangeListener: true });
 // SQLite n'applique pas les clés étrangères par défaut.
 expoDb.execSync('PRAGMA foreign_keys = ON;');
 
+/** Connexion SQLite brute : réservée à la sauvegarde et à la restauration (copie cohérente de la base). Les écrans passent par `db`. */
+export const sqliteDatabase = expoDb;
+
 export const db = drizzle(expoDb, { schema });
 export type AppDb = typeof db;

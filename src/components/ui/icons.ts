@@ -19,6 +19,8 @@ import Calendar03Icon from '@hugeicons/core-free-icons/Calendar03Icon';
 import Camera01Icon from '@hugeicons/core-free-icons/Camera01Icon';
 import Cancel01Icon from '@hugeicons/core-free-icons/Cancel01Icon';
 import Coffee01Icon from '@hugeicons/core-free-icons/Coffee01Icon';
+import DatabaseExportIcon from '@hugeicons/core-free-icons/DatabaseExportIcon';
+import DatabaseRestoreIcon from '@hugeicons/core-free-icons/DatabaseRestoreIcon';
 import Delete02Icon from '@hugeicons/core-free-icons/Delete02Icon';
 import Download01Icon from '@hugeicons/core-free-icons/Download01Icon';
 import FirstAidKitIcon from '@hugeicons/core-free-icons/FirstAidKitIcon';
@@ -34,6 +36,7 @@ import MoreHorizontalIcon from '@hugeicons/core-free-icons/MoreHorizontalIcon';
 import PawPrintIcon from '@hugeicons/core-free-icons/PawPrintIcon';
 import PencilEdit01Icon from '@hugeicons/core-free-icons/PencilEdit01Icon';
 import PiggyBankIcon from '@hugeicons/core-free-icons/PiggyBankIcon';
+import Refresh01Icon from '@hugeicons/core-free-icons/Refresh01Icon';
 import Search01Icon from '@hugeicons/core-free-icons/Search01Icon';
 import Settings02Icon from '@hugeicons/core-free-icons/Settings02Icon';
 import Shirt01Icon from '@hugeicons/core-free-icons/Shirt01Icon';
@@ -94,6 +97,9 @@ const interfaceIcons = {
 
   archive: Archive02Icon, // archiver : réversible, jamais en rouge
   restore: ArchiveRestoreIcon, // restaurer un élément archivé (distinct de la flèche « Retour »)
+  backup: DatabaseExportIcon, // sauvegarder mes données (Paramètres)
+  restoreData: DatabaseRestoreIcon, // restaurer une sauvegarde (Paramètres)
+  refresh: Refresh01Icon, // vérifier les mises à jour
 
   // États
   nearLimit: AlertCircleIcon,

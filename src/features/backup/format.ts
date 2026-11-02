@@ -52,24 +52,26 @@ export interface BackupMeta {
 }
 
 /** Raisons de refus ou d'échec. Jamais de texte venant du fichier : aucun message ne peut contenir de données personnelles. */
-export type BackupErrorCode =
-  | 'unreadable'
-  | 'empty'
-  | 'tooLarge'
-  | 'notSqlite'
-  | 'notSovmilo'
-  | 'truncated'
-  | 'corrupt'
-  | 'unknownFormat'
-  | 'futureSchema'
-  | 'unknownSchema'
-  | 'unexpectedObjects'
-  | 'inconsistent'
-  | 'migrationFailed'
-  | 'sourceDamaged'
-  | 'storage'
-  | 'verification'
-  | 'busy';
+export const BACKUP_ERROR_CODES = [
+  'unreadable',
+  'empty',
+  'tooLarge',
+  'notSqlite',
+  'notSovmilo',
+  'truncated',
+  'corrupt',
+  'unknownFormat',
+  'futureSchema',
+  'unknownSchema',
+  'unexpectedObjects',
+  'inconsistent',
+  'migrationFailed',
+  'sourceDamaged',
+  'storage',
+  'verification',
+  'busy',
+] as const;
+export type BackupErrorCode = (typeof BACKUP_ERROR_CODES)[number];
 
 export class BackupError extends Error {
   readonly code: BackupErrorCode;
