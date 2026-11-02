@@ -594,7 +594,10 @@
       "saveConfirm": "Enregistrer",
       "created": "Objectif « {{name}} » créé",
       "updated": "Objectif « {{name}} » modifié",
-      "targetBelowSaved": "Vous avez déjà mis de côté {{saved}} : l’objectif sera atteint."
+      "targetBelowSaved": "Vous avez déjà mis de côté {{saved}} : l’objectif sera atteint.",
+      "addNote": "Ajouter une note",
+      "moreIcons": "Plus d’icônes",
+      "lessIcons": "Moins d’icônes"
     },
     "movement": {
       "depositTitle": "Ajouter de l’argent",

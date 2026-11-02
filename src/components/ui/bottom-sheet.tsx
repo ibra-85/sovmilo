@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Modal, View, useWindowDimensions } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Modal, ScrollView, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   interpolate,
@@ -22,14 +22,24 @@ import { useTheme } from '@/theme/use-theme';
 import { GlassOverlay, useGlassLook } from './glass-surface';
 import { Pressable } from './pressable';
 import { sheetDragOffset, sheetShouldDismiss } from './sheet-dismiss';
+import {
+  SHEET_FLOATING_MARGIN,
+  SHEET_HANDLE_ZONE,
+  computeSheetHeights,
+  resolveSheetDrag,
+  resolveSheetRelease,
+  restingHeight,
+  type SheetRelease,
+} from './sheet-snap';
 
 /** Marge du panneau détaché quand le clavier est ouvert (design : 10 dp, quatre coins arrondis). */
-const FLOATING_MARGIN = 10;
-const HANDLE_ZONE = 28;
+const FLOATING_MARGIN = SHEET_FLOATING_MARGIN;
+const HANDLE_ZONE = SHEET_HANDLE_ZONE;
 
 interface BottomSheetProps {
   visible: boolean;
   onClose: () => void;
+  /** Contenu. Avec `expandable`, c'est la zone défilante (le pied est donné par `footer`). */
   children: ReactNode;
   /** Nom du panneau pour TalkBack (titre). */
   accessibilityLabel: string;
@@ -44,6 +54,14 @@ interface BottomSheetProps {
    * (son moment d'arrivée varie d'un appareil et d'une ouverture à l'autre). Facultatif : sans lui, rien ne change.
    */
   onPresented?: () => void;
+  /**
+   * Panneau à contenu long (formulaire) : deux états, `compact` et `expanded`. La poignée agrandit (vers le haut), réduit puis ferme
+   * (vers le bas). Le contenu défile, le `footer` reste toujours visible, le clavier ne le masque jamais. Sans cette option, le
+   * panneau garde sa hauteur naturelle (comportement inchangé de tous les autres panneaux).
+   */
+  expandable?: boolean;
+  /** Pied fixe d'un panneau `expandable` (bouton principal). */
+  footer?: ReactNode;
 }
 
 /** Part de l'entrée (0 à 1) au-delà de laquelle le panneau est considéré comme posé (reste ~3 dp de course). */
@@ -59,12 +77,24 @@ const PRESENTED_THRESHOLD = 0.995;
  *    garde ses propres gestes.
  *  - Clavier ouvert : le panneau se détache du bord, remonte au-dessus du clavier avec 10 dp de marge et garde quatre
  *    coins arrondis ; il se recolle quand le clavier se ferme (250 ms).
+ *  - `expandable` (formulaires longs) : états compact / déployé, voir `sheet-snap.ts`. Depuis le compact, tirer vers le haut
+ *    déploie ; depuis le déployé, tirer vers le bas réduit (jamais de fermeture directe) ; depuis le compact, tirer vers le bas
+ *    assez loin ferme.
  *
- * Non implémenté : l'agrandissement animé « le même panneau s'agrandit » à l'ouverture d'un sélecteur (MOTION.md,
- * 250 ms) ; la hauteur change sans transition. À reprendre après un essai sur appareil (risque de conflit avec la
- * remontée du clavier).
+ * Règle de sécurité (cause d'un plantage Android au Lot 6, voir docs/design-deviations.md) : un worklet ne doit JAMAIS appeler
+ * une fonction JavaScript ordinaire. Les configurations de ressort sont donc calculées HORS des gestes (`sheetSpring`) et seules
+ * des fonctions `'worklet'` ou `scheduleOnRN` sont appelées depuis eux.
  */
-export function BottomSheet({ visible, onClose, children, accessibilityLabel, dismissible = true, onPresented }: BottomSheetProps) {
+export function BottomSheet({
+  visible,
+  onClose,
+  children,
+  accessibilityLabel,
+  dismissible = true,
+  onPresented,
+  expandable = false,
+  footer,
+}: BottomSheetProps) {
   const { colors, shadows } = useTheme();
   const glass = useGlassLook('sheet');
   const { spring } = useMotion();
@@ -73,20 +103,76 @@ export function BottomSheet({ visible, onClose, children, accessibilityLabel, di
   const keyboardHeight = useKeyboardHeight();
   const { mounted, progress } = usePresence(visible, { enter: ['enter', 'sheetIn'], exit: ['exit', 'sheetOut'] });
 
+  // Configuration du ressort de redimensionnement, calculée ICI (thread JS) : les gestes ne reçoivent qu'un objet simple.
+  const sheetSpring = useMemo(() => spring('sheetResize'), [spring]);
+
+  const bottomPadding = Math.max(insets.bottom, space.screen);
   const [sheetHeight, setSheetHeight] = useState(screen.height);
+  const [contentHeight, setContentHeight] = useState(0);
+  const [footerHeight, setFooterHeight] = useState(0);
+  const [mode, setMode] = useState<'compact' | 'expanded'>('compact');
+  const keyboardOpen = keyboardHeight > 0;
+
+  const heights = useMemo(
+    () =>
+      computeSheetHeights({
+        windowHeight: screen.height,
+        insetTop: insets.top,
+        bottomPadding,
+        keyboardHeight,
+        contentHeight,
+        footerHeight,
+      }),
+    [screen.height, insets.top, bottomPadding, keyboardHeight, contentHeight, footerHeight],
+  );
+  const measured = contentHeight > 0 && footerHeight > 0;
+
   const height = useSharedValue(screen.height);
   const drag = useSharedValue(0);
   const floating = useSharedValue(0);
   const keyboard = useSharedValue(0);
+  // Panneau extensible : hauteur animée, bornes, hauteur au début du geste.
+  const sheetH = useSharedValue(Math.round(screen.height * 0.5));
+  const compactH = useSharedValue(0);
+  const expandedH = useSharedValue(0);
+  const startH = useSharedValue(0);
 
   useEffect(() => {
-    height.value = sheetHeight;
-  }, [sheetHeight, height]);
+    height.value = expandable ? heights.expanded : sheetHeight;
+  }, [sheetHeight, height, expandable, heights.expanded]);
 
   useEffect(() => {
     // Rouvert pendant sa fermeture : l'écart du glissement revient en douceur au lieu de sauter.
-    if (visible) drag.value = withSpring(0, spring('sheetResize'));
-  }, [visible, drag, spring]);
+    if (visible) drag.value = withSpring(0, sheetSpring);
+  }, [visible, drag, sheetSpring]);
+
+  // Chaque ouverture repart de l'état compact (réinitialisé à la FERMETURE : l'animation de sortie garde sa hauteur).
+  const [wasVisible, setWasVisible] = useState(visible);
+  if (visible !== wasVisible) {
+    setWasVisible(visible);
+    if (!visible) setMode('compact');
+  }
+
+  // Hauteur au repos d'un panneau extensible : suit le contenu mesuré, le clavier, l'état choisi. Premier calcul sans animation
+  // (le panneau s'ouvre à sa hauteur, sans saut), les suivants en ressort (clavier, changement d'état, contenu qui change).
+  const hasPlaced = useRef(false);
+  useEffect(() => {
+    if (!expandable) return;
+    compactH.set(heights.compact);
+    expandedH.set(heights.expanded);
+    if (!visible) {
+      hasPlaced.current = false;
+      return;
+    }
+    if (!measured) return;
+    const target = restingHeight(heights, mode, keyboardOpen);
+    if (!hasPlaced.current) {
+      sheetH.set(target);
+      hasPlaced.current = true;
+    } else {
+      sheetH.set(withSpring(target, sheetSpring));
+    }
+  }, [expandable, heights, measured, mode, keyboardOpen, visible, compactH, expandedH, sheetH, sheetSpring]);
 
   // Entrée terminée : prévient l'appelant, une seule fois par ouverture (jamais pendant une fermeture).
   const visibleRef = useRef(visible);
@@ -106,23 +192,53 @@ export function BottomSheet({ visible, onClose, children, accessibilityLabel, di
     },
   );
 
-  const keyboardOpen = keyboardHeight > 0;
   useEffect(() => {
-    floating.value = withSpring(keyboardOpen ? 1 : 0, spring('sheetResize'));
+    floating.value = withSpring(keyboardOpen ? 1 : 0, sheetSpring);
     if (keyboardOpen) keyboard.value = keyboardHeight;
-  }, [keyboardOpen, keyboardHeight, floating, keyboard, spring]);
+  }, [keyboardOpen, keyboardHeight, floating, keyboard, sheetSpring]);
+
+  const applyMode = useCallback((next: SheetRelease) => {
+    if (next !== 'dismiss') setMode(next);
+  }, []);
 
   const pan = Gesture.Pan()
     .enabled(dismissible)
+    .onStart(() => {
+      startH.set(sheetH.get());
+    })
     .onUpdate((event) => {
-      drag.set(sheetDragOffset(event.translationY));
+      if (expandable) {
+        const next = resolveSheetDrag(startH.get(), event.translationY, compactH.get(), expandedH.get());
+        sheetH.set(next.height);
+        drag.set(next.offset);
+      } else {
+        drag.set(sheetDragOffset(event.translationY));
+      }
     })
     .onEnd((event) => {
-      if (sheetShouldDismiss(drag.get(), event.velocityY, height.get(), motionDistances.sheetDismissRatio)) {
+      if (expandable) {
+        const outcome = resolveSheetRelease({
+          startHeight: startH.get(),
+          height: sheetH.get(),
+          offset: drag.get(),
+          velocityY: event.velocityY,
+          compact: compactH.get(),
+          expanded: expandedH.get(),
+          dismissRatio: motionDistances.sheetDismissRatio,
+        });
+        if (outcome === 'dismiss') {
+          scheduleOnRN(onClose);
+        } else {
+          const target = outcome === 'expanded' ? expandedH.get() : compactH.get();
+          sheetH.set(withSpring(target, { ...sheetSpring, velocity: -event.velocityY }));
+          drag.set(withSpring(0, { ...sheetSpring, velocity: event.velocityY }));
+          scheduleOnRN(applyMode, outcome);
+        }
+      } else if (sheetShouldDismiss(drag.get(), event.velocityY, height.get(), motionDistances.sheetDismissRatio)) {
         scheduleOnRN(onClose);
       } else {
         // Relâché trop tôt : le panneau revient avec la vitesse du geste (ressort, sans rebond).
-        drag.set(withSpring(0, { ...spring('sheetResize'), velocity: event.velocityY }));
+        drag.set(withSpring(0, { ...sheetSpring, velocity: event.velocityY }));
       }
     });
 
@@ -132,11 +248,12 @@ export function BottomSheet({ visible, onClose, children, accessibilityLabel, di
     bottom: floating.value * (keyboard.value + FLOATING_MARGIN),
     borderBottomLeftRadius: floating.value * radius.sheet,
     borderBottomRightRadius: floating.value * radius.sheet,
-    transform: [{ translateY: (1 - progress.value) * height.value + Math.max(drag.value, -24) }],
+    transform: [{ translateY: (1 - progress.value) * (expandable ? sheetH.value : height.value) + Math.max(drag.value, -24) }],
   }));
+  const heightStyle = useAnimatedStyle(() => (expandable ? { height: sheetH.value } : {}));
   // Le voile s'éclaircit aussi quand on tire le panneau vers le bas.
   const dragFade = useAnimatedStyle(() => ({
-    opacity: interpolate(Math.max(drag.value, 0), [0, height.value], [1, 0.4], 'clamp'),
+    opacity: interpolate(Math.max(drag.value, 0), [0, expandable ? sheetH.value : height.value], [1, 0.4], 'clamp'),
   }));
 
   if (!mounted) return null;
@@ -169,7 +286,7 @@ export function BottomSheet({ visible, onClose, children, accessibilityLabel, di
         <Animated.View
           accessibilityLabel={accessibilityLabel}
           accessibilityViewIsModal
-          onLayout={(event) => setSheetHeight(event.nativeEvent.layout.height)}
+          onLayout={expandable ? undefined : (event) => setSheetHeight(event.nativeEvent.layout.height)}
           style={[
             {
               position: 'absolute',
@@ -179,9 +296,10 @@ export function BottomSheet({ visible, onClose, children, accessibilityLabel, di
               borderTopRightRadius: radius.sheet,
               ...glass.style,
               boxShadow: shadows.sheet,
-              paddingBottom: Math.max(insets.bottom, space.screen),
+              paddingBottom: bottomPadding,
             },
             sheetStyle,
+            heightStyle,
           ]}>
           <GlassOverlay variant="sheet" radius={radius.sheet - 1} squareBottom />
           <GestureDetector gesture={pan}>
@@ -189,7 +307,25 @@ export function BottomSheet({ visible, onClose, children, accessibilityLabel, di
               <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: withAlpha(colors.textMuted, 0.45) }} />
             </View>
           </GestureDetector>
-          <View style={{ paddingHorizontal: space.screen }}>{children}</View>
+          {expandable ? (
+            <>
+              <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ paddingHorizontal: space.screen, paddingBottom: 4 }}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                onContentSizeChange={(_width, contentSize) => setContentHeight(Math.ceil(contentSize))}>
+                {children}
+              </ScrollView>
+              <View
+                onLayout={(event) => setFooterHeight(Math.ceil(event.nativeEvent.layout.height))}
+                style={{ paddingHorizontal: space.screen, paddingTop: 12 }}>
+                {footer}
+              </View>
+            </>
+          ) : (
+            <View style={{ paddingHorizontal: space.screen }}>{children}</View>
+          )}
         </Animated.View>
       </GestureHandlerRootView>
     </Modal>
