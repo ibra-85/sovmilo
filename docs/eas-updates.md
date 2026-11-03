@@ -8,7 +8,7 @@ Une mise à jour « OTA » remplace le **JavaScript** d'une application déjà i
 | --- | --- |
 | `expo-updates` installé (`~58.0.20`, via `npx expo install`) | ✅ |
 | `runtimeVersion` = politique `fingerprint` | ✅ 🧪 (configuration + empreintes locales) |
-| `updates.url` calculée depuis `extra.eas.projectId` | ✅ 🧪 ; **projectId absent** : 👤 ☁️ `eas init` |
+| `updates.url` calculée depuis `extra.eas.projectId` | ✅ 🧪 ; `eas init` fait par le propriétaire (`extra.eas.projectId` et `owner` dans `app.json`) ; adresse non encore testée en réel 📱 🔗 |
 | Canaux `preview` / `production` écrits dans `eas.json` | ✅ 🧪 (structure) |
 | Aucune publication automatique (pas de workflow, pas de script de publication) | ✅ |
 | Vérification manuelle dans Paramètres (états, hors connexion, Expo Go) | ✅ 🧪 (logique pure testée) |

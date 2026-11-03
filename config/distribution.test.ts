@@ -70,7 +70,15 @@ describe('mises à jour', () => {
   });
 
   it('sans identifiant de projet : aucune adresse inventée, expo-updates reste désactivé', () => {
-    expect(resolve(undefined).updates?.url).toBeUndefined();
+    const withoutProject = { ...staticConfig, extra: { ...staticConfig.extra, eas: undefined } };
+    expect(resolve(undefined, withoutProject).updates?.url).toBeUndefined();
+  });
+
+  it('identifiant de projet de app.json (écrit par `eas init`) : au format UUID, adresse dérivée', () => {
+    const projectId = (staticConfig.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId;
+    if (projectId === undefined) return; // pas encore de `eas init` : rien à contrôler
+    expect(projectId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    expect(resolve(undefined).updates?.url).toBe(`https://u.expo.dev/${projectId}`);
   });
 
   it('avec un identifiant de projet : adresse EAS Update dérivée, jamais saisie à la main', () => {
