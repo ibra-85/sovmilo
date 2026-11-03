@@ -1,7 +1,10 @@
 import Add01Icon from '@hugeicons/core-free-icons/Add01Icon';
+import MinusSignIcon from '@hugeicons/core-free-icons/MinusSignIcon';
 import Airplane01Icon from '@hugeicons/core-free-icons/Airplane01Icon';
 import Alert02Icon from '@hugeicons/core-free-icons/Alert02Icon';
 import AlertCircleIcon from '@hugeicons/core-free-icons/AlertCircleIcon';
+import Archive02Icon from '@hugeicons/core-free-icons/Archive02Icon';
+import ArchiveRestoreIcon from '@hugeicons/core-free-icons/ArchiveRestoreIcon';
 import ArrowDataTransferVerticalIcon from '@hugeicons/core-free-icons/ArrowDataTransferVerticalIcon';
 import ArrowDown01Icon from '@hugeicons/core-free-icons/ArrowDown01Icon';
 import ArrowDownLeft01Icon from '@hugeicons/core-free-icons/ArrowDownLeft01Icon';
@@ -16,6 +19,8 @@ import Calendar03Icon from '@hugeicons/core-free-icons/Calendar03Icon';
 import Camera01Icon from '@hugeicons/core-free-icons/Camera01Icon';
 import Cancel01Icon from '@hugeicons/core-free-icons/Cancel01Icon';
 import Coffee01Icon from '@hugeicons/core-free-icons/Coffee01Icon';
+import DatabaseExportIcon from '@hugeicons/core-free-icons/DatabaseExportIcon';
+import DatabaseRestoreIcon from '@hugeicons/core-free-icons/DatabaseRestoreIcon';
 import Delete02Icon from '@hugeicons/core-free-icons/Delete02Icon';
 import Download01Icon from '@hugeicons/core-free-icons/Download01Icon';
 import FirstAidKitIcon from '@hugeicons/core-free-icons/FirstAidKitIcon';
@@ -26,10 +31,12 @@ import House04Icon from '@hugeicons/core-free-icons/House04Icon';
 import Invoice01Icon from '@hugeicons/core-free-icons/Invoice01Icon';
 import KeyboardIcon from '@hugeicons/core-free-icons/KeyboardIcon';
 import Loading03Icon from '@hugeicons/core-free-icons/Loading03Icon';
+import Menu01Icon from '@hugeicons/core-free-icons/Menu01Icon';
 import MoreHorizontalIcon from '@hugeicons/core-free-icons/MoreHorizontalIcon';
 import PawPrintIcon from '@hugeicons/core-free-icons/PawPrintIcon';
 import PencilEdit01Icon from '@hugeicons/core-free-icons/PencilEdit01Icon';
 import PiggyBankIcon from '@hugeicons/core-free-icons/PiggyBankIcon';
+import Refresh01Icon from '@hugeicons/core-free-icons/Refresh01Icon';
 import Search01Icon from '@hugeicons/core-free-icons/Search01Icon';
 import Settings02Icon from '@hugeicons/core-free-icons/Settings02Icon';
 import Shirt01Icon from '@hugeicons/core-free-icons/Shirt01Icon';
@@ -70,11 +77,13 @@ const interfaceIcons = {
   income: Download01Icon, // « Ajouter un revenu »
   scanReceipt: Camera01Icon,
   createPlus: Add01Icon,
+  minus: MinusSignIcon,
   check: Tick02Icon,
   trash: Delete02Icon,
   note: PencilEdit01Icon,
   search: Search01Icon,
   more: MoreHorizontalIcon,
+  grip: Menu01Icon, // poignée de réorganisation (trois traits)
   keyboard: KeyboardIcon,
   calendar: Calendar03Icon,
 
@@ -85,6 +94,12 @@ const interfaceIcons = {
   chevronUp: ArrowUp01Icon,
   arrowIncome: ArrowUpRight01Icon,
   arrowExpense: ArrowDownLeft01Icon,
+
+  archive: Archive02Icon, // archiver : réversible, jamais en rouge
+  restore: ArchiveRestoreIcon, // restaurer un élément archivé (distinct de la flèche « Retour »)
+  backup: DatabaseExportIcon, // sauvegarder mes données (Paramètres)
+  restoreData: DatabaseRestoreIcon, // restaurer une sauvegarde (Paramètres)
+  refresh: Refresh01Icon, // vérifier les mises à jour
 
   // États
   nearLimit: AlertCircleIcon,

@@ -9,6 +9,7 @@ import {
   CategoryIcon,
   ChoiceGroup,
   ConfirmDialog,
+  Icon,
   MorphingPopover,
   Text,
   useToast,
@@ -61,6 +62,7 @@ export function useCategoryActions(kind: CategoryKind, onDeleted?: (id: string) 
   const [failed, setFailed] = useState(false);
 
   const name = target ? categoryLabel(target, t) : '';
+  const fromTile = align === 'center';
   // Hauteur de la zone défilante du panneau de déplacement : l'écran, moins les zones système, la poignée et le haut du
   // panneau (≈ 96 dp), et la partie fixe du bas (deux boutons ≈ 144 dp + le texte des conséquences, qui grandit avec le texte).
   const fixedBottom = 144 + 96 * Math.min(window.fontScale, 1.8);
@@ -131,12 +133,35 @@ export function useCategoryActions(kind: CategoryKind, onDeleted?: (id: string) 
       <MorphingPopover
         anchor={anchor}
         onClose={() => setAnchor(null)}
+        onReopen={setAnchor}
         accessibilityLabel={t('categoryManager.menu')}
-        anchorRadius={radius.tile}
+        // Appui long sur une tuile (`center`) : le menu part de la tuile. Bouton ⋯ d'une ligne (`end`) : il part du bouton.
+        anchorRadius={fromTile ? radius.tile : radius.iconButton}
         align={align}
+        triggerContent={
+          fromTile ? (
+            target && <CategoryIcon value={target.icon} size={26} />
+          ) : (
+            <Icon name="more" size={22} color={colors.ink} />
+          )
+        }
+        // Libellés courts : le contexte dit déjà qu'on agit sur une catégorie. TalkBack, lui, lit le nom complet.
         items={[
-          { key: 'edit', icon: 'note', label: t('categoryManager.edit'), onPress: () => setEditing(true) },
-          { key: 'delete', icon: 'trash', label: t('categoryManager.delete'), destructive: true, onPress: startDelete },
+          {
+            key: 'edit',
+            icon: 'note',
+            label: t('categoryManager.edit'),
+            accessibilityLabel: t('categoryManager.editA11y', { name }),
+            onPress: () => setEditing(true),
+          },
+          {
+            key: 'delete',
+            icon: 'trash',
+            label: t('categoryManager.delete'),
+            accessibilityLabel: t('categoryManager.deleteA11y', { name }),
+            destructive: true,
+            onPress: startDelete,
+          },
         ]}
       />
 

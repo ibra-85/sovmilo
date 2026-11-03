@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 
@@ -27,7 +27,8 @@ import { useContentWidth } from '@/hooks/use-content-width';
 import { layoutAmount } from '@/theme/amount-layout';
 import { setOperationsTypeFilter } from '@/hooks/use-operations-filter';
 import { useSelectedMonth } from '@/hooks/use-selected-month';
-import { useToday } from '@/hooks/use-today';
+import { useDataRefresh } from '@/hooks/use-data-refresh';
+import { useTodayClock } from '@/hooks/use-today';
 import { useLocale } from '@/i18n/use-locale';
 import { formatMoney } from '@/domain/money';
 import { sizes, space } from '@/theme/layout';
@@ -50,7 +51,9 @@ export function HomeScreen() {
   const tabContentStyle = useTabContentStyle();
   const router = useRouter();
   const { colors } = useTheme();
-  const today = useToday();
+  const { today, refresh: refreshToday } = useTodayClock();
+  // Tirer pour actualiser : relit la date du jour et toutes les requêtes (montants, budgets, dernières opérations). Rien n'est écrit.
+  const { refreshControl } = useDataRefresh({ before: useCallback(() => void refreshToday(), [refreshToday]) });
   const { month } = useSelectedMonth();
   const present = useTransactionPresenter();
   const contentWidth = useContentWidth();
@@ -83,6 +86,7 @@ export function HomeScreen() {
       <ScreenHeader title="Sovmilo" logotype trailing={<PeriodSelector />} />
 
       <ScrollView
+        refreshControl={refreshControl}
         contentContainerStyle={[{ paddingHorizontal: space.screen, paddingTop: 18 }, tabContentStyle]}
         showsVerticalScrollIndicator={false}>
         {/* Résultat du mois : posé sur le fond, sans carte */}

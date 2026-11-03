@@ -10,6 +10,7 @@ export { ChoiceGroup, type ChoiceOption } from './choice-group';
 export { CategoryTile } from './category-tile';
 export { ConfirmDialog } from './confirm-dialog';
 export { Divider } from './divider';
+export { PopoverHostProvider } from './popover-host';
 export { MorphingPopover, useAnchorMeasure, usePopoverTrigger, type PopoverAlign, type PopoverAnchor, type PopoverItem } from './morphing-popover';
 export { GlassOverlay, GlassSurface, useGlassLook, type GlassSurfaceProps } from './glass-surface';
 export { FieldGroup, FormRow, InfoRow, ServiceRow } from './field-group';

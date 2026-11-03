@@ -2,8 +2,11 @@ import {
   TAB_ICON_SIZE,
   TAB_LABEL_GAP,
   TAB_MIN_INACTIVE,
+  TAB_PILL_PADDING,
+  TAB_PILL_PADDING_MIN,
   activeTabWidth,
   computeTabLayout,
+  fitPillPadding,
   shouldUseIconsOnly,
   tabIconLeft,
   tabLabelOpacity,
@@ -72,6 +75,57 @@ describe('shouldUseIconsOnly', () => {
 
   it('passe en icônes seules quand un libellé est trop long pour laisser 44 dp aux autres', () => {
     expect(shouldUseIconsOnly(INNER, [activeTabWidth(60), activeTabWidth(120), activeTabWidth(60), activeTabWidth(60)], 1)).toBe(true);
+  });
+});
+
+describe('libellés français : « Opérations » ne doit pas masquer tous les libellés', () => {
+  // Largeurs mesurées dans Inter semi-gras 14 (mesure du fichier de police, +1 comme le composant) : voir fitPillPadding.
+  const FR = [52, 76, 58, 60]; // Accueil, Opérations, Budgets, Services
+  const RU = [59, 72, 70, 65]; // Главная, Операции, Бюджеты, Сервисы
+  const widthsOf = (labels: number[], padding: number) => labels.map((label) => activeTabWidth(label, padding));
+
+  it('cause du bug : avec la marge de 14 dp, le français passait en icônes seules sur 393 dp (barre de 267 dp), le russe non', () => {
+    expect(shouldUseIconsOnly(INNER, widthsOf(FR, TAB_PILL_PADDING), 1)).toBe(true);
+    expect(shouldUseIconsOnly(INNER, widthsOf(RU, TAB_PILL_PADDING), 1)).toBe(false);
+  });
+
+  it('correction : la marge est réduite juste ce qu\'il faut et le français garde ses libellés', () => {
+    const padding = fitPillPadding(INNER, FR);
+    expect(padding).toBeLessThan(TAB_PILL_PADDING);
+    expect(padding).toBeGreaterThanOrEqual(TAB_PILL_PADDING_MIN);
+    expect(shouldUseIconsOnly(INNER, widthsOf(FR, padding), 1)).toBe(false);
+  });
+
+  it('le russe garde exactement la marge du design', () => {
+    expect(fitPillPadding(INNER, RU)).toBe(TAB_PILL_PADDING);
+    expect(fitPillPadding(INNER + 60, FR)).toBe(TAB_PILL_PADDING); // écran plus large : rien ne change non plus en français
+  });
+
+  it('la géométrie reste exacte : barre remplie, onglets inactifs d\'au moins 44 dp, pastille qui contient son libellé', () => {
+    const padding = fitPillPadding(INNER, FR);
+    const active = widthsOf(FR, padding);
+    for (let position = 0; position <= 3; position += 0.25) {
+      const { widths, weights, pillWidth } = computeTabLayout(position, INNER, active, false);
+      expect(widths.reduce((a, b) => a + b, 0)).toBeCloseTo(INNER, 6);
+      widths.forEach((width, k) => {
+        if (weights[k] === 0) expect(width).toBeGreaterThanOrEqual(TAB_MIN_INACTIVE - 1e-6);
+      });
+      if (position === 1) expect(pillWidth).toBeGreaterThanOrEqual(FR[1] + TAB_ICON_SIZE + TAB_LABEL_GAP + 2 * TAB_PILL_PADDING_MIN);
+    }
+  });
+
+  it('changement de langue à chaud : les largeurs mesurées changent, la marge et le mode suivent', () => {
+    expect(shouldUseIconsOnly(INNER, widthsOf(RU, fitPillPadding(INNER, RU)), 1)).toBe(false);
+    expect(shouldUseIconsOnly(INNER, widthsOf(FR, fitPillPadding(INNER, FR)), 1)).toBe(false);
+    expect(shouldUseIconsOnly(INNER, widthsOf(RU, fitPillPadding(INNER, RU)), 1)).toBe(false);
+  });
+
+  it('limites inchangées : texte agrandi à 130 %, ou libellé vraiment trop long, restent en icônes seules', () => {
+    expect(shouldUseIconsOnly(INNER, widthsOf(FR, fitPillPadding(INNER, FR)), 1.3)).toBe(true);
+    const tooLong = [52, 130, 58, 60];
+    expect(shouldUseIconsOnly(INNER, widthsOf(tooLong, fitPillPadding(INNER, tooLong)), 1)).toBe(true);
+    expect(fitPillPadding(INNER, tooLong)).toBe(TAB_PILL_PADDING_MIN);
+    expect(fitPillPadding(INNER, [60])).toBe(TAB_PILL_PADDING);
   });
 });
 

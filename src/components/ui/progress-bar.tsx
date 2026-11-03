@@ -13,6 +13,8 @@ interface ProgressBarProps {
   thickness?: 'thin' | 'thick';
   /** Dépassement : seul cas où le remplissage change de couleur (jamais par catégorie). */
   over?: boolean;
+  /** Objectif atteint : le remplissage prend la couleur « réussite » du thème (l'état reste aussi écrit dans le texte de la ligne). */
+  complete?: boolean;
 }
 
 /**
@@ -20,7 +22,7 @@ interface ProgressBarProps {
  * remplit en 300 ms à l'affichage puis suit les changements. Purement visuelle : la valeur est annoncée par le texte de
  * la ligne (pourcentage et montants), la barre est donc masquée aux lecteurs d'écran.
  */
-export function ProgressBar({ percent, thickness = 'thin', over = false }: ProgressBarProps) {
+export function ProgressBar({ percent, thickness = 'thin', over = false, complete = false }: ProgressBarProps) {
   const { colors } = useTheme();
   const { timing } = useMotion();
   const fill = useSharedValue(0);
@@ -39,7 +41,7 @@ export function ProgressBar({ percent, thickness = 'thin', over = false }: Progr
       style={{ height, borderRadius: radius.progress, overflow: 'hidden', backgroundColor: colors.progressTrack }}>
       <Animated.View
         style={[
-          { height, borderRadius: radius.progress, backgroundColor: over ? colors.danger : colors.progressFill },
+          { height, borderRadius: radius.progress, backgroundColor: over ? colors.danger : complete ? colors.successIcon : colors.progressFill },
           style,
         ]}
       />

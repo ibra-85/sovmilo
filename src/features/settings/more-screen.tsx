@@ -9,7 +9,7 @@ import { space } from '@/theme/layout';
 
 /**
  * Services : solde manuel, épargne, catégories, paramètres, et les services à venir. Le design ne dessine pas cet écran
- * (À CONCEVOIR) : il est composé avec les éléments du design system. Un service qui n'existe pas encore (Factures, Courses,
+ * (À CONCEVOIR) : il est composé avec les éléments du design system. Un service qui n'existe pas encore (Factures,
  * Statistiques) est une ligne atténuée avec la pastille « Bientôt », NON touchable : aucune fausse interaction.
  * La langue et l'apparence sont dans Paramètres.
  */
@@ -36,13 +36,25 @@ export function MoreScreen() {
               icon="savings"
               title={t('services.savingsTitle')}
               text={t('services.savingsHelp')}
-              onPress={() => router.push({ pathname: '/add', params: { type: 'transfer' } })}
+              onPress={() => router.push('/savings')}
             />
             <ServiceRow
               icon="tag"
               title={t('services.categoriesTitle')}
               text={t('services.categoriesText')}
               onPress={() => router.push('/categories')}
+            />
+            <ServiceRow
+              icon="cart"
+              title={t('services.groceries')}
+              text={t('services.groceriesText')}
+              onPress={() => router.push('/shopping')}
+            />
+            <ServiceRow
+              icon="bills"
+              title={t('services.bills')}
+              text={t('services.billsText')}
+              onPress={() => router.push('/bills')}
             />
             <ServiceRow
               icon="settings"
@@ -58,8 +70,6 @@ export function MoreScreen() {
             {t('services.soonTitle')}
           </Text>
           <FieldGroup>
-            <ServiceRow icon="bills" title={t('services.bills')} text={t('services.billsText')} soonLabel={t('services.soon')} />
-            <ServiceRow icon="cart" title={t('services.groceries')} text={t('services.groceriesText')} soonLabel={t('services.soon')} />
             <ServiceRow icon="budgets" title={t('services.stats')} text={t('services.statsText')} soonLabel={t('services.soon')} />
           </FieldGroup>
         </View>

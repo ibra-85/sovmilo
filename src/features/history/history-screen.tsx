@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, View } from 'react-native';
 
@@ -26,7 +26,8 @@ import { useTransactionPresenter } from '@/features/transactions/use-presenter';
 import { useMonthOperations } from '@/features/transactions/use-transactions';
 import { useOperationsTypeFilter, type OperationsTypeFilter } from '@/hooks/use-operations-filter';
 import { useSelectedMonth } from '@/hooks/use-selected-month';
-import { useToday } from '@/hooks/use-today';
+import { useDataRefresh } from '@/hooks/use-data-refresh';
+import { useTodayClock } from '@/hooks/use-today';
 import { useLocale } from '@/i18n/use-locale';
 import { space, spacing } from '@/theme/layout';
 
@@ -46,7 +47,9 @@ export function HistoryScreen() {
   const locale = useLocale();
   const tabContentStyle = useTabContentStyle();
   const router = useRouter();
-  const today = useToday();
+  const { today, refresh: refreshToday } = useTodayClock();
+  // Tirer pour actualiser : relit la date et la liste. Filtre, recherche et mois consulté sont dans l'état de l'écran : ils restent.
+  const { refreshControl } = useDataRefresh({ before: useCallback(() => void refreshToday(), [refreshToday]) });
   const { month } = useSelectedMonth();
   const present = useTransactionPresenter();
   const categoryById = useCategoryMap();
@@ -88,6 +91,7 @@ export function HistoryScreen() {
 
       <FlatList
         data={rows}
+        refreshControl={refreshControl}
         keyExtractor={(row) => row.key}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}

@@ -80,7 +80,7 @@ interface ManageableTileProps {
 /** Tuile de catégorie ; une catégorie personnalisée y gagne l'appui long (sa position est mesurée pour ancrer le menu). */
 function ManageableTile({ category, selected, onSelect, onManage }: ManageableTileProps) {
   const { t } = useTranslation();
-  const { bind, measure } = useAnchorMeasure();
+  const { bind, measure, covered } = useAnchorMeasure();
   const manageable = onManage !== undefined && isCustomCategory(category);
 
   return (
@@ -92,6 +92,7 @@ function ManageableTile({ category, selected, onSelect, onManage }: ManageableTi
       onLongPress={manageable ? () => measure((anchor) => onManage(category, anchor, 'center')) : undefined}
       accessibilityHint={manageable ? t('categoryManager.longPressHint') : undefined}
       squareRef={bind}
+      covered={covered}
     />
   );
 }

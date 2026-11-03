@@ -47,3 +47,15 @@ example
 # design : références visuelles de tiers, jamais dans le dépôt public
 design/references/
 design/inspiration/
+
+# sauvegardes et secrets de signature : jamais dans le depot (Lot 7)
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.keystore
+credentials.json
+*.aab
+*.apk
+sovmilo-backup-*

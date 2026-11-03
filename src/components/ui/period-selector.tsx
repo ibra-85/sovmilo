@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 
-import { formatMonthLabel, recentMonths } from '@/domain/dates';
+import { formatMonthLabel, recentMonths, shiftMonth } from '@/domain/dates';
 import { useSelectedMonth } from '@/hooks/use-selected-month';
 import { useLocale } from '@/i18n/use-locale';
 import { radius, sizes, touchSlop } from '@/theme/layout';
@@ -21,23 +21,48 @@ const MONTH_CHOICES = 12;
  * Le design ne dessine que le déclencheur ; le panneau de choix est un menu déroulant vitré (PROPOSITION) qui liste les
  * douze derniers mois. Le mois choisi est partagé par Accueil, Opérations et Budgets (`useSelectedMonth`).
  */
-export function PeriodSelector() {
+interface PeriodSelectorProps {
+  /**
+   * Mois à venir proposés EN PLUS des douze derniers (0 par défaut : Accueil, Opérations et Budgets ne regardent pas l'avenir).
+   * Les échéances de Factures, elles, se préparent à l'avance.
+   */
+  futureMonths?: number;
+  /** Mois choisi et son changement, quand l'écran gère SON PROPRE mois au lieu du mois partagé (Factures). */
+  value?: { month: string; onChange: (month: string) => void };
+}
+
+export function PeriodSelector({ futureMonths = 0, value }: PeriodSelectorProps = {}) {
   const { t } = useTranslation();
   const locale = useLocale();
   const { colors, shadows } = useTheme();
-  const { month, currentMonth, setMonth } = useSelectedMonth();
-  const { bindTrigger, anchor: menuAnchor, open: openMenu, close: closeMenu, isOpen: menuOpen } = usePopoverTrigger();
+  const shared = useSelectedMonth();
+  const { currentMonth } = shared;
+  const month = value?.month ?? shared.month;
+  const setMonth = value?.onChange ?? shared.setMonth;
+  const { bindTrigger, coverStyle, anchor: menuAnchor, open: openMenu, close: closeMenu, reopen: reopenMenu, isOpen: menuOpen } = usePopoverTrigger();
 
   const choices = useMemo(() => {
-    const months = recentMonths(currentMonth, MONTH_CHOICES);
+    const future = Array.from({ length: futureMonths }, (_, i) => shiftMonth(currentMonth, futureMonths - i));
+    const months = [...future, ...recentMonths(currentMonth, MONTH_CHOICES)];
     return months.includes(month) ? months : [...months, month];
-  }, [currentMonth, month]);
+  }, [currentMonth, month, futureMonths]);
 
   const label = formatMonthLabel(month, locale);
 
+  // Contenu de la pastille, partagé avec le popover : il s'y efface à l'identique pendant que le menu apparaît.
+  const pillContent = (
+    <>
+      <Icon name="calendar" size={18} />
+      <Text variant="secondary" numberOfLines={1}>
+        {label}
+      </Text>
+      <Icon name="chevronDown" size={16} color={colors.textMuted} />
+    </>
+  );
+
   return (
     <>
-      <View ref={bindTrigger} collapsable={false}>
+      <View ref={bindTrigger} collapsable={false} style={coverStyle}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('period.a11y', { month: label })}
@@ -57,18 +82,16 @@ export function PeriodSelector() {
             borderColor: colors.surfaceBorder,
             boxShadow: shadows.tile,
           })}>
-          <Icon name="calendar" size={18} />
-          <Text variant="secondary" numberOfLines={1}>
-            {label}
-          </Text>
-          <Icon name="chevronDown" size={16} color={colors.textMuted} />
+          {pillContent}
         </Pressable>
       </View>
 
       <MorphingPopover
         anchor={menuAnchor}
         onClose={closeMenu}
+        onReopen={reopenMenu}
         accessibilityLabel={t('period.menu')}
+        triggerContent={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>{pillContent}</View>}
         items={choices.map((choice) => ({
           key: choice,
           label: formatMonthLabel(choice, locale),

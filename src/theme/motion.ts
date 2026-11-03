@@ -57,6 +57,9 @@ export const durations = {
   skeletonFadeIn: 150,
   /** Fondu court conservé quand les animations sont réduites (≤ 100 ms). */
   reducedFade: 100,
+  /** Changement de mode d'un écran (Épargne ↔ Réorganiser) : le contenu sort (100 ms), puis le nouveau entre (160 ms). */
+  modeOut: 100,
+  modeIn: 160,
 } as const satisfies Record<string, number>;
 
 export type DurationName = keyof typeof durations;
@@ -72,6 +75,8 @@ export const motionDistances = {
   dropdownScaleFrom: 0.95,
   /** Notification : translation de départ. */
   toastTranslateY: 8,
+  /** Changement de mode d'un écran : léger déplacement vertical du contenu qui entre / sort. */
+  modeTranslateY: 6,
   /** Bouton pressé : enfoncement. */
   pressTranslateY: 1,
   /** Rotation de l'icône + vers ×. */
@@ -88,6 +93,8 @@ export const motionDistances = {
  * mais avec une vitesse remise à zéro et une nouvelle durée complète. Limite réelle de Reanimated 4 : si le nouvel
  * objectif est dans le sens CONTRAIRE du mouvement en cours, la vitesse est annulée (le mouvement s'arrête net puis repart),
  * il n'y a pas d'inversion par inertie. La position, elle, ne saute jamais.
+ * Le popover (`MorphingPopover`) n'utilise PAS ce mécanisme : son moteur garde position et vitesse à l'inversion
+ * (voir `components/ui/popover-motion.ts`).
  *
  * Ressort amorti critique (`dampingRatio: 1`) et `overshootClamping` : aucun rebond. `duration` de Reanimated est une
  * durée « perçue » : la durée réelle est environ 1,5 fois plus longue, donc on la dérive des durées de ce fichier.

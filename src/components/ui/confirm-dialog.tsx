@@ -15,6 +15,11 @@ interface ConfirmDialogProps {
   title: string;
   /** Rappel de l'élément concerné (ligne d'opération, nom de budget) sous le titre. */
   children?: ReactNode;
+  /**
+   * `destructive` (défaut) : suppression, perte de données : icône et bouton d'alerte. `neutral` : action réversible (archiver) :
+   * icône et bouton aux couleurs normales de l'application, sans rouge.
+   */
+  tone?: 'destructive' | 'neutral';
   icon?: IconName;
   cancelLabel: string;
   confirmLabel: string;
@@ -35,15 +40,17 @@ export function ConfirmDialog({
   visible,
   title,
   children,
-  icon = 'trash',
+  tone = 'destructive',
+  icon = tone === 'neutral' ? 'archive' : 'trash',
   cancelLabel,
   confirmLabel,
-  confirmIcon = 'trash',
+  confirmIcon = tone === 'neutral' ? 'check' : 'trash',
   busy = false,
   onCancel,
   onConfirm,
 }: ConfirmDialogProps) {
   const { colors } = useTheme();
+  const neutral = tone === 'neutral';
 
   return (
     <BottomSheet visible={visible} onClose={onCancel} accessibilityLabel={title} dismissible={!busy}>
@@ -54,11 +61,11 @@ export function ConfirmDialog({
           borderRadius: radius.iconButton,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: colors.dangerSoft,
-          borderWidth: 1,
+          backgroundColor: neutral ? colors.surfaceMuted : colors.dangerSoft,
+          borderWidth: neutral ? 0 : 1,
           borderColor: colors.dangerLine,
         }}>
-        <Icon name={icon} size={22} color={colors.danger} />
+        <Icon name={icon} size={22} color={neutral ? colors.ink : colors.danger} />
       </View>
 
       <Text variant="titleSheet" accessibilityRole="header" style={{ marginTop: 16 }}>
@@ -71,7 +78,7 @@ export function ConfirmDialog({
         <Button label={cancelLabel} variant="secondary" disabled={busy} onPress={onCancel} style={{ flex: 1 }} />
         <Button
           label={confirmLabel}
-          variant="destructive"
+          variant={neutral ? 'primary' : 'destructive'}
           icon={confirmIcon}
           loading={busy}
           onPress={onConfirm}

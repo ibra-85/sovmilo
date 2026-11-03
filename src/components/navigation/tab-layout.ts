@@ -13,8 +13,10 @@
 export const TAB_ICON_SIZE = 24;
 /** Espace entre l'icône et le libellé de l'onglet actif. */
 export const TAB_LABEL_GAP = 8;
-/** Marge interne horizontale de la pastille active. */
+/** Marge interne horizontale de la pastille active (celle du design). */
 export const TAB_PILL_PADDING = 14;
+/** Marge minimale quand le libellé le plus long serre la barre : en dessous, on passe en icônes seules. */
+export const TAB_PILL_PADDING_MIN = 8;
 /** Largeur minimale d'un onglet inactif : sa zone visible (la zone tactile est portée à 48 dp par `hitSlop`). */
 export const TAB_MIN_INACTIVE = 44;
 /** Au-delà de ce facteur d'agrandissement du texte, la barre passe en icônes seules (dessiné : 130 %). */
@@ -29,15 +31,28 @@ export interface TabGeometry {
   pillWidth: number;
 }
 
-/** Largeur de la pastille active d'un onglet, d'après la largeur mesurée de son libellé. */
-export function activeTabWidth(labelWidth: number): number {
+/** Largeur de la pastille active d'un onglet, d'après la largeur mesurée de son libellé (et la marge, voir `fitPillPadding`). */
+export function activeTabWidth(labelWidth: number, padding: number = TAB_PILL_PADDING): number {
   'worklet';
-  return labelWidth + TAB_ICON_SIZE + TAB_LABEL_GAP + TAB_PILL_PADDING * 2;
+  return labelWidth + TAB_ICON_SIZE + TAB_LABEL_GAP + padding * 2;
+}
+
+/**
+ * Marge interne de la pastille : celle du design (14 dp) tant que le libellé le plus long laisse 44 dp à chacun des autres onglets,
+ * puis réduite (jusqu'à 8 dp) pour garder les libellés au lieu de basculer toute la barre en icônes seules. Sans cela, « Opérations »
+ * (75 dp en Inter 14 semi-gras, 4 dp de plus que « Операции ») suffisait à masquer tous les libellés en français sur un écran de 393 dp.
+ */
+export function fitPillPadding(innerWidth: number, labelWidths: readonly number[]): number {
+  if (labelWidths.length < 2) return TAB_PILL_PADDING;
+  const room = innerWidth - (labelWidths.length - 1) * TAB_MIN_INACTIVE;
+  const padding = Math.floor((room - Math.max(...labelWidths) - TAB_ICON_SIZE - TAB_LABEL_GAP) / 2);
+  return Math.min(TAB_PILL_PADDING, Math.max(TAB_PILL_PADDING_MIN, padding));
 }
 
 /**
  * Faut-il n'afficher que les icônes ? Oui quand le texte système est très agrandi, ou quand le libellé actif le plus
- * long ne laisse pas 44 dp aux autres onglets (longs libellés russes, petit écran).
+ * long ne laisse pas 44 dp aux autres onglets, même avec la marge réduite au minimum (longs libellés, petit écran).
+ * `activeWidths` doit être calculé avec `fitPillPadding`.
  */
 export function shouldUseIconsOnly(innerWidth: number, activeWidths: readonly number[], fontScale: number): boolean {
   if (fontScale >= TAB_ICONS_ONLY_FONT_SCALE) return true;
